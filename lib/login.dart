@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project/tool.dart'; // โยงไปหน้าอุปกรณ์หลังล็อกอินเสร็จ
+import 'package:project/register.dart';
+import 'package:project/menu.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -23,8 +25,14 @@ class LoginPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context), // กดกลับ
+                GestureDetector(  
+                  onTap: () {
+                    // ใช้ pushReplacement เพื่อไม่ให้ผู้ใช้กดกลับมาหน้า Login ได้อีกผ่านปุ่ม back ของมือถือ
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MenuPage()), // เปลี่ยน MenuPage เป็นชื่อ Class ของคุณ
+                    );
+                  },
                   child: const Icon(Icons.reply, size: 40, color: Colors.black),
                 ),
                 const SizedBox(height: 50),
@@ -41,7 +49,12 @@ class LoginPage extends StatelessWidget {
                   Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ToolPage()));
                 }),
                 const SizedBox(height: 15),
-                _buildButton("ลงทะเบียนอุปกรณ์", const Color(0xFF1D460B), () {}),
+                _buildButton("ลงทะเบียนอุปกรณ์", const Color(0xFF1D460B), () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const RegisterPage()),
+                  );
+                }),
                 const SizedBox(height: 20),
                 const Center(
                   child: Text("ลืมรหัสผ่าน?", style: TextStyle(color: Colors.black54, fontSize: 16)),

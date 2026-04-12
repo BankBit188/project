@@ -71,34 +71,35 @@ class ToolPage extends StatelessWidget {
                         ),
                         onSelected: (String value) {
                           if (value == 'profile') {
-    // --- เพิ่มคำสั่งสำหรับเปลี่ยนไปหน้าโปรไฟล์ ---
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ProfilePage(),
-      ),
-    );
-    // ------------------------------------
-  } else if (value == 'report') {
-    _showReportDialog(context);
-  } else if (value == 'history') {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const HistoryPage(),
-      ),
-    );
-  } else if (value == 'logout') {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const MenuPage(isLoggedIn: false),
-      ),
-      (Route<dynamic> route) => false, 
-    );
-  } else {
-    print("คุณคลิกเลือก: $value");
-  }
+                            // --- เพิ่มคำสั่งสำหรับเปลี่ยนไปหน้าโปรไฟล์ ---
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ProfilePage(),
+                              ),
+                            );
+                            // ------------------------------------
+                          } else if (value == 'report') {
+                            _showReportDialog(context);
+                          } else if (value == 'history') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const HistoryPage(),
+                              ),
+                            );
+                          } else if (value == 'logout') {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const MenuPage(isLoggedIn: false),
+                              ),
+                              (Route<dynamic> route) => false,
+                            );
+                          } else {
+                            print("คุณคลิกเลือก: $value");
+                          }
                         },
                         itemBuilder: (BuildContext context) =>
                             <PopupMenuEntry<String>>[
