@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:project/navbars.dart';
+import 'package:project/navbar/navbars.dart';
 
 class ChatPage extends StatelessWidget {
   const ChatPage({super.key});
