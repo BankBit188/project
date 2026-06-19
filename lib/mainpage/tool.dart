@@ -8,6 +8,10 @@ import 'package:project/mainpage/profile.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart'; // 🟩 ลงแพ็กเกจเพิ่มเพื่อดึงรูปจากเครื่อง (flutter pub add image_picker)
 import 'package:project/service/reports_service.dart'; // 🟩 Import ไฟล์บริการจัดการ Report ที่เราเพิ่งสร้างร่วมกัน
+import 'package:project/service/user_service.dart'; // 🟩 เพิ่ม Import ตรงนี้เพื่อใช้ดึงข้อมูล Username ปัจจุบันมาส่ง Report
+
+import 'package:intl/date_symbol_data_local.dart'; // 🟩 สำหรับเปิดใช้งาน Locale ภาษาไทย
+import 'package:intl/intl.dart'; // 🟩 แพ็กเกจสำหรับจัดการ Format วันและเวลา
 
 // 🟩 เปลี่ยนโครงสร้างจาก StatelessWidget เป็น StatefulWidget เพื่อใช้ดึงข้อมูล Token ล่าสุด
 class ToolPage extends StatefulWidget {
@@ -21,23 +25,54 @@ class _ToolPageState extends State<ToolPage> {
   // 🟩 อินสแตนซ์ของ Secure Storage สำหรับอ่าน/ลบ Token
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
-  // 🟩 ตัวแปรสำหรับเก็บค่า Token เพื่อนำไปเช็คหรือส่งต่อให้ API ตัวอื่น
+  // 🟩 ตัวแปรสำหรับเก็บค่าเพื่อนำไปเช็คหรือส่งต่อให้ API ตัวอื่น
   String? _authToken;
+  String? _userId; // 🟩 เพิ่มสำหรับเก็บ User ID ไปควานหาชื่อผู้ใช้
+
+  // 🟩 ตัวแปรสำหรับเก็บสตริงวันเวลาปัจจุบันที่แปลงเป็นภาษาไทยแล้ว
+  String _currentDateTimeString = "";
 
   @override
   void initState() {
     super.initState();
+    _initThaiDateTime(); // 🟩 เรียกเซ็ตค่าและดึงวันเวลาปัจจุบันภาษาไทย
     _loadToken(); // 🟩 เรียกโหลด Token ทันทีเมื่อเปิดหน้าอุปกรณ๋ขึ้นมา
   }
 
-  // 🟩 ฟังก์ชันสำหรับดึง Token ออกจากหน่วยความจำ
+  // 🟩 ฟังก์ชันสำหรับดึงและจัดฟอร์แมตวันเวลาปัจจุบันให้เป็นภาษาไทย พ.ศ.
+  void _initThaiDateTime() {
+    // เปิดใช้งานข้อมูลวันเวลาในระบบภูมิภาคของภาษาไทย ('th')
+    initializeDateFormatting('th', null).then((_) {
+      final now = DateTime.now();
+      
+      // ฟอร์แมตวันที่ เช่น "20 มกราคม"
+      final dateNew = DateFormat('d MMMM', 'th').format(now);
+      
+      // ดึงปี ค.ศ. ปัจจุบันมาบวก 543 เพื่อทำเป็นปี พ.ศ.
+      final thaiYear = now.year + 543;
+      
+      // ฟอร์แมตเวลา เช่น "12.00"
+      final timeNew = DateFormat('HH.mm').format(now);
+
+      if (!mounted) return;
+      setState(() {
+        // นำมาประกอบร่างตาม Format ที่อยากได้: "20 มกราคม 2569   12.00"
+        _currentDateTimeString = "$dateNew $thaiYear   $timeNew";
+      });
+    });
+  }
+
+  // 🟩 ฟังก์ชันสำหรับดึง Token และ User ID ออกจากหน่วยความจำ
   Future<void> _loadToken() async {
     String? token = await _secureStorage.read(key: "auth_token");
+    String? userId = await _secureStorage.read(key: "user_id");
+    if (!mounted) return;
     setState(() {
       _authToken = token;
+      _userId = userId;
     });
-    // เทสพิมพ์พ่นดูใน Debug Console ว่า Token มาจริงไหม
-    print("ระบบตรวจสอบพบ Token ปัจจุบัน: $_authToken");
+    // เทสพิมพ์พ่นดูใน Debug Console ว่า ข้อมูลมาจริงไหม
+    print("ระบบตรวจสอบพบ Token ปัจจุบัน: $_authToken, UserID: $_userId");
   }
 
   @override
@@ -73,19 +108,21 @@ class _ToolPageState extends State<ToolPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 8.0),
+                    
+                    // 🛠️ ส่วนที่แก้ไข: นำข้อมูลตัวแปรจากวันเวลาปัจจุบันมาแสดงผลแทนค่าเดิมที่กรอกค้างไว้ (Static)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
                       child: Text(
-                        "20 มกราคม 2569   12.00",
-                        style: TextStyle(fontSize: 14),
+                        _currentDateTimeString.isNotEmpty 
+                            ? _currentDateTimeString 
+                            : "กำลังโหลดเวลา...", // แสดงข้อความรอระหว่างที่ format ทำงานแป๊บหนึ่ง
+                        style: const TextStyle(fontSize: 14),
                       ),
                     ),
 
                     // --- PopupMenuButton ---
                     Theme(
-                      data: Theme.of(
-                        context,
-                      ).copyWith(dividerColor: Colors.black54),
+                      data: Theme.of(context).copyWith(dividerColor: Colors.black54),
                       child: PopupMenuButton<String>(
                         icon: const Icon(
                           Icons.menu,
@@ -102,7 +139,6 @@ class _ToolPageState extends State<ToolPage> {
                           ),
                         ),
                         onSelected: (String value) async {
-                          // 🟩 ใส่ async เพื่อรอการจัดการระบบข้อมูลหลังบ้านตอนคลิก
                           if (value == 'profile') {
                             Navigator.push(
                               context,
@@ -120,16 +156,15 @@ class _ToolPageState extends State<ToolPage> {
                               ),
                             );
                           } else if (value == 'logout') {
-                            // 🟩 เมื่อกดออกจากระบบ ทำการลบ Token ออกจาก Secure Storage ทันทีเพื่อความปลอดภัยสูง
                             await _secureStorage.delete(key: "auth_token");
+                            await _secureStorage.delete(key: "user_id");
                             print("ลบ Token สำเร็จ ออกจากระบบเรียบร้อยแล้ว");
 
                             if (!mounted) return;
                             Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    const MenuPage(isLoggedIn: false),
+                                builder: (context) => const MenuPage(isLoggedIn: false),
                               ),
                               (Route<dynamic> route) => false,
                             );
@@ -137,19 +172,15 @@ class _ToolPageState extends State<ToolPage> {
                             print("คุณคลิกเลือก: $value");
                           }
                         },
-                        itemBuilder: (BuildContext context) =>
-                            <PopupMenuEntry<String>>[
-                              _buildPopupMenuItem('profile', 'โปรไฟล์'),
-                              const PopupMenuDivider(height: 1),
-                              _buildPopupMenuItem(
-                                'history',
-                                'ประวัติการบันทึก',
-                              ),
-                              const PopupMenuDivider(height: 1),
-                              _buildPopupMenuItem('report', 'รายงานปัญหา'),
-                              const PopupMenuDivider(height: 1),
-                              _buildPopupMenuItem('logout', 'ออกจากระบบ'),
-                            ],
+                        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                          _buildPopupMenuItem('profile', 'โปรไฟล์'),
+                          const PopupMenuDivider(height: 1),
+                          _buildPopupMenuItem('history', 'ประวัติการบันทึก'),
+                          const PopupMenuDivider(height: 1),
+                          _buildPopupMenuItem('report', 'รายงานปัญหา'),
+                          const PopupMenuDivider(height: 1),
+                          _buildPopupMenuItem('logout', 'ออกจากระบบ'),
+                        ],
                       ),
                     ),
                   ],
@@ -199,7 +230,6 @@ class _ToolPageState extends State<ToolPage> {
 
   // --- ส่วนของฟังก์ชันสร้าง ป๊อปอัป (Dialog) แจ้งปัญหา ---
   void _showReportDialog(BuildContext context) {
-    // 🟩 ประกาศตัวควบคุมข้อความและตัวจัดการไฟล์รูปภาพเฉพาะกิจไว้ใช้ภายใน Dialog ตัวนี้
     final TextEditingController titleController = TextEditingController();
     final TextEditingController detailController = TextEditingController();
     File? selectedImageFile;
@@ -207,8 +237,7 @@ class _ToolPageState extends State<ToolPage> {
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        // ใช้ StatefulBuilder เพื่อให้คำว่า "ยังไม่เลือกรูปภาพ" เปลี่ยนแปลงตามเวลาที่รูปถูกเลือกจริง
+      builder: (BuildContext dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return Dialog(
@@ -240,7 +269,11 @@ class _ToolPageState extends State<ToolPage> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: InkWell(
-                              onTap: () => Navigator.of(context).pop(),
+                              onTap: () {
+                                titleController.dispose();
+                                detailController.dispose();
+                                Navigator.of(context).pop();
+                              },
                               child: const Icon(
                                 Icons.close,
                                 color: Colors.red,
@@ -269,8 +302,7 @@ class _ToolPageState extends State<ToolPage> {
                                 border: Border.all(color: Colors.black54),
                               ),
                               child: TextField(
-                                controller:
-                                    titleController, // 🟩 ผูกตัวควบคุมตัวแปรคีย์ title
+                                controller: titleController,
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
                                   contentPadding: EdgeInsets.symmetric(
@@ -299,8 +331,7 @@ class _ToolPageState extends State<ToolPage> {
                           border: Border.all(color: Colors.black54),
                         ),
                         child: TextField(
-                          controller:
-                              detailController, // 🟩 ผูกตัวควบคุมตัวแปรคีย์รายละเอียด
+                          controller: detailController,
                           maxLines: null,
                           expands: true,
                           decoration: const InputDecoration(
@@ -322,9 +353,7 @@ class _ToolPageState extends State<ToolPage> {
                           Expanded(
                             child: Text(
                               selectedImageFile != null
-                                  ? selectedImageFile!.path
-                                        .split('/')
-                                        .last // 🟩 ตัดเอาชื่อไฟล์สั้นๆ มาโชว์
+                                  ? selectedImageFile!.path.split('/').last
                                   : "ยังไม่เลือกรูปภาพ",
                               style: const TextStyle(fontSize: 12),
                               overflow: TextOverflow.ellipsis,
@@ -340,7 +369,6 @@ class _ToolPageState extends State<ToolPage> {
                             ),
                             child: TextButton(
                               onPressed: () async {
-                                // 🟩 สั่งเปิดคลังภาพในมือถือเพื่อเลือกไฟล์
                                 final XFile? image = await picker.pickImage(
                                   source: ImageSource.gallery,
                                 );
@@ -351,9 +379,7 @@ class _ToolPageState extends State<ToolPage> {
                                 }
                               },
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
                                 minimumSize: Size.zero,
                               ),
                               child: const Text(
@@ -380,7 +406,6 @@ class _ToolPageState extends State<ToolPage> {
                           ),
                           child: TextButton(
                             onPressed: () async {
-                              // 1. ตรวจสอบข้อมูลเบื้องต้นว่าห้ามปล่อยหัวข้อให้ว่างเปล่า
                               if (titleController.text.trim().isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -390,7 +415,6 @@ class _ToolPageState extends State<ToolPage> {
                                 return;
                               }
 
-                              // แสดง Loading รอระหว่างส่งข้อมูล
                               showDialog(
                                 context: context,
                                 barrierDismissible: false,
@@ -400,58 +424,48 @@ class _ToolPageState extends State<ToolPage> {
                               );
 
                               try {
-                                // 2. ดึง username ของผู้ใช้งานปัจจุบันที่อาจจะเคยบันทึกไว้ตอน Login ออกมาจาก Secure Storage
-                                // (ถ้าตอนล็อคอินใช้คีย์อื่น เช่น "user_name" หรือ "email" ให้เปลี่ยนตรง "username" ใน read() นะครับ)
-                                String? currentUsername =
-                                    await _secureStorage.read(
-                                      key: "username",
-                                    ) ??
-                                    "ไม่ระบุชื่อผู้ใช้";
+                                String currentUsername = "ไม่ระบุชื่อผู้ใช้";
+                                
+                                if (_userId != null && _authToken != null) {
+                                  try {
+                                    final userData = await UserService.getUserById(_userId!, _authToken);
+                                    currentUsername = userData['username'] ?? "ไม่ระบุชื่อผู้ใช้";
+                                  } catch (userError) {
+                                    print("ดึงชื่อผู้ใช้ล้มเหลว: $userError");
+                                  }
+                                }
 
-                                // 3. แพ็กข้อมูลลง Map โดยใช้ชื่อ Key ตรงตามที่หลังบ้านกำหนดเป๊ะๆ
                                 Map<String, String> reportData = {
-                                  'username': currentUsername, // ชื่อผู้ใช้
-                                  'reporttitle': titleController.text
-                                      .trim(), // หัวข้อ
-                                  'reportdetail': detailController.text
-                                      .trim(), // รายละเอียด
+                                  'username': currentUsername,
+                                  'reporttitle': titleController.text.trim(),
+                                  'reportdetail': detailController.text.trim(),
                                 };
 
-                                // 4. สั่งส่งข้อมูลไปยัง ReportsService
-                                // (โดยใน ReportsService ต้องตั้งรับไฟล์รูปด้วยคีย์ 'img' ให้ตรงกันด้วยนะครับ)
                                 final response = await ReportsService.createReport(
                                   reportData: reportData,
-                                  imageFile:
-                                      selectedImageFile, // ไฟล์รูปภาพ (จะถูกแนบเป็นคีย์ 'img' ใน Service)
+                                  imageFile: selectedImageFile,
                                 );
 
                                 if (context.mounted) {
-                                  Navigator.of(
-                                    context,
-                                  ).pop(); // ปิด Loading dialog
-                                  Navigator.of(
-                                    context,
-                                  ).pop(); // ปิด แจ้งปัญหา dialog
+                                  Navigator.of(context).pop();
+                                  Navigator.of(context).pop();
 
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        response['message'] ??
-                                            'ส่งรายงานสำเร็จ',
+                                        response['message'] ?? 'ส่งรายงานสำเร็จ',
                                       ),
                                     ),
                                   );
+                                  titleController.dispose();
+                                  detailController.dispose();
                                 }
                               } catch (e) {
                                 if (context.mounted) {
-                                  Navigator.of(
-                                    context,
-                                  ).pop(); // ปิด Loading dialog
+                                  Navigator.of(context).pop();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text(
-                                        'ส่งข้อมูลล้มเหลวเนื่องจาก: $e',
-                                      ),
+                                      content: Text('ส่งข้อมูลล้มเหลวเนื่องจาก: $e'),
                                     ),
                                   );
                                 }
