@@ -19,8 +19,11 @@ class _EarthTypePageState extends State<EarthTypePage> {
   final int _itemsPerPage = 3; // แสดงหน้าละ 3 ชิ้นตามโครงสร้างเดิม
   String _selectedSoilType = "ดินร่วน"; // ค่าเริ่มต้นจำลองการคัดเลือกเป็นประเภทดินร่วน
 
+  // 🔹 ตัวแปรเก็บค่าประเภทพืชสำหรับปุ่มตัวกรอง (Icon)
+  String _selectedPlantType = "ทั้งหมด"; // ตัวเลือก: ทั้งหมด, พืชไร่, พืชสวน, พืชเศรษฐกิจ
+
   // 🔹 เพิ่มตัวแปร Ngrok สำหรับแปลงที่อยู่รูปภาพ
-  static const String ngrokUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev';
+  static const String ngrokUrl = 'https://uselessly-disclose-stungray.ngrok-free.dev';
 
   @override
   void initState() {
@@ -77,27 +80,53 @@ class _EarthTypePageState extends State<EarthTypePage> {
     }
   }
 
+  // 🔹 ฟังก์ชันรับค่าชื่อประเภทพืชภาษาไทย -> คืนค่าเป็นรหัสรหัสสากล (1, 2, 3) ตามที่ API ส่งมา
+  int _getPlantTypeCode(String plantTypeName) {
+    switch (plantTypeName) {
+      case "พืชไร่": return 1;
+      case "พืชสวน": return 2;
+      case "พืชเศรษฐกิจ": return 3;
+      default: return 0;
+    }
+  }
+
   // 🔹 ฟังก์ชันคำนวณคัดแยกคุณสมบัติดิน และจัดส่วนการแบ่งหน้า (Pagination)
   void _applyFilterAndPagination() {
-    int targetCode = _getSoilTypeCode(_selectedSoilType);
+    int targetSoilCode = _getSoilTypeCode(_selectedSoilType);
 
     // 1. กรองข้อมูลจากฟิลด์ "earthTypeCode" ให้ตรงกับประเภทดินที่กดเลือก
-    _filteredItems = _allRawItems.where((item) {
+    List<dynamic> tempFiltered = _allRawItems.where((item) {
       var codeValue = item['earthTypeCode'];
       if (codeValue == null) return false;
       
       int currentCode = codeValue is int ? codeValue : int.tryParse(codeValue.toString()) ?? 0;
-      return currentCode == targetCode;
+      return currentCode == targetSoilCode;
     }).toList();
 
-    // 2. ปรับยอดจำนวนหน้าแถบ Pagination ทั้งหมดใหม่
+    // 2. 🛠️ แก้ไขจุดนี้: ทำการกรองประเภทพืช (plantsTypeCode) ต่อจากที่กรองเรื่องดินเสร็จแล้ว
+    if (_selectedPlantType != "ทั้งหมด") {
+      int targetPlantCode = _getPlantTypeCode(_selectedPlantType);
+      
+      tempFiltered = tempFiltered.where((item) {
+        var typeValue = item['plantsTypeCode']; // ใช้คีย์ plantsTypeCode ตามที่ API ส่งมา
+        if (typeValue == null) return false;
+
+        int currentPlantCode = typeValue is int ? typeValue : int.tryParse(typeValue.toString()) ?? 0;
+        return currentPlantCode == targetPlantCode;
+      }).toList();
+    }
+
+    // กำหนดค่าผลลัพธ์สุดท้ายให้ตัวแปรแสดงผล
+    _filteredItems = tempFiltered;
+
+    // 3. ปรับยอดจำนวนหน้าแถบ Pagination ทั้งหมดใหม่
     _lastPage = (_filteredItems.length / _itemsPerPage).ceil();
     if (_lastPage < 1) _lastPage = 1;
 
-    // 3. ป้องกันหน้าปัจจุบับเตลิดกรณีเปลี่ยนชิปแล้วหน้าเกินขอบเขต
+    // 4. ป้องกันหน้าปัจจุบันเตลิดกรณีเปลี่ยนชิปแล้วหน้าเกินขอบเขต
     if (_currentPage > _lastPage) _currentPage = 1;
 
-    // 4. หั่นสไลด์ข้อมูลมาฉายในหน้าปัจจุบัน (เช่น หน้าละ 3 ตัว)
+    // 5. หั่นสไลด์ข้อมูลมาฉายในหน้าปัจจุบัน (เช่น หน้าละ 3 ตัว)
     int startIndex = (_currentPage - 1) * _itemsPerPage;
     _currentPageItems = _filteredItems
         .skip(startIndex)
@@ -138,7 +167,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // หัวข้อชื่อพืช + ปุ่มปิด
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -156,7 +184,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                // รูปภาพพืช
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
@@ -170,7 +197,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
                   ),
                 ),
                 const SizedBox(height: 15),
-                // ส่วนเนื้อหารายละเอียด (Scrollable)
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
@@ -195,7 +221,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
                         
                         const Divider(color: Colors.black26, height: 25),
                         
-                        // 🔹 แก้ไขจุดที่ 1: ส่วนหัวข้อธาตุอาหาร
                         const Center(
                           child: Text(
                             "สภาพดินและธาตุอาหารในดินที่เหมาะสม",
@@ -204,11 +229,10 @@ class _EarthTypePageState extends State<EarthTypePage> {
                         ),
                         const SizedBox(height: 15),
                         
-                        // 🔹 แก้ไขจุดที่ 2: ใช้ Wrap แทน Row เพื่อกระจายตัวอักษร ไม่ให้เกิดแถบเหลืองดำล้นหน้าจอ (Overflow)
                         Center(
                           child: Wrap(
-                            spacing: 15, // ระยะห่างแนวนอนระหว่างธาตุ
-                            runSpacing: 10, // ระยะห่างแนวตั้งกรณีขึ้นบรรทัดใหม่
+                            spacing: 15, 
+                            runSpacing: 10, 
                             alignment: WrapAlignment.center,
                             children: [
                               _buildNutrientText("N", _formatRange(item['minN'], item['maxN'])),
@@ -232,7 +256,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
                         ),
                         const SizedBox(height: 25),
                         
-                        // 🔹 แก้ไขจุดที่ 3: ปรับรูปแบบการจัดวางสิ่งแวดล้อมให้ขนานเป็นระเบียบตามภาพ UI ต้นฉบับ
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           child: Column(
@@ -274,7 +297,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
     );
   }
 
-  // Widget ย่อยช่วยสร้าง Text แสดงค่าธาตุอาหาร
   Widget _buildNutrientText(String label, String value) {
     return RichText(
       text: TextSpan(
@@ -288,8 +310,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
     );
   }
 
-  // Widget ตัวใหม่: ช่วยจัดแถวสภาพแวดล้อมแบ่งฝั่งซ้าย-ขวาอย่างละ 50% ให้สวยงามไม่ซ้อนทับกัน
-  // 🔹 ฟังก์ชันเวอร์ชันอัปเกรด: แก้ไขปัญหาข้อความโดนบีบ/ตัดเป็นจุดไข่ปลา (...)
   Widget _buildEnvGridRow({
     required IconData iconLeft, required Color colorLeft, required String titleLeft, required String valueLeft,
     required IconData iconRight, required Color colorRight, required String titleRight, required String valueRight,
@@ -297,7 +317,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 💧 ฝั่งซ้าย (เช่น ความชื้น, อุณหภูมิ)
         Expanded(
           flex: 1,
           child: Row(
@@ -305,7 +324,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
             children: [
               Icon(iconLeft, color: colorLeft, size: 28),
               const SizedBox(width: 8),
-              // ใช้ Expanded ครอบ Wrap เพื่อให้ใช้พื้นที่ฝั่งตัวเองได้เต็มที่และตัดบรรทัดเมื่อพื้นที่ไม่พอ
               Expanded(
                 child: Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
@@ -324,9 +342,8 @@ class _EarthTypePageState extends State<EarthTypePage> {
             ],
           ),
         ),
-        const SizedBox(width: 8), // ระยะห่างช่องว่างระหว่างฝั่งซ้ายและขวา
+        const SizedBox(width: 8), 
         
-        // 🧪 ฝั่งขวา (เช่น pH, ความเค็ม)
         Expanded(
           flex: 1,
           child: Row(
@@ -334,7 +351,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
             children: [
               Icon(iconRight, color: colorRight, size: 28),
               const SizedBox(width: 8),
-              // ใช้ Expanded ครอบ Wrap เช่นกัน ป้องกันปัญหาตัวอักษรโดนหั่นทิ้ง
               Expanded(
                 child: Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
@@ -416,7 +432,28 @@ class _EarthTypePageState extends State<EarthTypePage> {
                     _buildFilterChip("ดินเหนียว"),
                     _buildFilterChip("ดินทราย"),
                     const Spacer(),
-                    const Icon(Icons.filter_alt_outlined, size: 28, color: Colors.black),
+                    
+                    PopupMenuButton<String>(
+                      icon: Icon(
+                        _selectedPlantType == "ทั้งหมด" ? Icons.filter_alt_outlined : Icons.filter_alt, 
+                        size: 28, 
+                        color: _selectedPlantType == "ทั้งหมด" ? Colors.black : const Color(0xFF5A45FF)
+                      ),
+                      tooltip: 'กรองประเภทพืช',
+                      onSelected: (String value) {
+                        setState(() {
+                          _selectedPlantType = value;
+                          _currentPage = 1;
+                          _applyFilterAndPagination(); 
+                        });
+                      },
+                      itemBuilder: (BuildContext context) => [
+                        const PopupMenuItem<String>(value: "ทั้งหมด", child: Text("พืชทั้งหมด")),
+                        const PopupMenuItem<String>(value: "พืชไร่", child: Text("พืชไร่")),
+                        const PopupMenuItem<String>(value: "พืชสวน", child: Text("พืชสวน")),
+                        const PopupMenuItem<String>(value: "พืชเศรษฐกิจ", child: Text("พืชเศรษฐกิจ")),
+                      ],
+                    ),
                   ],
                 ),
                 const SizedBox(height: 15),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project/service/plants_service.dart';
-import 'package:flutter/foundation.dart'; // 👈 จำเป็นต้องใช้สำหรับตรวจสอบ kIsWeb
+import 'package:flutter/foundation.dart'; // จำเป็นต้องใช้สำหรับตรวจสอบ kIsWeb
 
 class PlantsPage extends StatefulWidget {
   const PlantsPage({super.key});
@@ -10,15 +10,19 @@ class PlantsPage extends StatefulWidget {
 }
 
 class _PlantsPageState extends State<PlantsPage> {
-  List<dynamic> _allRawItems = []; // 🔹 เก็บข้อมูลทั้งหมดที่ได้จาก API
-  List<dynamic> _currentPageItems = []; // 🔹 เก็บข้อมูลเฉพาะ 3 ชิ้นที่จะแสดงในหน้านั้นๆ
+  List<dynamic> _allRawItems = []; // เก็บข้อมูลทั้งหมดที่ได้จาก API
+  List<dynamic> _currentPageItems = []; // เก็บข้อมูลเฉพาะ 3 ชิ้นที่จะแสดงในหน้านั้นๆ
   bool _isLoading = false;
 
   int _currentPage = 1; // หน้าปัจจุบัน
-  int _lastPage = 1; // จำนวนหน้าทั้งหมด (คำนวณจาก ข้อมูลทั้งหมด / 3)
-  final int _itemsPerPage = 3; // 🔹 กำหนดให้แสดงหน้าละ 3 ข้อมูลคงที่
+  int _lastPage = 1; // จำนวนหน้าทั้งหมด
+  final int _itemsPerPage = 3; // กำหนดให้แสดงหน้าละ 3 ข้อมูลคงที่
 
-  // 🔹 เพิ่มลิงก์ทางผ่านหลักของ Ngrok สำหรับจัดการ URL รูปภาพพืชให้เป็นศูนย์กลาง
+  // 🔹 เปลี่ยนมาใช้ String แทน int? เพื่อแก้บั๊ก PopupMenuButton ไม่ยอมทำงานตอนเป็น null
+  // 'all' = แสดงทั้งหมด, '1' = พืชไร่, '2' = พืชสวน, '3' = พืชเศรษฐกิจ
+  String _selectedFilter = 'all'; 
+
+  // เพิ่มลิงก์ทางผ่านหลักของ Ngrok สำหรับจัดการ URL รูปภาพพืชให้เป็นศูนย์กลาง
   static const String ngrokUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev';
 
   @override
@@ -49,7 +53,7 @@ class _PlantsPageState extends State<PlantsPage> {
     return '$minVal - $maxVal';
   }
 
-  // 🔹 ฟังก์ชันดึงข้อมูลจาก API รอบเดียว แล้วจัดการแบ่งหน้าละ 3 ชิ้น
+  // ฟังก์ชันดึงข้อมูลจาก API รอบเดียว
   Future<void> _loadDataFromAPI() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -63,9 +67,6 @@ class _PlantsPageState extends State<PlantsPage> {
       if (mounted) {
         setState(() {
           _allRawItems = fetchedData;
-          _lastPage = (_allRawItems.length / _itemsPerPage).ceil();
-          if (_lastPage < 1) _lastPage = 1;
-
           _updateDisplayedItems(); 
         });
       }
@@ -78,19 +79,40 @@ class _PlantsPageState extends State<PlantsPage> {
     }
   }
 
-  // 🔹 ฟังก์ชันสำหรับตัดแบ่งข้อมูลมาแสดงแค่ 3 ชิ้นตามหน้าปัจจุบัน
+  // 🔹 ฟังก์ชันสำหรับกรองข้อมูลและตัดแบ่งข้อมูล (วนกลับมาแสดงทั้งหมดเมื่อค่าเป็น 'all')
   void _updateDisplayedItems() {
-    int startIndex = (_currentPage - 1) * _itemsPerPage;
-
     setState(() {
-      _currentPageItems = _allRawItems
+      // 1. กำหนดให้ข้อมูลตั้งต้นเป็นข้อมูลทั้งหมดจาก API เสมอเหมือนตอนโหลดแอปครั้งแรก
+      List<dynamic> filteredItems = _allRawItems;
+      
+      // ถ้าตัวเลือกไม่ใช่ 'all' (คือเลือก '1', '2', '3') ถึงจะทำการกรองข้อมูล
+      if (_selectedFilter != 'all') {
+        filteredItems = _allRawItems.where((item) {
+          final typeCode = item['plantsTypeCode'].toString();
+          return typeCode == _selectedFilter;
+        }).toList();
+      }
+
+      // 2. คำนวณจำนวนหน้าใหม่ตามจำนวนข้อมูล (ไม่ว่าจะถูกกรอง หรือมาทั้งหมด)
+      _lastPage = (filteredItems.length / _itemsPerPage).ceil();
+      if (_lastPage < 1) _lastPage = 1;
+
+      // ป้องกันกรณีที่หน้าปัจจุบันเกินจำนวนหน้าทั้งหมด
+      if (_currentPage > _lastPage) {
+        _currentPage = _lastPage;
+      }
+
+      int startIndex = (_currentPage - 1) * _itemsPerPage;
+
+      // 3. ตัดแบ่งข้อมูลมาแสดงแค่ 3 ชิ้นตามหน้าปัจจุบัน
+      _currentPageItems = filteredItems
           .skip(startIndex)
           .take(_itemsPerPage)
           .toList();
     });
   }
 
-  // 🔹 ฟังก์ชันแสดงหน้าจอ Popup รายละเอียดข้อมูลของพืชเมื่อคลิกเลือกการ์ด (ดึงข้อมูลแร่ธาตุและสภาพแวดล้อมครบถ้วน)
+  // ฟังก์ชันแสดงหน้าจอ Popup รายละเอียดข้อมูลของพืชเมื่อคลิกเลือกการ์ด
   void _showPlantDetailDialog(Map<String, dynamic> item) {
     String normalName = item['normal_name'] ?? 'ไม่มีชื่อพืช';
     String scientificName = item['scientific_name'] ?? 'ไม่มีชื่อวิทยาศาสตร์';
@@ -357,9 +379,38 @@ class _PlantsPageState extends State<PlantsPage> {
                 const SizedBox(height: 5),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: IconButton(
-                    icon: const Icon(Icons.filter_alt_outlined, size: 28, color: Colors.black),
-                    onPressed: () {},
+                  child: PopupMenuButton<String>( // 🔹 เปลี่ยนประเภทเป็น String
+                    icon: Icon(
+                      _selectedFilter == 'all' ? Icons.filter_alt_outlined : Icons.filter_alt, 
+                      size: 28, 
+                      color: _selectedFilter == 'all' ? Colors.black : const Color(0xFF5A45FF),
+                    ),
+                    tooltip: 'กรองประเภทพืช',
+                    onSelected: (String value) { // 🔹 รับค่า String เข้ามาทำงาน
+                      setState(() {
+                        _selectedFilter = value;
+                        _currentPage = 1; // เมื่อกรองใหม่ ให้กลับไปเริ่มที่หน้า 1 เสมอ
+                        _updateDisplayedItems(); // วนกลับไปคิดกระบวนการแสดงผลใหม่
+                      });
+                    },
+                    itemBuilder: (BuildContext context) => [
+                      const PopupMenuItem<String>(
+                        value: 'all', // 🔹 ใช้คำว่า 'all' แทน null เพื่อสั่งให้ฟังก์ชันทำงาน
+                        child: Text('แสดงทั้งหมด'),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: '1',
+                        child: Text('พืชไร่'),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: '2',
+                        child: Text('พืชสวน'),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: '3',
+                        child: Text('พืชเศรษฐกิจ'),
+                      ),
+                    ],
                   ),
                 ),
                 Expanded(
@@ -377,7 +428,6 @@ class _PlantsPageState extends State<PlantsPage> {
                           itemCount: _currentPageItems.length,
                           itemBuilder: (context, index) {
                             final item = _currentPageItems[index];
-                            // 🔹 ห่อด้วย GestureDetector เพื่อรับคำสั่งคลิกเปิดหน้าต่าง Dialog รายละเอียด
                             return GestureDetector(
                               onTap: () => _showPlantDetailDialog(item),
                               child: _buildItemCard(
@@ -452,6 +502,8 @@ class _PlantsPageState extends State<PlantsPage> {
   }
 
   Widget _buildDynamicPagination() {
+    if (_lastPage <= 1) return const SizedBox.shrink(); 
+
     List<Widget> pageButtons = [];
 
     pageButtons.add(
@@ -467,19 +519,32 @@ class _PlantsPageState extends State<PlantsPage> {
       ),
     );
 
+    bool showLeftDots = false;
+    bool showRightDots = false;
+
     for (int i = 1; i <= _lastPage; i++) {
-      pageButtons.add(
-        _buildPageBtn(
-          i.toString(),
-          isActive: _currentPage == i,
-          onTap: () {
-            if (_currentPage != i) {
-              _currentPage = i;
-              _updateDisplayedItems();
-            }
-          },
-        ),
-      );
+      if (i == 1 || i == _lastPage || (i - _currentPage).abs() <= 1) {
+        pageButtons.add(
+          _buildPageBtn(
+            i.toString(),
+            isActive: _currentPage == i,
+            onTap: () {
+              if (_currentPage != i) {
+                _currentPage = i;
+                _updateDisplayedItems();
+              }
+            },
+          ),
+        );
+      } 
+      else if (i < _currentPage && !showLeftDots) {
+        showLeftDots = true;
+        pageButtons.add(_buildDotsBtn());
+      } 
+      else if (i > _currentPage && !showRightDots) {
+        showRightDots = true;
+        pageButtons.add(_buildDotsBtn());
+      }
     }
 
     pageButtons.add(
@@ -495,12 +560,21 @@ class _PlantsPageState extends State<PlantsPage> {
       ),
     );
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: pageButtons,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: pageButtons,
+    );
+  }
+
+  Widget _buildDotsBtn() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 3),
+      width: 32, height: 32,
+      child: const Center(
+        child: Text(
+          "...",
+          style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
