@@ -396,7 +396,7 @@ class _PlantsPageState extends State<PlantsPage> {
                     itemBuilder: (BuildContext context) => [
                       const PopupMenuItem<String>(
                         value: 'all', // 🔹 ใช้คำว่า 'all' แทน null เพื่อสั่งให้ฟังก์ชันทำงาน
-                        child: Text('แสดงทั้งหมด'),
+                        child: Text('พืชทั้งหมด'),
                       ),
                       const PopupMenuItem<String>(
                         value: '1',

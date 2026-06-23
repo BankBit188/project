@@ -91,7 +91,7 @@ class _SoilPageState extends State<SoilPage> {
       case 1: return "พืชไร่";
       case 2: return "พืชสวน";
       case 3: return "พืชเศรษฐกิจ";
-      default: return "ทั้งหมด";
+      default: return "พืชทั้งหมด";
     }
   }
 
@@ -444,7 +444,7 @@ class _SoilPageState extends State<SoilPage> {
                         });
                       },
                       itemBuilder: (BuildContext context) => <PopupMenuEntry<int>>[
-                        const PopupMenuItem<int>(value: 0, child: Text('ทั้งหมด')),
+                        const PopupMenuItem<int>(value: 0, child: Text('พืชทั้งหมด')),
                         const PopupMenuItem<int>(value: 1, child: Text('พืชไร่')),
                         const PopupMenuItem<int>(value: 2, child: Text('พืชสวน')),
                         const PopupMenuItem<int>(value: 3, child: Text('พืชเศรษฐกิจ')),
