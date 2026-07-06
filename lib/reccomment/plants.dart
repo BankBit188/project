@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:project/service/plants_service.dart';
 import 'package:flutter/foundation.dart'; // จำเป็นต้องใช้สำหรับตรวจสอบ kIsWeb
 
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+
 class PlantsPage extends StatefulWidget {
   const PlantsPage({super.key});
 
@@ -11,7 +16,8 @@ class PlantsPage extends StatefulWidget {
 
 class _PlantsPageState extends State<PlantsPage> {
   List<dynamic> _allRawItems = []; // เก็บข้อมูลทั้งหมดที่ได้จาก API
-  List<dynamic> _currentPageItems = []; // เก็บข้อมูลเฉพาะ 3 ชิ้นที่จะแสดงในหน้านั้นๆ
+  List<dynamic> _currentPageItems =
+      []; // เก็บข้อมูลเฉพาะ 3 ชิ้นที่จะแสดงในหน้านั้นๆ
   bool _isLoading = false;
 
   int _currentPage = 1; // หน้าปัจจุบัน
@@ -20,10 +26,11 @@ class _PlantsPageState extends State<PlantsPage> {
 
   // 🔹 เปลี่ยนมาใช้ String แทน int? เพื่อแก้บั๊ก PopupMenuButton ไม่ยอมทำงานตอนเป็น null
   // 'all' = แสดงทั้งหมด, '1' = พืชไร่, '2' = พืชสวน, '3' = พืชเศรษฐกิจ
-  String _selectedFilter = 'all'; 
+  String _selectedFilter = 'all';
 
   // เพิ่มลิงก์ทางผ่านหลักของ Ngrok สำหรับจัดการ URL รูปภาพพืชให้เป็นศูนย์กลาง
-  static const String ngrokUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev';
+  static const String ngrokUrl =
+      'https://uselessly-disclose-stingray.ngrok-free.dev';
 
   @override
   void initState() {
@@ -67,7 +74,7 @@ class _PlantsPageState extends State<PlantsPage> {
       if (mounted) {
         setState(() {
           _allRawItems = fetchedData;
-          _updateDisplayedItems(); 
+          _updateDisplayedItems();
         });
       }
     } catch (e) {
@@ -84,7 +91,7 @@ class _PlantsPageState extends State<PlantsPage> {
     setState(() {
       // 1. กำหนดให้ข้อมูลตั้งต้นเป็นข้อมูลทั้งหมดจาก API เสมอเหมือนตอนโหลดแอปครั้งแรก
       List<dynamic> filteredItems = _allRawItems;
-      
+
       // ถ้าตัวเลือกไม่ใช่ 'all' (คือเลือก '1', '2', '3') ถึงจะทำการกรองข้อมูล
       if (_selectedFilter != 'all') {
         filteredItems = _allRawItems.where((item) {
@@ -120,18 +127,23 @@ class _PlantsPageState extends State<PlantsPage> {
     String imgUrl = _formatImgUrl(item['img_url'] ?? item['img'] ?? '');
     String detaill = item['detaill'] ?? 'ไม่มีข้อมูลรายละเอียดพืช';
     String nature = item['nature'] ?? 'ไม่มีข้อมูลลักษณะทั่วไป';
+    String plant = item['plant'] ?? 'ไม่มีข้อมูลการปลูก';
     String care = item['care'] ?? 'ไม่มีข้อมูลการดูแล';
     String harvest = item['harvest'] ?? 'ไม่มีข้อมูลการเก็บเกี่ยว';
+
+    String? webLink = item['link'];
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          backgroundColor: const Color(0xFFEFE8CE), 
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          backgroundColor: const Color(0xFFEFE8CE),
           child: Container(
             padding: const EdgeInsets.all(20),
-            constraints: const BoxConstraints(maxHeight: 680), 
+            constraints: const BoxConstraints(maxHeight: 680),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,12 +154,20 @@ class _PlantsPageState extends State<PlantsPage> {
                     Expanded(
                       child: Text(
                         normalName,
-                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, size: 28, color: Colors.black),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 28,
+                        color: Colors.black,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -157,10 +177,19 @@ class _PlantsPageState extends State<PlantsPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.network(
-                      imgUrl, width: 220, height: 220, fit: BoxFit.cover,
+                      imgUrl,
+                      width: 220,
+                      height: 220,
+                      fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
-                        width: 220, height: 220, color: Colors.grey.shade300,
-                        child: const Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                        width: 220,
+                        height: 220,
+                        color: Colors.grey.shade300,
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          size: 50,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ),
@@ -172,41 +201,203 @@ class _PlantsPageState extends State<PlantsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("ชื่อสามัญ : $normalName", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text("ชื่อวิทยาศาสตร์ : $scientificName", style: const TextStyle(fontSize: 15, fontStyle: FontStyle.italic, color: Colors.black)),
-                        Text("ชื่ออื่นๆ : $otherName", style: const TextStyle(fontSize: 15, color: Colors.black)),
+                        Text(
+                          "ชื่อสามัญ : $normalName",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        Text(
+                          "ชื่อวิทยาศาสตร์ : $scientificName",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.black,
+                          ),
+                        ),
+                        Text(
+                          "ชื่ออื่นๆ : $otherName",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.black,
+                          ),
+                        ),
                         const Divider(color: Colors.black26),
                         const SizedBox(height: 5),
-                        Text(detaill, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+
+                        // 🟢 เปลี่ยนจาก Text เป็น HtmlWidget เพื่อเรนเดอร์โครงสร้างที่มาจาก CKEditor
+                        HtmlWidget(
+                          detaill,
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black,
+                          ),
+                          // ตัวเลือกเสริม: หากต้องการเปิดลิงก์ใน HTML เมื่อมีคนกดที่รูปภาพหรือข้อความ
+                          onTapUrl: (url) async {
+                            final Uri uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              return true;
+                            }
+                            return false;
+                          },
+                        ),
+
                         const SizedBox(height: 12),
-                        const Text("ลักษณะทั่วไป", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text(nature, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+                        const Text(
+                          "ลักษณะทั่วไป",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        HtmlWidget(
+                          nature,
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black,
+                          ),
+                          onTapUrl: (url) async {
+                            final Uri uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              return true;
+                            }
+                            return false;
+                          },
+                        ),
+
+                        // 🟢 เพิ่มส่วนของ plant ต่อจาก nature ตรงนี้ครับ
                         const SizedBox(height: 12),
-                        const Text("การดูแลรักษา", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text(care, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+                        const Text(
+                          "ข้อมูลการปลูก", // 💡 สามารถเปลี่ยนชื่อหัวข้อตรงนี้ได้ตามต้องการครับ (เช่น วิธีปลูก / ข้อมูลพืช)
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        HtmlWidget(
+                          plant, // เรียกใช้ตัวแปร plant ผ่าน HtmlWidget เพื่อรองรับรูปภาพและรูปแบบจาก CKEditor
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black,
+                          ),
+                          onTapUrl: (url) async {
+                            final Uri uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              return true;
+                            }
+                            return false;
+                          },
+                        ),
+
                         const SizedBox(height: 12),
-                        const Text("การเก็บเกี่ยว", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text(harvest, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
-                        
+                        const Text(
+                          "การดูแลรักษา",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        HtmlWidget(
+                          care,
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black,
+                          ),
+                          onTapUrl: (url) async {
+                            final Uri uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              return true;
+                            }
+                            return false;
+                          },
+                        ),
+
+                        const SizedBox(height: 12),
+                        const Text(
+                          "การเก็บเกี่ยว",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        HtmlWidget(
+                          harvest,
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black,
+                          ),
+                          onTapUrl: (url) async {
+                            final Uri uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              return true;
+                            }
+                            return false;
+                          },
+                        ),
+
                         const Divider(color: Colors.black26, height: 25),
-                        
+
                         const Center(
                           child: Text(
                             "สภาพดินและธาตุอาหารในดินที่เหมาะสม",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 15),
-                        
+
                         Center(
                           child: Wrap(
-                            spacing: 15, 
-                            runSpacing: 10, 
+                            spacing: 15,
+                            runSpacing: 10,
                             alignment: WrapAlignment.center,
                             children: [
-                              _buildNutrientText("N", _formatRange(item['minN'], item['maxN'])),
-                              _buildNutrientText("P", _formatRange(item['minP'], item['maxP'])),
-                              _buildNutrientText("K", _formatRange(item['minK'], item['maxK'])),
+                              _buildNutrientText(
+                                "N",
+                                _formatRange(item['minN'], item['maxN']),
+                              ),
+                              _buildNutrientText(
+                                "P",
+                                _formatRange(item['minP'], item['maxP']),
+                              ),
+                              _buildNutrientText(
+                                "K",
+                                _formatRange(item['minK'], item['maxK']),
+                              ),
                             ],
                           ),
                         ),
@@ -217,38 +408,126 @@ class _PlantsPageState extends State<PlantsPage> {
                             runSpacing: 10,
                             alignment: WrapAlignment.center,
                             children: [
-                              _buildNutrientText("Ca", _formatRange(item['minCa'], item['maxCa'])),
-                              _buildNutrientText("Mg", _formatRange(item['minMg'], item['maxMg'])),
-                              _buildNutrientText("S", _formatRange(item['minS'], item['maxS'])),
+                              _buildNutrientText(
+                                "Ca",
+                                _formatRange(item['minCa'], item['maxCa']),
+                              ),
+                              _buildNutrientText(
+                                "Mg",
+                                _formatRange(item['minMg'], item['maxMg']),
+                              ),
+                              _buildNutrientText(
+                                "S",
+                                _formatRange(item['minS'], item['maxS']),
+                              ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 25),
-                        
+
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           child: Column(
                             children: [
                               _buildEnvGridRow(
-                                iconLeft: Icons.opacity, 
-                                colorLeft: Colors.blue, 
-                                titleLeft: "ความชื้น", 
-                                valueLeft: "${_formatRange(item['minhumid'], item['maxhumid'])} %",
-                                iconRight: Icons.grid_3x3, 
-                                colorRight: Colors.black87, 
-                                titleRight: "pH", 
-                                valueRight: _formatRange(item['minPH'], item['maxPH']),
+                                iconLeft: Icons.opacity,
+                                colorLeft: Colors.blue,
+                                titleLeft: "ความชื้น",
+                                valueLeft:
+                                    "${_formatRange(item['minhumid'], item['maxhumid'])} %",
+                                iconRight: Icons.grid_3x3,
+                                colorRight: Colors.black87,
+                                titleRight: "pH",
+                                valueRight: _formatRange(
+                                  item['minPH'],
+                                  item['maxPH'],
+                                ),
                               ),
                               const SizedBox(height: 16),
                               _buildEnvGridRow(
-                                iconLeft: Icons.thermostat, 
-                                colorLeft: Colors.black87, 
-                                titleLeft: "อุณหภูมิ", 
-                                valueLeft: "${_formatRange(item['mintemperature'], item['maxtemperature'])} °C",
-                                iconRight: Icons.waves, 
-                                colorRight: Colors.brown, 
-                                titleRight: "ความเค็ม", 
-                                valueRight: "${_formatRange(item['minsalty'], item['maxsalty'])} mS/cm",
+                                iconLeft: Icons.thermostat,
+                                colorLeft: Colors.black87,
+                                titleLeft: "อุณหภูมิ",
+                                valueLeft:
+                                    "${_formatRange(item['mintemperature'], item['maxtemperature'])} °C",
+                                iconRight: Icons.waves,
+                                colorRight: Colors.brown,
+                                titleRight: "ความเค็ม",
+                                valueRight:
+                                    "${_formatRange(item['minsalty'], item['maxsalty'])} mS/cm",
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(color: Colors.black26, height: 30),
+                        Center(
+                          child: Column(
+                            children: [
+                              const Text(
+                                "ความต้องการและปริมาณการผลิต",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              RichText(
+                                textAlign: TextAlign.center,
+                                text: TextSpan(
+                                  text: 'คลิกเพื่อดูรายละเอียด',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: 'เพิ่มเติม',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.blue,
+                                        decoration: TextDecoration.underline,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = () async {
+                                          if (webLink != null &&
+                                              webLink.isNotEmpty) {
+                                            final Uri url = Uri.parse(webLink);
+                                            if (await canLaunchUrl(url)) {
+                                              await launchUrl(
+                                                url,
+                                                mode: LaunchMode
+                                                    .externalApplication,
+                                              );
+                                            } else {
+                                              // แจ้งเตือนกรณีเปิดลิงก์ไม่ได้
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'ไม่สามารถเปิดลิงก์นี้ได้',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          } else {
+                                            // แจ้งเตือนกรณีไม่มีข้อมูลลิงก์ใน API
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'ไม่มีข้อมูลลิงก์รายละเอียด',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -271,17 +550,32 @@ class _PlantsPageState extends State<PlantsPage> {
       text: TextSpan(
         style: const TextStyle(fontSize: 16, color: Colors.black),
         children: [
-          TextSpan(text: "$label ", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          const TextSpan(text: ": ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          TextSpan(text: value, style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 16)),
+          TextSpan(
+            text: "$label ",
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const TextSpan(
+            text: ": ",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          TextSpan(
+            text: value,
+            style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 16),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildEnvGridRow({
-    required IconData? iconLeft, required Color colorLeft, required String titleLeft, required String valueLeft,
-    required IconData? iconRight, required Color colorRight, required String titleRight, required String valueRight,
+    required IconData? iconLeft,
+    required Color colorLeft,
+    required String titleLeft,
+    required String valueLeft,
+    required IconData? iconRight,
+    required Color colorRight,
+    required String titleRight,
+    required String valueRight,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,34 +585,68 @@ class _PlantsPageState extends State<PlantsPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (iconLeft != null) Icon(iconLeft, color: colorLeft, size: 28) else const SizedBox(width: 28, height: 28),
+              if (iconLeft != null)
+                Icon(iconLeft, color: colorLeft, size: 28)
+              else
+                const SizedBox(width: 28, height: 28),
               const SizedBox(width: 8),
               Expanded(
                 child: Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text("$titleLeft : ", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black)),
-                    Text(valueLeft, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.black)),
+                    Text(
+                      "$titleLeft : ",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    Text(
+                      valueLeft,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.black,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 8), 
+        const SizedBox(width: 8),
         Expanded(
           flex: 1,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (iconRight != null) Icon(iconRight, color: colorRight, size: 28) else const SizedBox(width: 28, height: 28),
+              if (iconRight != null)
+                Icon(iconRight, color: colorRight, size: 28)
+              else
+                const SizedBox(width: 28, height: 28),
               const SizedBox(width: 8),
               Expanded(
                 child: Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text("$titleRight : ", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black)),
-                    Text(valueRight, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.black)),
+                    Text(
+                      "$titleRight : ",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    Text(
+                      valueRight,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.black,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -352,12 +680,20 @@ class _PlantsPageState extends State<PlantsPage> {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 28, color: Colors.black),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        size: 28,
+                        color: Colors.black,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Text(
                       "พืชปลูก",
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
                   ],
                 ),
@@ -379,23 +715,31 @@ class _PlantsPageState extends State<PlantsPage> {
                 const SizedBox(height: 5),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: PopupMenuButton<String>( // 🔹 เปลี่ยนประเภทเป็น String
+                  child: PopupMenuButton<String>(
+                    // 🔹 เปลี่ยนประเภทเป็น String
                     icon: Icon(
-                      _selectedFilter == 'all' ? Icons.filter_alt_outlined : Icons.filter_alt, 
-                      size: 28, 
-                      color: _selectedFilter == 'all' ? Colors.black : const Color(0xFF5A45FF),
+                      _selectedFilter == 'all'
+                          ? Icons.filter_alt_outlined
+                          : Icons.filter_alt,
+                      size: 28,
+                      color: _selectedFilter == 'all'
+                          ? Colors.black
+                          : const Color(0xFF5A45FF),
                     ),
                     tooltip: 'กรองประเภทพืช',
-                    onSelected: (String value) { // 🔹 รับค่า String เข้ามาทำงาน
+                    onSelected: (String value) {
+                      // 🔹 รับค่า String เข้ามาทำงาน
                       setState(() {
                         _selectedFilter = value;
-                        _currentPage = 1; // เมื่อกรองใหม่ ให้กลับไปเริ่มที่หน้า 1 เสมอ
+                        _currentPage =
+                            1; // เมื่อกรองใหม่ ให้กลับไปเริ่มที่หน้า 1 เสมอ
                         _updateDisplayedItems(); // วนกลับไปคิดกระบวนการแสดงผลใหม่
                       });
                     },
                     itemBuilder: (BuildContext context) => [
                       const PopupMenuItem<String>(
-                        value: 'all', // 🔹 ใช้คำว่า 'all' แทน null เพื่อสั่งให้ฟังก์ชันทำงาน
+                        value:
+                            'all', // 🔹 ใช้คำว่า 'all' แทน null เพื่อสั่งให้ฟังก์ชันทำงาน
                         child: Text('พืชทั้งหมด'),
                       ),
                       const PopupMenuItem<String>(
@@ -432,7 +776,8 @@ class _PlantsPageState extends State<PlantsPage> {
                               onTap: () => _showPlantDetailDialog(item),
                               child: _buildItemCard(
                                 item['normal_name'] ?? 'ไม่มีชื่อพืช',
-                                item['img_url'] ?? 'https://via.placeholder.com/150',
+                                item['img_url'] ??
+                                    'https://via.placeholder.com/150',
                               ),
                             );
                           },
@@ -465,7 +810,11 @@ class _PlantsPageState extends State<PlantsPage> {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -474,15 +823,21 @@ class _PlantsPageState extends State<PlantsPage> {
             borderRadius: BorderRadius.circular(15),
             child: Image.network(
               formattedImgUrl,
-              width: 110, height: 110, fit: BoxFit.cover,
-              cacheWidth: 300, cacheHeight: 300,
+              width: 110,
+              height: 110,
+              fit: BoxFit.cover,
+              cacheWidth: 300,
+              cacheHeight: 300,
               loadingBuilder: (context, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return Container(
-                  width: 110, height: 110, color: Colors.grey.shade200,
+                  width: 110,
+                  height: 110,
+                  color: Colors.grey.shade200,
                   child: const Center(
                     child: SizedBox(
-                      width: 20, height: 20,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
@@ -490,8 +845,13 @@ class _PlantsPageState extends State<PlantsPage> {
               },
               errorBuilder: (context, error, stackTrace) {
                 return Container(
-                  width: 110, height: 110, color: Colors.grey.shade300,
-                  child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                  width: 110,
+                  height: 110,
+                  color: Colors.grey.shade300,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey,
+                  ),
                 );
               },
             ),
@@ -502,7 +862,7 @@ class _PlantsPageState extends State<PlantsPage> {
   }
 
   Widget _buildDynamicPagination() {
-    if (_lastPage <= 1) return const SizedBox.shrink(); 
+    if (_lastPage <= 1) return const SizedBox.shrink();
 
     List<Widget> pageButtons = [];
 
@@ -536,12 +896,10 @@ class _PlantsPageState extends State<PlantsPage> {
             },
           ),
         );
-      } 
-      else if (i < _currentPage && !showLeftDots) {
+      } else if (i < _currentPage && !showLeftDots) {
         showLeftDots = true;
         pageButtons.add(_buildDotsBtn());
-      } 
-      else if (i > _currentPage && !showRightDots) {
+      } else if (i > _currentPage && !showRightDots) {
         showRightDots = true;
         pageButtons.add(_buildDotsBtn());
       }
@@ -569,11 +927,16 @@ class _PlantsPageState extends State<PlantsPage> {
   Widget _buildDotsBtn() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 3),
-      width: 32, height: 32,
+      width: 32,
+      height: 32,
       child: const Center(
         child: Text(
           "...",
-          style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
@@ -589,7 +952,8 @@ class _PlantsPageState extends State<PlantsPage> {
       onTap: disabled ? null : onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 32, height: 32,
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
           color: isActive
               ? const Color(0xFF5A45FF)
