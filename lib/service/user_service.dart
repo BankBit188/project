@@ -84,9 +84,14 @@ class UserService {
     return await _fetchAPI('/user', method: 'POST', body: bodyData);
   }
   
+  
   // ดึงข้อมูลผู้ใช้ทั้งหมด (GET /user)
   static Future<dynamic> getUser() async {
     return await _fetchAPI('/user', method: 'GET');
+  }
+  
+  static Future<dynamic> getUserCount() async {
+    return await _fetchAPI('/user/count', method: 'GET');
   }
 
   // ดึงข้อมูลรหัสเครื่องมือ (GET /toolnumber)
@@ -103,6 +108,7 @@ class UserService {
   static Future<dynamic> deleteUser(int id) async {
     return await _fetchAPI('/user/$id', method: 'DELETE');
   }
+  
 
   // 🟩 ฟังก์ชันสำหรับเปลี่ยนรหัสผ่านของผู้ใช้ (เรียกผ่าน _fetchAPI)
   static Future<dynamic> updatePassword({

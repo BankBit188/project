@@ -9,8 +9,9 @@ import 'package:project/reccomment/earth.dart';
 import 'package:project/reccomment/earthtype.dart';
 import 'package:project/reccomment/plants.dart';
 import 'package:project/reccomment/soil.dart';
-
 import 'package:project/mainpage/weather.dart';
+
+import 'package:project/service/user_service.dart'; // นำเข้า UserService เพื่อเรียก API
 
 class MenuPage extends StatefulWidget {
   final bool isLoggedIn;
@@ -22,14 +23,20 @@ class MenuPage extends StatefulWidget {
 
 class _MenuPageState extends State<MenuPage> {
   int _selectedIndex = 0;
-  
   // 🛠️ เพิ่ม ScrollController และตัวแปรเก็บตำแหน่ง Dot ปัจจุบัน
   final ScrollController _cardScrollController = ScrollController();
   int _currentCardIndex = 0;
 
+  // 🟢 แก้ไขจุดที่ 1: เพิ่มตัวแปรสำหรับเก็บจำนวนสมาชิกที่ดึงมาจาก API
+  int _userCount = 0;
+
   @override
   void initState() {
     super.initState();
+    
+    // 🟢 แก้ไขจุดที่ 3: เรียกใช้งานฟังก์ชันดึงจำนวนสมาชิกทันทีเมื่อเปิดหน้าจอ
+    _fetchUserCount();
+
     // 🛠️ ตรวจจับการเลื่อนของการ์ดเพื่อเปลี่ยนจุด Dot ด้านล่างตามจริง
     _cardScrollController.addListener(() {
       // คำนวณจากความกว้างของการ์ด (280) + ระยะห่าง (15) = 295
@@ -46,6 +53,22 @@ class _MenuPageState extends State<MenuPage> {
         });
       }
     });
+  }
+
+  // 🟢 แก้ไขจุดที่ 2: สร้างฟังก์ชันสำหรับติดต่อกับ UserService เพื่อดึงยอดสมาชิก
+  Future<void> _fetchUserCount() async {
+    try {
+      // 🟢 แก้ไขตรงนี้: เปลี่ยนจาก UserService().getUserCount() เป็น UserService.getUserCount()
+      final response = await UserService.getUserCount(); 
+      print("จำนวนสมาชิกที่ดึงมาจาก API: $response");
+      if (response != null && response['userCount'] != null) {
+        setState(() {
+          _userCount = int.parse(response['userCount'].toString());
+        });
+      }
+    } catch (e) {
+      debugPrint("เกิดข้อผิดพลาดในการดึงข้อมูลจำนวนสมาชิก: $e");
+    }
   }
 
   @override
@@ -95,7 +118,7 @@ class _MenuPageState extends State<MenuPage> {
                 const SizedBox(height: 20),
                 // 📝 รายละเอียดข้อที่ 1
                 _buildRightItem(
-                  "1. ",
+                  "1.",
                   "สามารถใช้ฟังก์ชันแนะนำพืชที่เหมาะสมได้ โดยไม่ต้องกรอกค่าลงไป โดยจะนำค่าจากอุปกรณ์ไปประมวลผลและแนะนำให้",
                 ),
                 const SizedBox(height: 10),
@@ -371,7 +394,7 @@ class _MenuPageState extends State<MenuPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Today",
+                    "วันนี้",
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -476,9 +499,11 @@ class _MenuPageState extends State<MenuPage> {
                   color: const Color(0xFF91CF9D), 
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Text(
-                  "32",
-                  style: TextStyle(
+                // 🟢 แก้ไขจุดที่ 4: เปลี่ยนจากตัวเลขฟิก "32" เป็นแสดงผลตัวแปร _userCount แบบ Dynamic 
+                // (และเอาคีย์เวิร์ด const ด้านหน้าออก เพื่อให้ข้อมูลอัปเดตใหม่ได้)
+                child: Text(
+                  "$_userCount",
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,

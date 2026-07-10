@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:geolocator/geolocator.dart'; 
+import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
 
 class WeatherPage extends StatefulWidget {
@@ -11,13 +11,22 @@ class WeatherPage extends StatefulWidget {
 }
 
 class _WeatherPageState extends State<WeatherPage> {
-  double currentTemp = 24.0;
-  int currentHumidity = 87;
-  double windSpeed = 4.0;
-  String weatherCondition = "กำลังโหลดข้อมูล...";
+  double currentTemp = 0;
+  double maxTemperature = 0;
+  double minTemperature = 0;
+
+  int currentHumidity = 0;
+  double windSpeed = 0;
+
+  String weatherCondition = "";
+  String currentDate = "";
   List<Map<String, dynamic>> hourlyForecast = [];
   bool isLoading = true;
   String errorMessage = "";
+
+  // 🟢 เพิ่มตัวแปรเพื่อแสดงผลให้เห็นบนหน้าจอว่าพิกัดเปลี่ยนจริง ไม่ใช่ค่า Mock
+  double displayLat = 0.0;
+  double displayLon = 0.0;
 
   @override
   void initState() {
@@ -25,7 +34,7 @@ class _WeatherPageState extends State<WeatherPage> {
     _determinePositionAndFetchWeather();
   }
 
-  // 🛰️ ฟังก์ชันขอสิทธิ์ระบุตำแหน่ง (ตั้งเวลาดักไว้ 10 วินาทีตามมาตรฐาน)
+  // 🛰️ ฟังก์ชันค้นหาพิกัด
   Future<void> _determinePositionAndFetchWeather() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -43,73 +52,114 @@ class _WeatherPageState extends State<WeatherPage> {
           throw 'สิทธิ์การเข้าถึงตำแหน่งถูกปฏิเสธ';
         }
       }
-      
+
       if (permission == LocationPermission.deniedForever) {
         throw 'สิทธิ์การเข้าถึงตำแหน่งถูกปฏิเสธอย่างถาวร กรุณาเปิดสิทธิ์ในตั้งค่า';
-      } 
+      }
 
-      // ⏱️ ปรับการดักเวลาเป็น 10 วินาที เพื่อเสถียรภาพสูงสุดบนมือถือจริง
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.low 
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw 'ระบบค้นหาพิกัดใช้เวลานานเกินไป (ใช้พิกัดสำรอง)';
-        },
-      );
+      Position? position = await Geolocator.getLastKnownPosition();
+      if (position == null) {
+        position = await Geolocator.getCurrentPosition(
+              // 🛠️ แก้จุดที่ 1: เปลี่ยนจาก .high เป็น .medium เพื่อให้ดึงพิกัดในอาคารได้เร็วขึ้น ไม่ค้างจนหมดเวลา
+              desiredAccuracy: LocationAccuracy.medium, 
+            ).timeout(
+              const Duration(seconds: 10), // เพิ่มเวลาเป็น 10 วินาที
+              onTimeout: () {
+                throw 'ระบบค้นหาพิกัดใช้เวลานานเกินไป (กำลังใช้พิกัดสำรอง)';
+              },
+            );
+      }
 
+      // ดึงข้อมูลสภาพอากาศจากพิกัดจริง
       await fetchWeatherData(position.latitude, position.longitude);
-
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         errorMessage = e.toString();
-        fetchWeatherData(13.7563, 100.5018); // ส่งพิกัดกรุงเทพฯ เป็น Fallback
       });
+      // 🛠️ หาก GPS ค้นหาไม่สำเร็จ จะใช้พิกัดสำรองของกรุงเทพฯ
+      await fetchWeatherData(13.7563, 100.5018);
     }
   }
 
+  // ☁️ ฟังก์ชันดึงข้อมูลจาก API
   Future<void> fetchWeatherData(double lat, double lon) async {
     try {
-      final url = Uri.parse(
-          'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&hourly=temperature_2m,weather_code&timezone=Asia%2FBangkok');
-      
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        final current = data['current'];
-        final hourly = data['hourly'];
-        final List<dynamic> times = hourly['time'];
-        final List<dynamic> temps = hourly['temperature_2m'];
-        final List<dynamic> codes = hourly['weather_code'];
-
-        int currentHourIndex = DateTime.now().hour;
-        List<Map<String, dynamic>> tempHourly = [];
-        
-        for (int i = -2; i <= 2; i++) {
-          int index = currentHourIndex + i;
-          if (index >= 0 && index < times.length) {
-            String timeStr = times[index].toString().split('T')[1].substring(0, 5);
-            tempHourly.add({
-              'time': timeStr,
-              'temp': temps[index],
-              'code': codes[index],
-              'isCurrent': i == 0,
-            });
-          }
-        }
-
+      // 🟢 บันทึกพิกัดที่กำลังใช้งานลง State เพื่อเอาไปโชว์ใน UI
+      if (mounted) {
         setState(() {
-          currentTemp = (current['temperature_2m'] as num).toDouble();
-          currentHumidity = (current['relative_humidity_2m'] as num).toInt();
-          windSpeed = (current['wind_speed_10m'] as num).toDouble();
-          weatherCondition = getWeatherStatus(current['weather_code']);
-          hourlyForecast = tempHourly;
-          isLoading = false;
+          displayLat = lat;
+          displayLon = lon;
         });
       }
+
+      final url = Uri.parse(
+        'https://api.open-meteo.com/v1/forecast'
+        '?latitude=$lat'
+        '&longitude=$lon'
+        '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code'
+        '&hourly=temperature_2m,weather_code'
+        '&daily=temperature_2m_max,temperature_2m_min'
+        '&timezone=Asia%2FBangkok',
+      );
+
+      final response = await http.get(url);
+
+      if (response.statusCode != 200) {
+        throw Exception("API Error : ${response.statusCode}");
+      }
+
+      final data = jsonDecode(response.body);
+      final current = data['current'];
+      final hourly = data['hourly'];
+      final daily = data['daily'];
+
+      final List<dynamic> times = hourly['time'];
+      final List<dynamic> temps = hourly['temperature_2m'];
+      final List<dynamic> codes = hourly['weather_code'];
+
+      final currentTime = DateTime.parse(current["time"]);
+
+      final currentHourString =
+          "${currentTime.year.toString().padLeft(4, '0')}-"
+          "${currentTime.month.toString().padLeft(2, '0')}-"
+          "${currentTime.day.toString().padLeft(2, '0')}T"
+          "${currentTime.hour.toString().padLeft(2, '0')}:00";
+          
+      final currentHourIndex = times.indexWhere(
+        (e) => e.toString() == currentHourString,
+      );
+      
+      List<Map<String, dynamic>> tempHourly = [];
+
+      for (int i = -2; i <= 2; i++) {
+        final index = currentHourIndex + i;
+        if (index >= 0 && index < times.length) {
+          tempHourly.add({
+            "time": times[index].toString().split("T")[1].substring(0, 5),
+            "temp": (temps[index] as num).toDouble(),
+            "code": codes[index],
+            "isCurrent": i == 0,
+          });
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        currentTemp = (current["temperature_2m"] as num).toDouble();
+        currentHumidity = (current["relative_humidity_2m"] as num).toInt();
+        windSpeed = (current["wind_speed_10m"] as num).toDouble();
+        weatherCondition = getWeatherStatus(current["weather_code"]);
+        maxTemperature = (daily["temperature_2m_max"][0] as num).toDouble();
+        minTemperature = (daily["temperature_2m_min"][0] as num).toDouble();
+
+        final apiTime = DateTime.parse(current["time"]);
+        currentDate = "${apiTime.day} ${thaiMonth(apiTime.month)} ${apiTime.year + 543}";
+        hourlyForecast = tempHourly;
+        isLoading = false;
+      });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isLoading = false;
         weatherCondition = "ดึงข้อมูลล้มเหลว";
@@ -126,6 +176,11 @@ class _WeatherPageState extends State<WeatherPage> {
     return "พายุฝนฟ้าคะนอง";
   }
 
+  String thaiMonth(int month) {
+    const months = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    return months[month];
+  }
+
   IconData getWeatherIcon(int code) {
     if (code == 0) return Icons.wb_sunny;
     if (code <= 3) return Icons.cloud;
@@ -136,8 +191,6 @@ class _WeatherPageState extends State<WeatherPage> {
 
   @override
   Widget build(BuildContext context) {
-    String formattedDate = "${DateTime.now().day} มกราคม";
-
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -160,11 +213,11 @@ class _WeatherPageState extends State<WeatherPage> {
                       Text(
                         errorMessage.isEmpty ? "กำลังค้นหาตำแหน่งของคุณ..." : "กำลังเปิดระบบพิกัดสำรอง...",
                         style: const TextStyle(color: Colors.white, fontSize: 16),
-                      )
+                      ),
                     ],
                   ),
                 )
-              : SingleChildScrollView( // 🛠️ ครอบด้วยฟังก์ชันนี้เพื่อแก้บั๊กแถบเหลืองดำด้านล่างจอ
+              : SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 15.0),
@@ -177,9 +230,19 @@ class _WeatherPageState extends State<WeatherPage> {
                               icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 28),
                               onPressed: () => Navigator.pop(context),
                             ),
-                            const Text(
-                              "สภาพอากาศ",
-                              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "สภาพอากาศ",
+                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                                // 🛠️ แก้จุดที่ 2: เพิ่มการแสดงพิกัดบนหน้าจอเพื่อเช็คความโปร่งใสของข้อมูลว่าตรงกับพิกัดปัจจุบันของคุณหรือไม่
+                                Text(
+                                  "พิกัด: ${displayLat.toStringAsFixed(4)}, ${displayLon.toStringAsFixed(4)}",
+                                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -187,8 +250,8 @@ class _WeatherPageState extends State<WeatherPage> {
                           Padding(
                             padding: const EdgeInsets.only(left: 15, top: 5),
                             child: Text(
-                              "ℹ️ ใช้พื้นที่สำรองเนื่องจาก: $errorMessage", 
-                              style: const TextStyle(color: Colors.white70, fontSize: 12, fontStyle: FontStyle.italic)
+                              "ℹ️ ใช้พื้นที่สำรองเนื่องจาก: $errorMessage",
+                              style: const TextStyle(color: Colors.white70, fontSize: 12, fontStyle: FontStyle.italic),
                             ),
                           ),
                         const SizedBox(height: 25),
@@ -196,8 +259,14 @@ class _WeatherPageState extends State<WeatherPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text("วันนี้", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
-                            Text(formattedDate, style: const TextStyle(fontSize: 18, color: Colors.white70, fontWeight: FontWeight.w500)),
+                            const Text(
+                              "วันนี้",
+                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                            Text(
+                              currentDate,
+                              style: const TextStyle(fontSize: 18, color: Colors.white70, fontWeight: FontWeight.w500),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 15),
@@ -206,7 +275,7 @@ class _WeatherPageState extends State<WeatherPage> {
                           "${currentTemp.round()}°",
                           style: const TextStyle(fontSize: 90, fontWeight: FontWeight.w300, color: Colors.white, height: 1.0),
                         ),
-                        
+
                         Text(
                           weatherCondition,
                           style: const TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.w500),
@@ -216,9 +285,9 @@ class _WeatherPageState extends State<WeatherPage> {
                         Row(
                           children: [
                             const Icon(Icons.arrow_upward, color: Colors.white, size: 18),
-                            Text(" ${(currentTemp + 4).round()}° / ", style: const TextStyle(color: Colors.white, fontSize: 18)),
+                            Text("${maxTemperature.round()}°", style: const TextStyle(color: Colors.white, fontSize: 18)),
                             const Icon(Icons.arrow_downward, color: Colors.white, size: 18),
-                            Text(" ${(currentTemp - 5).round()}°", style: const TextStyle(color: Colors.white, fontSize: 18)),
+                            Text("${minTemperature.round()}°", style: const TextStyle(color: Colors.white, fontSize: 18)),
                           ],
                         ),
                         const SizedBox(height: 35),
@@ -243,7 +312,10 @@ class _WeatherPageState extends State<WeatherPage> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                                   children: [
-                                    Text("${item['temp'].round()}°C", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                    Text(
+                                      "${item['temp'].round()}°C",
+                                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                    ),
                                     Icon(getWeatherIcon(item['code']), color: Colors.white, size: 24),
                                     Text(item['time'], style: const TextStyle(color: Colors.white70, fontSize: 14)),
                                   ],
