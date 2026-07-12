@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:project/navbar/navbars.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+// 🟢 อย่าลืมตรวจสอบว่าโปรเจกต์ของคุณติดตั้งและนำเข้าตัวนี้แล้วหรือยังนะครับ
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; 
+
+import 'package:project/service/user_service.dart'; // นำเข้า UserService เพื่อใช้ฟังก์ชัน login และอื่นๆ
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -15,19 +19,23 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
+  // 🟢 1. ประกาศตัวแปรใช้งาน FlutterSecureStorage และตัวแปรเก็บ Token/UserID
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  String? _authToken;
+  String? _userId;
+
   List<Map<String, String>> messages = [];
   bool isLoading = false;
   
-  // ตั้งค่าโควตารายวัน
   final int maxDailyLimit = 10;
-  int currentUsage = 0;
+  int currentUsage = 0; // ค่านับใช้งานเริ่มต้น
 
   @override
   void initState() {
     super.initState();
-    _loadDailyQuota();
+    // 🟢 2. เรียกฟังก์ชันเตรียมโหลด Token และโควตาเริ่มต้น
+    _initializeChat();
     
-    // ใส่ข้อความต้อนรับ
     messages.add({
       "role": "ai",
       "text": "สวัสดีครับ! ผมคือผู้ช่วย AI ด้านการเกษตร วันนี้มีอะไรให้ผมช่วยไหมครับ?"
@@ -41,43 +49,72 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  // 🟢 1. โหลดข้อมูลโควตาของวันนี้
-  Future<void> _loadDailyQuota() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String todayDate = DateTime.now().toIso8601String().substring(0, 10); // เช่น 2024-05-20
-    final String savedDate = prefs.getString('chat_date') ?? "";
-
-    if (savedDate == todayDate) {
-      setState(() {
-        currentUsage = prefs.getInt('chat_usage') ?? 0;
-      });
-    } else {
-      // หากขึ้นวันใหม่ ให้รีเซ็ตเป็น 0
-      await prefs.setString('chat_date', todayDate);
-      await prefs.setInt('chat_usage', 0);
-      setState(() {
-        currentUsage = 0;
-      });
+  // 🟢 3. มัดรวมการดึง Token และไปดึงข้อมูลโควตาล่าสุดต่อจากเซิร์ฟเวอร์
+  Future<void> _initializeChat() async {
+    await _loadToken(); // ดึงค่าจาก Secure Storage
+    if (_userId != null) {
+      await _fetchInitialQuota(); // ส่ง User ID ไปเช็กโควตาเริ่มต้นที่หลังบ้าน
     }
   }
 
-  // 🟢 2. อัปเดตโควตาเมื่อกดส่งข้อความ
-  Future<void> _incrementQuota() async {
-    final prefs = await SharedPreferences.getInstance();
-    currentUsage++;
-    await prefs.setInt('chat_usage', currentUsage);
-    setState(() {});
+  // 🟩 ฟังก์ชันสำหรับดึง Token และ User ID ออกจากหน่วยความจำ (ตามที่คุณเขียนเป๊ะๆ)
+  Future<void> _loadToken() async {
+    String? token = await _secureStorage.read(key: "auth_token");
+    String? userId = await _secureStorage.read(key: "user_id");
+    if (!mounted) return;
+    setState(() {
+      _authToken = token;
+      _userId = userId;
+    });
+    // เทสพิมพ์พ่นดูใน Debug Console ว่า ข้อมูลมาจริงไหม
+    print("ระบบตรวจสอบพบ Token ปัจจุบัน: $_authToken, UserID: $_userId");
   }
 
-  // 🟢 3. ส่งข้อความไปหา Laravel API
+  // 🟢 4. ฟังก์ชันดึงโควตารายวันปัจจุบันจากฝั่ง Laravel หลังบ้าน
+  Future<void> _fetchInitialQuota() async {
+    if (_userId == null) return;
+
+    setState(() => isLoading = true);
+    try {
+      // 🟩 เรียกใช้งานผ่าน UserService ตามที่คุณกำหนด
+      final data = await UserService.getUserById(_userId!, _authToken);
+
+      if (data != null) {
+        // ดึงค่าจากคีย์ 'chat_quota' ตรงๆ ตามโครงสร้าง JSON (ถ้าไม่มีค่าให้ default เป็น 10)
+        int remainingQuota = data['chat_quota'] ?? 10;
+        
+        setState(() {
+          // แปลงโควตาที่เหลือกลับมาเป็นค่านับสะสม (currentUsage) ให้ UI แบนเนอร์ทำงานถูกต้อง
+          // ตัวอย่าง: ถ้าเหลือ 10 -> currentUsage จะได้ 10 - 10 = 0 (แปลว่าใช้ไปแล้ว 0 ครั้ง)
+          currentUsage = maxDailyLimit - remainingQuota; 
+        });
+        
+        print("ดึงข้อมูลผู้ใช้สำเร็จ! โควตาคงเหลือจริง: $remainingQuota ครั้ง (UI พ่นว่าใช้ไปแล้ว: $currentUsage)");
+      }
+    } catch (e) {
+      print("เกิดข้อผิดพลาดในการดึงข้อมูลโควตา: $e");
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  // 🟢 5. ฟังก์ชันส่งข้อความ ปรับมาเช็กเงื่อนไขกับ _userId และแนบค่าส่งไปหลังบ้าน
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    // เช็กโควตาก่อนส่ง
+    // เช็กโควตาเบื้องต้นจากหน้าจอแอปก่อน
     if (currentUsage >= maxDailyLimit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("คุณใช้งานโควตาคำถามของวันนี้หมดแล้ว กรุณากลับมาใหม่พรุ่งนี้ครับ")),
+      );
+      return;
+    }
+
+    // ป้องกันกรณีที่อ่าน Secure Storage แล้วไม่เจอ ID
+    if (_userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("ไม่พบรหัสผู้ใช้งาน กรุณาล็อกอินใหม่อีกครั้ง")),
       );
       return;
     }
@@ -88,24 +125,42 @@ class _ChatPageState extends State<ChatPage> {
       isLoading = true;
     });
     _scrollToBottom();
-    
-    // หักโควตา
-    await _incrementQuota();
 
     try {
-      // 🚨 เปลี่ยน URL ด้านล่างนี้ให้เป็น URL ของเซิร์ฟเวอร์ Laravel ของคุณ (เช่น ngrok หรือ domain จริง)
       final url = Uri.parse('https://uselessly-disclose-stingray.ngrok-free.dev/api/chat');
-      
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'message': text}),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_authToken', // 🔒 ส่ง Token ยืนยันสิทธิ์กับ Laravel
+        },
+        body: jsonEncode({
+          'message': text,
+          'user_id': _userId // 🟩 ส่ง ID ที่ดึงมาจาก Secure Storage ไปให้หลังบ้านเช็กหักโควตา
+        }),
       );
 
-      if (response.statusCode == 200) {
+      // กรณีที่หลังบ้านตอบกลับว่าโควตาหมดจริง (Status 403)
+      if (response.statusCode == 403) {
         final data = jsonDecode(response.body);
         setState(() {
+          messages.add({"role": "ai", "text": data['reply'] ?? 'โควตารายวันของคุณหมดแล้ว'});
+          currentUsage = maxDailyLimit; // ล็อก UI ทันที
+          isLoading = false;
+        });
+        _scrollToBottom();
+        return;
+      }
+
+      // กรณีคุยผ่านสำเร็จและตัดโควตาแล้ว (Status 200)
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        int remainingQuota = data['remaining_quota'] ?? 0;
+
+        setState(() {
           messages.add({"role": "ai", "text": data['reply'] ?? 'ไม่มีการตอบกลับ'});
+          currentUsage = maxDailyLimit - remainingQuota; // ปรับโควตาที่เหลือโชว์บนแบนเนอร์
           isLoading = false;
         });
       } else {
@@ -121,7 +176,6 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToBottom();
   }
 
-  // ฟังก์ชันเลื่อนแชทลงล่างสุดอัตโนมัติ
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
@@ -136,6 +190,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 🟩 ส่วน UI โครงสร้างความสวยงามคงเดิมทุกประการ ไม่จำเป็นต้องแก้โค้ดด้านล่างนี้ครับ
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -157,8 +212,6 @@ class _ChatPageState extends State<ChatPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text("แชตบอต", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-                    
-                    // 🟢 แบนเนอร์แสดงโควตาคงเหลือ
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
@@ -179,14 +232,12 @@ class _ChatPageState extends State<ChatPage> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                
-                // 🟢 ส่วนแสดงประวัติแชท
                 Expanded(
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1EBB8), // สีพื้นหลังกล่องแชท
+                      color: const Color(0xFFF1EBB8),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.black87),
                     ),
@@ -202,7 +253,7 @@ class _ChatPageState extends State<ChatPage> {
                             margin: const EdgeInsets.symmetric(vertical: 5),
                             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                             constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.7, // กำหนดกล่องแชทไม่ให้กว้างเกินไป
+                              maxWidth: MediaQuery.of(context).size.width * 0.7,
                             ),
                             decoration: BoxDecoration(
                               color: isUser ? const Color(0xFF915C22) : Colors.white,
@@ -223,8 +274,6 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                
-                // 🟢 ไอคอนโหลดเมื่อรอ AI ตอบ
                 if (isLoading)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 10),
@@ -232,8 +281,6 @@ class _ChatPageState extends State<ChatPage> {
                       child: CircularProgressIndicator(color: Color(0xFF915C22)),
                     ),
                   ),
-
-                // 🟢 ช่องพิมพ์และปุ่มส่ง
                 Row(
                   children: [
                     const Icon(Icons.person, size: 40, color: Color(0xFF915C22)),
@@ -242,7 +289,7 @@ class _ChatPageState extends State<ChatPage> {
                       child: Container(
                         height: 45,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF424242), // สีเทาเข้ม
+                          color: const Color(0xFF424242),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: TextField(
@@ -255,7 +302,7 @@ class _ChatPageState extends State<ChatPage> {
                             hintStyle: const TextStyle(color: Colors.white54),
                           ),
                           onSubmitted: (_) => _sendMessage(),
-                          enabled: currentUsage < maxDailyLimit && !isLoading, // ล็อกช่องพิมพ์เมื่อโควตาหมดหรือกำลังโหลด
+                          enabled: currentUsage < maxDailyLimit && !isLoading,
                         ),
                       ),
                     ),
@@ -275,7 +322,7 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
       ),
-      bottomNavigationBar: const AuthNavBar(currentIndex: 3), // แถบที่ 4 ของเมนู 5 ปุ่ม
+      bottomNavigationBar: const AuthNavBar(currentIndex: 3),
     );
   }
 }
