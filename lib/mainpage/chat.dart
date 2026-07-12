@@ -1,8 +1,138 @@
 import 'package:flutter/material.dart';
 import 'package:project/navbar/navbars.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class ChatPage extends StatelessWidget {
+class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
+
+  @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  
+  List<Map<String, String>> messages = [];
+  bool isLoading = false;
+  
+  // ตั้งค่าโควตารายวัน
+  final int maxDailyLimit = 10;
+  int currentUsage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDailyQuota();
+    
+    // ใส่ข้อความต้อนรับ
+    messages.add({
+      "role": "ai",
+      "text": "สวัสดีครับ! ผมคือผู้ช่วย AI ด้านการเกษตร วันนี้มีอะไรให้ผมช่วยไหมครับ?"
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // 🟢 1. โหลดข้อมูลโควตาของวันนี้
+  Future<void> _loadDailyQuota() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String todayDate = DateTime.now().toIso8601String().substring(0, 10); // เช่น 2024-05-20
+    final String savedDate = prefs.getString('chat_date') ?? "";
+
+    if (savedDate == todayDate) {
+      setState(() {
+        currentUsage = prefs.getInt('chat_usage') ?? 0;
+      });
+    } else {
+      // หากขึ้นวันใหม่ ให้รีเซ็ตเป็น 0
+      await prefs.setString('chat_date', todayDate);
+      await prefs.setInt('chat_usage', 0);
+      setState(() {
+        currentUsage = 0;
+      });
+    }
+  }
+
+  // 🟢 2. อัปเดตโควตาเมื่อกดส่งข้อความ
+  Future<void> _incrementQuota() async {
+    final prefs = await SharedPreferences.getInstance();
+    currentUsage++;
+    await prefs.setInt('chat_usage', currentUsage);
+    setState(() {});
+  }
+
+  // 🟢 3. ส่งข้อความไปหา Laravel API
+  Future<void> _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+
+    // เช็กโควตาก่อนส่ง
+    if (currentUsage >= maxDailyLimit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("คุณใช้งานโควตาคำถามของวันนี้หมดแล้ว กรุณากลับมาใหม่พรุ่งนี้ครับ")),
+      );
+      return;
+    }
+
+    _controller.clear();
+    setState(() {
+      messages.add({"role": "user", "text": text});
+      isLoading = true;
+    });
+    _scrollToBottom();
+    
+    // หักโควตา
+    await _incrementQuota();
+
+    try {
+      // 🚨 เปลี่ยน URL ด้านล่างนี้ให้เป็น URL ของเซิร์ฟเวอร์ Laravel ของคุณ (เช่น ngrok หรือ domain จริง)
+      final url = Uri.parse('https://uselessly-disclose-stingray.ngrok-free.dev/api/chat');
+      
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'message': text}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          messages.add({"role": "ai", "text": data['reply'] ?? 'ไม่มีการตอบกลับ'});
+          isLoading = false;
+        });
+      } else {
+        throw Exception("Server Error : ${response.statusCode}");
+      }
+
+    } catch (e) {
+      setState(() {
+        messages.add({"role": "ai", "text": "ขออภัยครับ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ในขณะนี้ ($e)"});
+        isLoading = false;
+      });
+    }
+    _scrollToBottom();
+  }
+
+  // ฟังก์ชันเลื่อนแชทลงล่างสุดอัตโนมัติ
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,20 +153,87 @@ class ChatPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("แชตบอต", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("แชตบอต", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                    
+                    // 🟢 แบนเนอร์แสดงโควตาคงเหลือ
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: currentUsage >= maxDailyLimit ? Colors.red.shade100 : Colors.green.shade200,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: currentUsage >= maxDailyLimit ? Colors.red : Colors.green.shade800,
+                        ),
+                      ),
+                      child: Text(
+                        "โควตา: $currentUsage / $maxDailyLimit",
+                        style: TextStyle(
+                          color: currentUsage >= maxDailyLimit ? Colors.red.shade800 : Colors.green.shade900,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 20),
+                
+                // 🟢 ส่วนแสดงประวัติแชท
                 Expanded(
                   child: Container(
                     width: double.infinity,
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1EBB8), // สีพื้นหลังกล่องแชท
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.black87),
                     ),
-                    // โค้ดแสดงกล่องข้อความแชทจะมาใส่ตรงนี้ในอนาคต
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = messages[index];
+                        final isUser = msg["role"] == "user";
+                        return Align(
+                          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.7, // กำหนดกล่องแชทไม่ให้กว้างเกินไป
+                            ),
+                            decoration: BoxDecoration(
+                              color: isUser ? const Color(0xFF915C22) : Colors.white,
+                              borderRadius: BorderRadius.circular(15),
+                              border: isUser ? null : Border.all(color: Colors.grey.shade400),
+                            ),
+                            child: Text(
+                              msg["text"]!,
+                              style: TextStyle(
+                                color: isUser ? Colors.white : Colors.black87,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
+                
+                // 🟢 ไอคอนโหลดเมื่อรอ AI ตอบ
+                if (isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child: Center(
+                      child: CircularProgressIndicator(color: Color(0xFF915C22)),
+                    ),
+                  ),
+
+                // 🟢 ช่องพิมพ์และปุ่มส่ง
                 Row(
                   children: [
                     const Icon(Icons.person, size: 40, color: Color(0xFF915C22)),
@@ -48,17 +245,29 @@ class ChatPage extends StatelessWidget {
                           color: const Color(0xFF424242), // สีเทาเข้ม
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const TextField(
-                          style: TextStyle(color: Colors.white),
+                        child: TextField(
+                          controller: _controller,
+                          style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 15),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                            hintText: currentUsage >= maxDailyLimit ? "โควตาหมดแล้ว" : "พิมพ์ข้อความ...",
+                            hintStyle: const TextStyle(color: Colors.white54),
                           ),
+                          onSubmitted: (_) => _sendMessage(),
+                          enabled: currentUsage < maxDailyLimit && !isLoading, // ล็อกช่องพิมพ์เมื่อโควตาหมดหรือกำลังโหลด
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Icon(Icons.send, size: 35, color: Color(0xFF915C22)),
+                    GestureDetector(
+                      onTap: (currentUsage >= maxDailyLimit || isLoading) ? null : _sendMessage,
+                      child: Icon(
+                        Icons.send, 
+                        size: 35, 
+                        color: (currentUsage >= maxDailyLimit || isLoading) ? Colors.grey : const Color(0xFF915C22)
+                      ),
+                    ),
                   ],
                 ),
               ],
