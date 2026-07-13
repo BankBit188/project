@@ -53,10 +53,9 @@ class _LoginPageState extends State<LoginPage> {
           print("ID ที่สกัดได้เตรียมบันทึก: $idToSave");
 
           if (idToSave != null) {
-            await _secureStorage.write(key: "user_id", value: idToSave.toString());
-            
+            await _secureStorage.write(key: "Userid", value: idToSave.toString());
             // 🟩 เพิ่มคำสั่งยืนยันการบันทึก
-            print("บันทึก user_id สำเร็จแล้ว!");
+            print("บันทึก Userid สำเร็จแล้ว!${await _secureStorage.read(key: "Userid")}");
           }
         }
 

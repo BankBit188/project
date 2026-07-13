@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 // 🟢 อย่าลืมตรวจสอบว่าโปรเจกต์ของคุณติดตั้งและนำเข้าตัวนี้แล้วหรือยังนะครับ
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:project/service/user_service.dart'; // นำเข้า UserService เพื่อใช้ฟังก์ชัน login และอื่นๆ
 
@@ -15,10 +15,11 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends State<ChatPage>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   // 🟢 1. ประกาศตัวแปรใช้งาน FlutterSecureStorage และตัวแปรเก็บ Token/UserID
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   String? _authToken;
@@ -26,19 +27,23 @@ class _ChatPageState extends State<ChatPage> {
 
   List<Map<String, String>> messages = [];
   bool isLoading = false;
-  
+
   final int maxDailyLimit = 10;
   int currentUsage = 0; // ค่านับใช้งานเริ่มต้น
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
     // 🟢 2. เรียกฟังก์ชันเตรียมโหลด Token และโควตาเริ่มต้น
     _initializeChat();
-    
+
     messages.add({
       "role": "ai",
-      "text": "สวัสดีครับ! ผมคือผู้ช่วย AI ด้านการเกษตร วันนี้มีอะไรให้ผมช่วยไหมครับ?"
+      "text":
+          "สวัสดีครับ! ผมคือผู้ช่วย AI ด้านการเกษตร วันนี้มีอะไรให้ผมช่วยไหมครับ?",
     });
   }
 
@@ -53,14 +58,71 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _initializeChat() async {
     await _loadToken(); // ดึงค่าจาก Secure Storage
     if (_userId != null) {
-      await _fetchInitialQuota(); // ส่ง User ID ไปเช็กโควตาเริ่มต้นที่หลังบ้าน
+      await _fetchInitialQuota(); // โหลดโควตาเดิม
+      await _fetchChatHistory(); // 🟢 เพิ่มการโหลดประวัติแชตเก่าตรงนี้
+    }
+  }
+
+  // 🟢 ฟังก์ชันสำหรับวิ่งไปดึงประวัติแชตจาก Laravel
+  Future<void> _fetchChatHistory() async {
+    setState(() => isLoading = true);
+    try {
+      final url = Uri.parse(
+        'https://uselessly-disclose-stingray.ngrok-free.dev/api/chat/history',
+      );
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_authToken',
+        },
+        body: jsonEncode({'Userid': _userId}),
+      );
+      print("โหลดประวัติแชตจากเซิร์ฟเวอร์ ID ที่ส่งไปคือ: ${_userId}");
+      if (response.statusCode == 200) {
+        final List<dynamic> historyData = jsonDecode(response.body);
+
+        setState(() {
+          // ล้างอาร์เรย์ข้อความเก่าก่อน
+          messages.clear();
+
+          // 🟢 ใส่ข้อความต้อนรับของ AI กลับเข้าไปให้อยู่บรรทัดบนสุดเสมอ ไม่ให้หายไป
+          messages.add({
+            "role": "ai",
+            "text":
+                "สวัสดีครับ! ผมคือผู้ช่วย AI ด้านการเกษตร วันนี้มีอะไรให้ผมช่วยไหมครับ?",
+          });
+
+          // วนลูปแปลงข้อมูลจากฐานข้อมูลยัดเข้าตัวแปรแชตใน Flutter
+          if (historyData.isNotEmpty) {
+            for (var msg in historyData) {
+              messages.add({
+                "role": msg['role'].toString(),
+                "text": msg['text'].toString(),
+              });
+            }
+          }
+        });
+
+        // เลื่อนหน้าจอลงไปล่างสุดหลังจากโหลดประวัติแชตเสร็จ
+        _scrollToBottom();
+      }
+      else {
+        // 🟢 เพิ่มบรรทัดนี้เพื่อดูข้อความแจ้งเตือนใน Debug Console
+        print("Log Error 422 (ประวัติแชต): ${response.body}");
+      }
+    } catch (e) {
+      print("เกิดข้อผิดพลาดในการโหลดประวัติแชต: $e");
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
   // 🟩 ฟังก์ชันสำหรับดึง Token และ User ID ออกจากหน่วยความจำ (ตามที่คุณเขียนเป๊ะๆ)
   Future<void> _loadToken() async {
     String? token = await _secureStorage.read(key: "auth_token");
-    String? userId = await _secureStorage.read(key: "user_id");
+    String? userId = await _secureStorage.read(key: "Userid");
     if (!mounted) return;
     setState(() {
       _authToken = token;
@@ -82,14 +144,16 @@ class _ChatPageState extends State<ChatPage> {
       if (data != null) {
         // ดึงค่าจากคีย์ 'chat_quota' ตรงๆ ตามโครงสร้าง JSON (ถ้าไม่มีค่าให้ default เป็น 10)
         int remainingQuota = data['chat_quota'] ?? 10;
-        
+
         setState(() {
           // แปลงโควตาที่เหลือกลับมาเป็นค่านับสะสม (currentUsage) ให้ UI แบนเนอร์ทำงานถูกต้อง
           // ตัวอย่าง: ถ้าเหลือ 10 -> currentUsage จะได้ 10 - 10 = 0 (แปลว่าใช้ไปแล้ว 0 ครั้ง)
-          currentUsage = maxDailyLimit - remainingQuota; 
+          currentUsage = maxDailyLimit - remainingQuota;
         });
-        
-        print("ดึงข้อมูลผู้ใช้สำเร็จ! โควตาคงเหลือจริง: $remainingQuota ครั้ง (UI พ่นว่าใช้ไปแล้ว: $currentUsage)");
+
+        print(
+          "ดึงข้อมูลผู้ใช้สำเร็จ! โควตาคงเหลือจริง: $remainingQuota ครั้ง (UI พ่นว่าใช้ไปแล้ว: $currentUsage)",
+        );
       }
     } catch (e) {
       print("เกิดข้อผิดพลาดในการดึงข้อมูลโควตา: $e");
@@ -106,7 +170,11 @@ class _ChatPageState extends State<ChatPage> {
     // เช็กโควตาเบื้องต้นจากหน้าจอแอปก่อน
     if (currentUsage >= maxDailyLimit) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("คุณใช้งานโควตาคำถามของวันนี้หมดแล้ว กรุณากลับมาใหม่พรุ่งนี้ครับ")),
+        const SnackBar(
+          content: Text(
+            "คุณใช้งานโควตาคำถามของวันนี้หมดแล้ว กรุณากลับมาใหม่พรุ่งนี้ครับ",
+          ),
+        ),
       );
       return;
     }
@@ -114,7 +182,9 @@ class _ChatPageState extends State<ChatPage> {
     // ป้องกันกรณีที่อ่าน Secure Storage แล้วไม่เจอ ID
     if (_userId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("ไม่พบรหัสผู้ใช้งาน กรุณาล็อกอินใหม่อีกครั้ง")),
+        const SnackBar(
+          content: Text("ไม่พบรหัสผู้ใช้งาน กรุณาล็อกอินใหม่อีกครั้ง"),
+        ),
       );
       return;
     }
@@ -127,25 +197,31 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToBottom();
 
     try {
-      final url = Uri.parse('https://uselessly-disclose-stingray.ngrok-free.dev/api/chat');
+      final url = Uri.parse(
+        'https://uselessly-disclose-stingray.ngrok-free.dev/api/chat',
+      );
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $_authToken', // 🔒 ส่ง Token ยืนยันสิทธิ์กับ Laravel
+          'Authorization':
+              'Bearer $_authToken', // 🔒 ส่ง Token ยืนยันสิทธิ์กับ Laravel
         },
         body: jsonEncode({
           'message': text,
-          'user_id': _userId // 🟩 ส่ง ID ที่ดึงมาจาก Secure Storage ไปให้หลังบ้านเช็กหักโควตา
+          'Userid':_userId,
         }),
-      );
-
+      ).timeout(const Duration(seconds: 120));
+      print("ส่งข้อความไปหลังบ้านพร้อม UserID: $_userId, ข้อความ: $text");
       // กรณีที่หลังบ้านตอบกลับว่าโควตาหมดจริง (Status 403)
       if (response.statusCode == 403) {
         final data = jsonDecode(response.body);
         setState(() {
-          messages.add({"role": "ai", "text": data['reply'] ?? 'โควตารายวันของคุณหมดแล้ว'});
+          messages.add({
+            "role": "ai",
+            "text": data['reply'] ?? 'โควตารายวันของคุณหมดแล้ว',
+          });
           currentUsage = maxDailyLimit; // ล็อก UI ทันที
           isLoading = false;
         });
@@ -159,17 +235,26 @@ class _ChatPageState extends State<ChatPage> {
         int remainingQuota = data['remaining_quota'] ?? 0;
 
         setState(() {
-          messages.add({"role": "ai", "text": data['reply'] ?? 'ไม่มีการตอบกลับ'});
-          currentUsage = maxDailyLimit - remainingQuota; // ปรับโควตาที่เหลือโชว์บนแบนเนอร์
+          messages.add({
+            "role": "ai",
+            "text": data['reply'] ?? 'ไม่มีการตอบกลับ',
+          });
+          currentUsage =
+              maxDailyLimit - remainingQuota; // ปรับโควตาที่เหลือโชว์บนแบนเนอร์
           isLoading = false;
         });
       } else {
-        throw Exception("Server Error : ${response.statusCode}");
+        // 🟢 เพิ่มบรรทัดนี้เพื่อดูข้อความแจ้งเตือนใน Debug Console
+        print("Log Error 422 (ส่งข้อความ): ${response.body}");
+        final errorData = jsonDecode(response.body);
+        throw Exception('${errorData['reply'] ?? 'Server Error : 422'}');
       }
-
     } catch (e) {
       setState(() {
-        messages.add({"role": "ai", "text": "ขออภัยครับ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ในขณะนี้ ($e)"});
+        messages.add({
+          "role": "ai",
+          "text": "ขออภัยครับ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ในขณะนี้ ($e)",
+        });
         isLoading = false;
       });
     }
@@ -190,6 +275,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     // 🟩 ส่วน UI โครงสร้างความสวยงามคงเดิมทุกประการ ไม่จำเป็นต้องแก้โค้ดด้านล่างนี้ครับ
     return Scaffold(
       body: Container(
@@ -211,20 +297,35 @@ class _ChatPageState extends State<ChatPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("แชตบอต", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                    const Text(
+                      "แชตบอต",
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: currentUsage >= maxDailyLimit ? Colors.red.shade100 : Colors.green.shade200,
+                        color: currentUsage >= maxDailyLimit
+                            ? Colors.red.shade100
+                            : Colors.green.shade200,
                         borderRadius: BorderRadius.circular(15),
                         border: Border.all(
-                          color: currentUsage >= maxDailyLimit ? Colors.red : Colors.green.shade800,
+                          color: currentUsage >= maxDailyLimit
+                              ? Colors.red
+                              : Colors.green.shade800,
                         ),
                       ),
                       child: Text(
                         "โควตา: $currentUsage / $maxDailyLimit",
                         style: TextStyle(
-                          color: currentUsage >= maxDailyLimit ? Colors.red.shade800 : Colors.green.shade900,
+                          color: currentUsage >= maxDailyLimit
+                              ? Colors.red.shade800
+                              : Colors.green.shade900,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -248,17 +349,26 @@ class _ChatPageState extends State<ChatPage> {
                         final msg = messages[index];
                         final isUser = msg["role"] == "user";
                         return Align(
-                          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: isUser
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.symmetric(vertical: 5),
-                            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 15,
+                              vertical: 10,
+                            ),
                             constraints: BoxConstraints(
                               maxWidth: MediaQuery.of(context).size.width * 0.7,
                             ),
                             decoration: BoxDecoration(
-                              color: isUser ? const Color(0xFF915C22) : Colors.white,
+                              color: isUser
+                                  ? const Color(0xFF915C22)
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(15),
-                              border: isUser ? null : Border.all(color: Colors.grey.shade400),
+                              border: isUser
+                                  ? null
+                                  : Border.all(color: Colors.grey.shade400),
                             ),
                             child: Text(
                               msg["text"]!,
@@ -278,12 +388,18 @@ class _ChatPageState extends State<ChatPage> {
                   const Padding(
                     padding: EdgeInsets.only(bottom: 10),
                     child: Center(
-                      child: CircularProgressIndicator(color: Color(0xFF915C22)),
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF915C22),
+                      ),
                     ),
                   ),
                 Row(
                   children: [
-                    const Icon(Icons.person, size: 40, color: Color(0xFF915C22)),
+                    const Icon(
+                      Icons.person,
+                      size: 40,
+                      color: Color(0xFF915C22),
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Container(
@@ -297,8 +413,13 @@ class _ChatPageState extends State<ChatPage> {
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                            hintText: currentUsage >= maxDailyLimit ? "โควตาหมดแล้ว" : "พิมพ์ข้อความ...",
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 15,
+                              vertical: 10,
+                            ),
+                            hintText: currentUsage >= maxDailyLimit
+                                ? "โควตาหมดแล้ว"
+                                : "พิมพ์ข้อความ...",
                             hintStyle: const TextStyle(color: Colors.white54),
                           ),
                           onSubmitted: (_) => _sendMessage(),
@@ -308,11 +429,15 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     const SizedBox(width: 10),
                     GestureDetector(
-                      onTap: (currentUsage >= maxDailyLimit || isLoading) ? null : _sendMessage,
+                      onTap: (currentUsage >= maxDailyLimit || isLoading)
+                          ? null
+                          : _sendMessage,
                       child: Icon(
-                        Icons.send, 
-                        size: 35, 
-                        color: (currentUsage >= maxDailyLimit || isLoading) ? Colors.grey : const Color(0xFF915C22)
+                        Icons.send,
+                        size: 35,
+                        color: (currentUsage >= maxDailyLimit || isLoading)
+                            ? Colors.grey
+                            : const Color(0xFF915C22),
                       ),
                     ),
                   ],

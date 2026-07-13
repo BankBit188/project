@@ -65,7 +65,7 @@ class _ToolPageState extends State<ToolPage> {
   // 🟩 ฟังก์ชันสำหรับดึง Token และ User ID ออกจากหน่วยความจำ
   Future<void> _loadToken() async {
     String? token = await _secureStorage.read(key: "auth_token");
-    String? userId = await _secureStorage.read(key: "user_id");
+    String? userId = await _secureStorage.read(key: "Userid");
     if (!mounted) return;
     setState(() {
       _authToken = token;
@@ -157,7 +157,7 @@ class _ToolPageState extends State<ToolPage> {
                             );
                           } else if (value == 'logout') {
                             await _secureStorage.delete(key: "auth_token");
-                            await _secureStorage.delete(key: "user_id");
+                            await _secureStorage.delete(key: "Userid");
                             print("ลบ Token สำเร็จ ออกจากระบบเรียบร้อยแล้ว");
 
                             if (!mounted) return;
