@@ -1,4 +1,4 @@
-import 'dart:io'; // 🟩 เพิ่มเข้ามาเพื่อใช้กับคลาส File ของรูปภาพ
+import 'dart:io'; // 🟩 สำหรับใช้กับคลาส File ของรูปภาพ
 import 'package:flutter/material.dart';
 import 'package:project/navbar/navbars.dart';
 import 'package:project/mainpage/history.dart';
@@ -6,14 +6,21 @@ import 'package:project/mainpage/menu.dart';
 import 'package:project/mainpage/profile.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:image_picker/image_picker.dart'; // 🟩 ลงแพ็กเกจเพิ่มเพื่อดึงรูปจากเครื่อง (flutter pub add image_picker)
-import 'package:project/service/reports_service.dart'; // 🟩 Import ไฟล์บริการจัดการ Report ที่เราเพิ่งสร้างร่วมกัน
-import 'package:project/service/user_service.dart'; // 🟩 เพิ่ม Import ตรงนี้เพื่อใช้ดึงข้อมูล Username ปัจจุบันมาส่ง Report
+import 'package:image_picker/image_picker.dart'; 
+// 🟩 ลงแพ็กเกจเพิ่มเพื่อดึงรูปจากเครื่อง (flutter pub add image_picker)
+import 'package:project/service/reports_service.dart';
+// 🟩 Import ไฟล์บริการจัดการ Report
+import 'package:project/service/user_service.dart'; 
+// 🟩 เพิ่ม Import ตรงนี้เพื่อใช้ดึงข้อมูล Username ปัจจุบันมาส่ง Report
 
-import 'package:intl/date_symbol_data_local.dart'; // 🟩 สำหรับเปิดใช้งาน Locale ภาษาไทย
-import 'package:intl/intl.dart'; // 🟩 แพ็กเกจสำหรับจัดการ Format วันและเวลา
+import 'package:intl/date_symbol_data_local.dart';
+// 🟩 สำหรับเปิดใช้งาน Locale ภาษาไทย
+import 'package:intl/intl.dart'; 
+// 🟩 แพ็กเกจสำหรับจัดการ Format วันและเวลา
 
-// 🟩 เปลี่ยนโครงสร้างจาก StatelessWidget เป็น StatefulWidget เพื่อใช้ดึงข้อมูล Token ล่าสุด
+// 🔵 1. นำเข้าไฟล์บริการข้อมูลอุปกรณ์
+import 'package:project/service/tool_service.dart';
+
 class ToolPage extends StatefulWidget {
   const ToolPage({super.key});
 
@@ -27,7 +34,11 @@ class _ToolPageState extends State<ToolPage> {
 
   // 🟩 ตัวแปรสำหรับเก็บค่าเพื่อนำไปเช็คหรือส่งต่อให้ API ตัวอื่น
   String? _authToken;
-  String? _userId; // 🟩 เพิ่มสำหรับเก็บ User ID ไปควานหาชื่อผู้ใช้
+  String? _userId;
+
+  // 🔵 2. เพิ่มตัวแปรเก็บข้อมูลอุปกรณ์จาก API และสเตตัสการโหลด
+  Map<String, dynamic>? _toolData;
+  bool _isLoadingTool = false;
 
   // 🟩 ตัวแปรสำหรับเก็บสตริงวันเวลาปัจจุบันที่แปลงเป็นภาษาไทยแล้ว
   String _currentDateTimeString = "";
@@ -35,8 +46,10 @@ class _ToolPageState extends State<ToolPage> {
   @override
   void initState() {
     super.initState();
-    _initThaiDateTime(); // 🟩 เรียกเซ็ตค่าและดึงวันเวลาปัจจุบันภาษาไทย
-    _loadToken(); // 🟩 เรียกโหลด Token ทันทีเมื่อเปิดหน้าอุปกรณ๋ขึ้นมา
+    _initThaiDateTime();
+    // 🟩 เรียกเซ็ตค่าและดึงวันเวลาปัจจุบันภาษาไทย
+    _loadToken();
+    // 🟩 เรียกโหลด Token ทันทีเมื่อเปิดหน้าอุปกรณ์ขึ้นมา
   }
 
   // 🟩 ฟังก์ชันสำหรับดึงและจัดฟอร์แมตวันเวลาปัจจุบันให้เป็นภาษาไทย พ.ศ.
@@ -56,7 +69,7 @@ class _ToolPageState extends State<ToolPage> {
 
       if (!mounted) return;
       setState(() {
-        // นำมาประกอบร่างตาม Format ที่อยากได้: "20 มกราคม 2569   12.00"
+        // นำมาประกอบร่างตาม Format: "20 มกราคม 2569   12.00"
         _currentDateTimeString = "$dateNew $thaiYear   $timeNew";
       });
     });
@@ -66,13 +79,51 @@ class _ToolPageState extends State<ToolPage> {
   Future<void> _loadToken() async {
     String? token = await _secureStorage.read(key: "auth_token");
     String? userId = await _secureStorage.read(key: "Userid");
+
     if (!mounted) return;
     setState(() {
       _authToken = token;
       _userId = userId;
     });
+
     // เทสพิมพ์พ่นดูใน Debug Console ว่า ข้อมูลมาจริงไหม
     print("ระบบตรวจสอบพบ Token ปัจจุบัน: $_authToken, UserID: $_userId");
+
+    // 🔵 3. หากมี User ID และ Token ครบถ้วน ให้ไปดึงข้อมูลจาก API ทันที
+    if (_userId != null && _authToken != null) {
+      _fetchToolData();
+    }
+  }
+
+  // 🔵 4. ฟังก์ชันดึงข้อมูลอุปกรณ์ของ User รายนี้จาก API หลังบ้าน
+  Future<void> _fetchToolData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingTool = true;
+    });
+    try {
+      final response = await ToolService.gettoolbyuser(_userId!, _authToken!);
+      if (response != null && response['status'] == 'success') {
+        if (!mounted) return;
+        setState(() {
+          _toolData = response['data']; // 🟢 เก็บส่วนของ data เอาไว้ใช้งาน
+          _isLoadingTool = false;
+        });
+        print("ดึงข้อมูลอุปกรณ์สำเร็จ: $_toolData");
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _isLoadingTool = false;
+        });
+        print("ไม่สามารถดึงข้อมูลอุปกรณ์ได้ หรือสถานะไม่ใช่ success");
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingTool = false;
+      });
+      print("เกิดข้อผิดพลาดในการโหลดข้อมูลอุปกรณ์: $e");
+    }
   }
 
   @override
@@ -97,27 +148,42 @@ class _ToolPageState extends State<ToolPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 🛠️ ปรับแถวบนสุด: มัด (ข้อความอุปกรณ์ + รีเฟรช) ชิดซ้าย และเมนูสามขีด ชิดขวา
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Text(
-                      "อุปกรณ์",
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    
-                    // 🛠️ ส่วนที่แก้ไข: นำข้อมูลตัวแปรจากวันเวลาปัจจุบันมาแสดงผลแทนค่าเดิมที่กรอกค้างไว้ (Static)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text(
-                        _currentDateTimeString.isNotEmpty 
-                            ? _currentDateTimeString 
-                            : "กำลังโหลดเวลา...", // แสดงข้อความรอระหว่างที่ format ทำงานแป๊บหนึ่ง
-                        style: const TextStyle(fontSize: 14),
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "อุปกรณ์",
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // ปุ่มรีเฟรชข้อมูล
+                        _isLoadingTool
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
+                                ),
+                              )
+                            : IconButton(
+                                icon: const Icon(Icons.refresh, size: 28, color: Colors.black87),
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                                onPressed: () {
+                                  _fetchToolData();
+                                  _initThaiDateTime();
+                                },
+                              ),
+                      ],
                     ),
 
                     // --- PopupMenuButton ---
@@ -185,31 +251,55 @@ class _ToolPageState extends State<ToolPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 40),
-                _buildElementRow("N", "30", "P", "0", "K", "38"),
+                
+                // 🛠️ ย้ายวันที่ลงมาอยู่บรรทัดข้างล่างคำว่าอุปกรณ์เรียบร้อยแล้ว (แก้ปัญหา Overflow)
+                const SizedBox(height: 6),
+                Text(
+                  _currentDateTimeString.isNotEmpty
+                      ? _currentDateTimeString
+                      : "กำลังโหลดเวลา...",
+                  style: const TextStyle(fontSize: 15, color: Colors.black54),
+                ),
+                const SizedBox(height: 35), // เว้นระยะช่องไฟก่อนลงไปแสดงค่า NPK
+
+                // 🔵 5. ส่วนแสดงผล NPK จากข้อมูล API แบบไดนามิก
+                _buildElementRow(
+                  "N", _toolData?['N']?.toString() ?? "-", 
+                  "P", _toolData?['P']?.toString() ?? "-", 
+                  "K", _toolData?['K']?.toString() ?? "-"
+                ),
                 const SizedBox(height: 20),
-                _buildElementRow("Ca", "30", "Mg", "0", "S", "38"),
+
+                // 🔵 6. ส่วนแสดงผล Ca, Mg, S จากข้อมูล API แบบไดนามิก
+                _buildElementRow(
+                  "Ca", _toolData?['Ca']?.toString() ?? "-", 
+                  "Mg", _toolData?['Mg']?.toString() ?? "-", 
+                  "S", _toolData?['S']?.toString() ?? "-"
+                ),
                 const SizedBox(height: 40),
+
+                // 🔵 7. ส่วนแสดงผล ความชื้น, อุณหภูมิ, ความเค็ม จากข้อมูล API
                 _buildDetailRow(
                   Icons.water_drop,
                   "ความชื้น",
-                  "60 %",
+                  _toolData != null ? "${_toolData!['humid']} %" : "กำลังโหลด...",
                   Colors.lightBlue,
                 ),
                 const SizedBox(height: 20),
                 _buildDetailRow(
                   Icons.thermostat,
                   "อุณหภูมิ",
-                  "20 C°",
+                  _toolData != null ? "${_toolData!['temperature']} C°" : "กำลังโหลด...",
                   Colors.black54,
                 ),
                 const SizedBox(height: 20),
                 _buildDetailRow(
                   Icons.waves,
                   "ความเค็ม",
-                  "0.5 mS/cm",
+                  _toolData != null ? "${_toolData!['salty']} us/cm" : "กำลังโหลด...",
                   Colors.black54,
                 ),
+                
                 const Spacer(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -234,7 +324,6 @@ class _ToolPageState extends State<ToolPage> {
     final TextEditingController detailController = TextEditingController();
     File? selectedImageFile;
     final ImagePicker picker = ImagePicker();
-
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -422,10 +511,8 @@ class _ToolPageState extends State<ToolPage> {
                                   child: CircularProgressIndicator(),
                                 ),
                               );
-
                               try {
                                 String currentUsername = "ไม่ระบุชื่อผู้ใช้";
-                                
                                 if (_userId != null && _authToken != null) {
                                   try {
                                     final userData = await UserService.getUserById(_userId!, _authToken);
@@ -445,7 +532,6 @@ class _ToolPageState extends State<ToolPage> {
                                   reportData: reportData,
                                   imageFile: selectedImageFile,
                                 );
-
                                 if (context.mounted) {
                                   Navigator.of(context).pop();
                                   Navigator.of(context).pop();
@@ -510,12 +596,9 @@ class _ToolPageState extends State<ToolPage> {
   }
 
   Widget _buildElementRow(
-    String l1,
-    String v1,
-    String l2,
-    String v2,
-    String l3,
-    String v3,
+    String l1, String v1,
+    String l2, String v2,
+    String l3, String v3,
   ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
