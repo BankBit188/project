@@ -56,4 +56,32 @@ class ToolService {
       token: token, // 🟩 ส่ง token ต่อไปให้ฟังก์ชันส่วนกลางใช้งาน
     );
   }
+  static Future<dynamic> createhistory({
+    required String userId,
+    required String token,
+    required String title,
+    required String province,
+    required String district,
+    required String Amphur,
+    Map<String, dynamic>? toolData, // ข้อมูลเซนเซอร์ทั้งหมดจากอุปกรณ์
+  }) async {
+    // รวบรวมข้อมูลทั้งหมดเข้าด้วยกันใน Map
+    final Map<String, dynamic> requestBody = {
+      'Userid': userId,
+      'title': title,
+      'province': province,
+      'Amphur': Amphur,
+      'district': district,
+      // รวมค่าเซนเซอร์ทั้งหมดลงไปใน Body (เช่น N, P, K, Ca, Mg, S, humid, temperature, salty, pH)
+      if (toolData != null) ...toolData,
+    };
+
+    return await _fetchAPI(
+      '/history/create', 
+      method: 'POST',
+      body: requestBody,
+      token: token, // ส่ง token ต่อไปให้ฟังก์ชันส่วนกลางใช้งาน
+    );
+  }
+  
 }

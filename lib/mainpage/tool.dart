@@ -18,8 +18,9 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart'; 
 // 🟩 แพ็กเกจสำหรับจัดการ Format วันและเวลา
 
-// 🔵 1. นำเข้าไฟล์บริการข้อมูลอุปกรณ์
+// 🔵 1. นำเข้าไฟล์บริการข้อมูลอุปกรณ์ และบริการข้อมูลพืช
 import 'package:project/service/tool_service.dart';
+import 'package:project/service/plants_service.dart'; // 🌿 เพิ่ม Service ดึงข้อมูลพืช
 
 class ToolPage extends StatefulWidget {
   const ToolPage({super.key});
@@ -126,6 +127,459 @@ class _ToolPageState extends State<ToolPage> {
     }
   }
 
+  // 📍 5. ฟังก์ชันเปิด Modal "ระบุสถานที่และที่ตั้ง" เมื่อกดปุ่มบันทึกข้อมูล
+  // 📍 5. ฟังก์ชันเปิด Modal "ระบุสถานที่และที่ตั้ง" เมื่อกดปุ่มบันทึกข้อมูล (ฉบับแก้ไขแล้ว)
+  void _showSaveLocationDialog(BuildContext context) {
+    final TextEditingController titleController = TextEditingController();
+    
+    // 🟢 กำหนดค่าเริ่มต้นให้กับ Dropdown เพื่อป้องกันการส่งค่า null/ว่าง ไปหา Laravel
+    String? selectedProvince = "เชียงราย";
+    String? selectedAmphur = "เมือง";     // อำเภอ
+    String? selectedDistrict = "เวียง";   // ตำบล
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: const Color(0xFFF5EFCB),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+                side: const BorderSide(color: Colors.black87, width: 1.5),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 25.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "ระบุสถานที่และที่ตั้ง",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+
+                    // ช่อง สถานที่
+                    _buildLocationInputRow(
+                      label: "สถานที่ :",
+                      child: TextField(
+                        controller: titleController,
+                        style: const TextStyle(fontSize: 14),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          border: InputBorder.none,
+                          hintText: "เช่น แปลงนาที่ 1",
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ช่อง จังหวัด (Dropdown)
+                    _buildLocationInputRow(
+                      label: "จังหวัด :",
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedProvince,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+                          items: ["เชียงราย", "เชียงใหม่", "พะเยา", "กรุงเทพมหานคร"]
+                              .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14))))
+                              .toList(),
+                          onChanged: (val) {
+                            setDialogState(() => selectedProvince = val);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ช่อง อำเภอ (Dropdown -> แก้ไขแมปเข้า selectedAmphur)
+                    _buildLocationInputRow(
+                      label: "อำเภอ :",
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedAmphur,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+                          items: ["เมือง", "แม่สาย", "พาน", "เชียงของ"]
+                              .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14))))
+                              .toList(),
+                          onChanged: (val) {
+                            setDialogState(() => selectedAmphur = val);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ช่อง ตำบล (Dropdown -> แก้ไขแมปเข้า selectedDistrict)
+                    _buildLocationInputRow(
+                      label: "ตำบล :",
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedDistrict,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+                          items: ["เวียง", "รอบเวียง", "บ้านดู่", "นางแล"]
+                              .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14))))
+                              .toList(),
+                          onChanged: (val) {
+                            setDialogState(() => selectedDistrict = val);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // ปุ่ม ยืนยัน / ยกเลิก
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // ปุ่มยืนยัน
+                        InkWell(
+                          onTap: () async {
+                            // 🟢 1. ตรวจสอบ Token ก่อน
+                            if (_authToken == null || _userId == null || _authToken!.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("ไม่พบข้อมูลการเข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่อีกครั้ง")),
+                              );
+                              return;
+                            }
+
+                            // 🟢 2. Validation เช็คว่ากรอกข้อมูลครบถ้วนไหม
+                            if (titleController.text.trim().isEmpty ||
+                                selectedProvince == null ||
+                                selectedAmphur == null ||
+                                selectedDistrict == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("กรุณากรอกข้อมูลสถานที่และเลือกที่ตั้งให้ครบถ้วน")),
+                              );
+                              return;
+                            }
+
+                            // แสดง Loading Dialog
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (context) => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+
+                            try {
+                              // เรียกใช้ API createhistory
+                              await ToolService.createhistory(
+                                userId: _userId!,
+                                token: _authToken!,
+                                title: titleController.text.trim(),
+                                province: selectedProvince!,
+                                Amphur: selectedAmphur!,     // อำเภอ
+                                district: selectedDistrict!, // ตำบล
+                                toolData: _toolData,
+                              );
+
+                              if (context.mounted) {
+                                Navigator.pop(context); // ปิด Dialog Loading
+                                Navigator.pop(dialogContext); // ปิด Modal ป๊อปอัป
+                                titleController.dispose();
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("บันทึกข้อมูลเรียบร้อยแล้ว")),
+                                );
+
+                                // นำทางไปหน้า HistoryPage
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const HistoryPage(),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                Navigator.pop(context); // ปิด Dialog Loading
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("บันทึกข้อมูลไม่สำเร็จ: $e")),
+                                );
+                              }
+                            }
+                          },
+                          child: Container(
+                            width: 110,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6BBA90),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.black87, width: 1.2),
+                            ),
+                            child: const Text(
+                              "ยืนยัน",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // ปุ่มยกเลิก
+                        InkWell(
+                          onTap: () {
+                            titleController.dispose();
+                            Navigator.pop(dialogContext);
+                          },
+                          child: Container(
+                            width: 110,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE26A6A),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.black87, width: 1.2),
+                            ),
+                            child: const Text(
+                              "ยกเลิก",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Widget ช่วยสร้างแถวฟอร์มระบุสถานที่ (แคปซูลขอบมน)
+  Widget _buildLocationInputRow({required String label, required Widget child}) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 85,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFE8C8), // สีพื้นหลังแคปซูล
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.black87, width: 1),
+            ),
+            child: Center(child: child),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 🌿 6. ฟังก์ชันสำหรับคำนวณหาพืชที่เหมาะสมโดยใช้ค่าจาก API (_toolData)
+  void _recommendPlantsFromToolData() async {
+    if (_toolData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("ยังไม่มีข้อมูลสภาพดิน กรุณารอโหลดข้อมูลสักครู่")),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      List<dynamic> allPlants = await PlantsService.getplants();
+
+      double? inputPH = double.tryParse(_toolData?['pH']?.toString() ?? _toolData?['ph']?.toString() ?? '');
+      double? inputHumid = double.tryParse(_toolData?['humid']?.toString() ?? '');
+      double? inputTemp = double.tryParse(_toolData?['temperature']?.toString() ?? '');
+      double? inputSalty = double.tryParse(_toolData?['salty']?.toString() ?? '');
+      double? inputN = double.tryParse(_toolData?['N']?.toString() ?? '');
+      double? inputP = double.tryParse(_toolData?['P']?.toString() ?? '');
+      double? inputK = double.tryParse(_toolData?['K']?.toString() ?? '');
+      double? inputCa = double.tryParse(_toolData?['Ca']?.toString() ?? '');
+      double? inputMg = double.tryParse(_toolData?['Mg']?.toString() ?? '');
+      double? inputS = double.tryParse(_toolData?['S']?.toString() ?? '');
+
+      List<Map<String, dynamic>> scoredPlants = [];
+
+      for (var plant in allPlants) {
+        int score = 0;
+
+        bool checkRange(double? input, dynamic minVal, dynamic maxVal) {
+          if (input == null || minVal == null || maxVal == null) return false;
+          double min = double.tryParse(minVal.toString()) ?? 0.0;
+          double max = double.tryParse(maxVal.toString()) ?? double.infinity;
+          return input >= min && input <= max;
+        }
+
+        if (checkRange(inputPH, plant['minPH'], plant['maxPH'])) score++;
+        if (checkRange(inputHumid, plant['minhumid'], plant['maxhumid'])) score++;
+        if (checkRange(inputTemp, plant['mintemperature'], plant['maxtemperature'])) score++;
+        if (checkRange(inputSalty, plant['minsalty'], plant['maxsalty'])) score++;
+        if (checkRange(inputN, plant['minN'], plant['maxN'])) score++;
+        if (checkRange(inputP, plant['minP'], plant['maxP'])) score++;
+        if (checkRange(inputK, plant['minK'], plant['maxK'])) score++;
+        if (checkRange(inputCa, plant['minCa'], plant['maxCa'])) score++;
+        if (checkRange(inputMg, plant['minMg'], plant['maxMg'])) score++;
+        if (checkRange(inputS, plant['minS'], plant['maxS'])) score++;
+
+        scoredPlants.add({
+          'plantData': plant,
+          'score': score,
+        });
+      }
+
+      scoredPlants.sort((a, b) => b['score'].compareTo(a['score']));
+      List<Map<String, dynamic>> top5Plants = scoredPlants.take(5).toList();
+
+      if (mounted) {
+        Navigator.pop(context); 
+        _showResultsBottomSheet(top5Plants); 
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); 
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("เกิดข้อผิดพลาดในการคำนวณ: $e")),
+        );
+      }
+    }
+  }
+
+  // 🌿 UI Modal เปิดป๊อปอัปแสดงผลลัพธ์พืช 5 อันดับแรก
+  void _showResultsBottomSheet(List<Map<String, dynamic>> items) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Color(0xFFF1E6C9),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
+            ),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF2E5A36),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "แนะนำพืชปลูกที่เหมาะสมกับดิน",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    var plant = items[index]['plantData'];
+                    String plantName = plant['normal_name'] ?? 'ไม่ระบุชื่อ';
+                    String imageUrl = plant['img_url'] ?? '';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 15),
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6F8E5F),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF2E5A36), width: 1.5),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              "${index + 1} $plantName",
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 110,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(15),
+                              image: imageUrl.isNotEmpty
+                                  ? DecorationImage(
+                                      image: NetworkImage(imageUrl),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                            ),
+                            child: imageUrl.isEmpty
+                                ? const Icon(Icons.eco, color: Colors.white, size: 40)
+                                : null,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -148,7 +602,7 @@ class _ToolPageState extends State<ToolPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 🛠️ ปรับแถวบนสุด: มัด (ข้อความอุปกรณ์ + รีเฟรช) ชิดซ้าย และเมนูสามขีด ชิดขวา
+                // 🛠️ ส่วนหัว: ข้อความอุปกรณ์ + รีเฟรช ชิดซ้าย และเมนูสามขีด ชิดขวา
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -164,7 +618,6 @@ class _ToolPageState extends State<ToolPage> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // ปุ่มรีเฟรชข้อมูล
                         _isLoadingTool
                             ? const SizedBox(
                                 width: 22,
@@ -252,7 +705,6 @@ class _ToolPageState extends State<ToolPage> {
                   ],
                 ),
                 
-                // 🛠️ ย้ายวันที่ลงมาอยู่บรรทัดข้างล่างคำว่าอุปกรณ์เรียบร้อยแล้ว (แก้ปัญหา Overflow)
                 const SizedBox(height: 6),
                 Text(
                   _currentDateTimeString.isNotEmpty
@@ -260,9 +712,9 @@ class _ToolPageState extends State<ToolPage> {
                       : "กำลังโหลดเวลา...",
                   style: const TextStyle(fontSize: 15, color: Colors.black54),
                 ),
-                const SizedBox(height: 35), // เว้นระยะช่องไฟก่อนลงไปแสดงค่า NPK
+                const SizedBox(height: 35),
 
-                // 🔵 5. ส่วนแสดงผล NPK จากข้อมูล API แบบไดนามิก
+                // 🔵 ส่วนแสดงผล NPK จากข้อมูล API
                 _buildElementRow(
                   "N", _toolData?['N']?.toString() ?? "-", 
                   "P", _toolData?['P']?.toString() ?? "-", 
@@ -270,7 +722,7 @@ class _ToolPageState extends State<ToolPage> {
                 ),
                 const SizedBox(height: 20),
 
-                // 🔵 6. ส่วนแสดงผล Ca, Mg, S จากข้อมูล API แบบไดนามิก
+                // 🔵 ส่วนแสดงผล Ca, Mg, S จากข้อมูล API
                 _buildElementRow(
                   "Ca", _toolData?['Ca']?.toString() ?? "-", 
                   "Mg", _toolData?['Mg']?.toString() ?? "-", 
@@ -278,7 +730,7 @@ class _ToolPageState extends State<ToolPage> {
                 ),
                 const SizedBox(height: 40),
 
-                // 🔵 7. ส่วนแสดงผล ความชื้น, อุณหภูมิ, ความเค็ม จากข้อมูล API
+                // 🔵 ส่วนแสดงผล ความชื้น, อุณหภูมิ, ความเค็ม จากข้อมูล API
                 _buildDetailRow(
                   Icons.water_drop,
                   "ความชื้น",
@@ -301,11 +753,12 @@ class _ToolPageState extends State<ToolPage> {
                 ),
                 
                 const Spacer(),
+                // 🛠️ ปุ่มด้านล่าง: ปุ่มบันทึกข้อมูลจะเปิด Modal ระบุสถานที่
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildBottomButton("บันทึกข้อมูล"),
-                    _buildBottomButton("พืชปลูกที่เหมาะสม"),
+                    _buildBottomButton("บันทึกข้อมูล", onTap: () => _showSaveLocationDialog(context)),
+                    _buildBottomButton("พืชปลูกที่เหมาะสม", onTap: _recommendPlantsFromToolData),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -640,17 +1093,21 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  Widget _buildBottomButton(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFCF4D9),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black87),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+  Widget _buildBottomButton(String text, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFCF4D9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.black87),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
