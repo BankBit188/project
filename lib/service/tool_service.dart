@@ -84,4 +84,11 @@ class ToolService {
     );
   }
   
+  static Future<dynamic> gethistorybyuser(String userId, String token) async {
+    return await _fetchAPI(
+      '/history/user/$userId',
+      method: 'GET',
+      token: token,
+    );
+  }
 }
