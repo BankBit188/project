@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:project/service/adjust_service.dart'; 
 import 'package:flutter/foundation.dart';
 
+// 🟩 เพิ่ม Import สำหรับการแสดงผล HTML และการเปิดลิงก์
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 class AdjustPage extends StatefulWidget {
   const AdjustPage({super.key});
 
@@ -10,15 +14,18 @@ class AdjustPage extends StatefulWidget {
 }
 
 class _AdjustPageState extends State<AdjustPage> {
-  List<dynamic> _allRawItems = []; 
-  List<dynamic> _currentPageItems = []; 
+  List<dynamic> _allRawItems = []; // ข้อมูลดิบทั้งหมดจาก API
+  List<dynamic> _filteredItems = []; // ข้อมูลที่ผ่านการกรองค้นหาแล้ว
+  List<dynamic> _currentPageItems = []; // ข้อมูลที่จะตัดแสดงในหน้าปัจจุบัน
   bool _isLoading = false;
 
   int _currentPage = 1; 
   int _lastPage = 1; 
   final int _itemsPerPage = 3; 
 
-  // 🔹 อย่าลืมเปลี่ยนเป็นลิงก์ Ngrok ใหม่ที่ได้จากจุดที่ 2 ด้านล่างนี้นะครับ
+  // 🟩 เพิ่มตัวแปรสำหรับเก็บคำค้นหา
+  String _searchQuery = "";
+
   static const String ngrokUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev';
 
   @override
@@ -38,10 +45,11 @@ class _AdjustPageState extends State<AdjustPage> {
       return cleanImgUrl.replaceAll('http://localhost:8000', ngrokUrl);
     }
     return cleanImgUrl;
-  } // 👈 จุดนี้ต้องปิดปีกกาให้ถูกต้อง ไม่ให้ฟังก์ชันดักข้อมูลหลุดลงไปด้านล่าง
+  }
 
   // 🔹 ฟังก์ชันเรียกข้อมูลปรับสภาพดิน
   Future<void> _fetchDataFromAPI() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final response = await AdjustService.getAdjustments();
@@ -50,31 +58,51 @@ class _AdjustPageState extends State<AdjustPage> {
           ? response 
           : (response['data'] ?? []);
 
-      setState(() {
-        _allRawItems = fetchedData;
-        _lastPage = (_allRawItems.length / _itemsPerPage).ceil();
-        if (_lastPage < 1) _lastPage = 1;
-        _updateDisplayedItems(); 
-      });
+      if (mounted) {
+        setState(() {
+          _allRawItems = fetchedData;
+          _applyFilterAndPagination(); 
+        });
+      }
     } catch (e) {
       print("เกิดข้อผิดพลาดในการดึงข้อมูลปรับสภาพดิน: $e");
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // ฟังก์ชันหั่นชิ้นข้อมูลแสดงตามหน้า
-  void _updateDisplayedItems() {
+  // 🟩 ฟังก์ชันกรองข้อมูลตาม adjustName และคำนวณการแบ่งหน้า (Pagination)
+  void _applyFilterAndPagination() {
+    List<dynamic> tempFiltered = _allRawItems;
+
+    // กรองคำตาม adjustName
+    if (_searchQuery.isNotEmpty) {
+      tempFiltered = tempFiltered.where((item) {
+        String adjustName = (item['adjustName'] ?? '').toString().toLowerCase();
+        return adjustName.contains(_searchQuery);
+      }).toList();
+    }
+
+    _filteredItems = tempFiltered;
+
+    // คำนวณจำนวนหน้าทั้งหมด
+    _lastPage = (_filteredItems.length / _itemsPerPage).ceil();
+    if (_lastPage < 1) _lastPage = 1;
+
+    // ป้องกันกรณีหน้าปัจจุบันเกินจำนวนหน้าที่มีอยู่
+    if (_currentPage > _lastPage) _currentPage = 1;
+
+    // ตัดข้อมูลมาแสดงผลเฉพาะหน้าปัจจุบัน
     int startIndex = (_currentPage - 1) * _itemsPerPage;
-    setState(() {
-      _currentPageItems = _allRawItems
-          .skip(startIndex)
-          .take(_itemsPerPage)
-          .toList();
-    });
+    _currentPageItems = _filteredItems
+        .skip(startIndex)
+        .take(_itemsPerPage)
+        .toList();
   }
 
-  // 🔹 หน้าจอ Popup รายละเอียดวิธีการปรับสภาพดิน (ดีไซน์เดียวกับรูปหน้าดินร่วนของคุณ)
+  // 🔹 หน้าจอ Popup รายละเอียดวิธีการปรับสภาพดิน
   void _showAdjustDetailDialog(Map<String, dynamic> item) {
     String title = item['adjustName'] ?? 'ไม่มีชื่อข้อมูลปรับสภาพดิน'; 
     String imgUrl = _formatImgUrl(item['img_url'] ?? item['img'] ?? ''); 
@@ -130,9 +158,24 @@ class _AdjustPageState extends State<AdjustPage> {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    child: Text(
+                    child: HtmlWidget(
                       detail,
-                      style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.4),
+                      textStyle: const TextStyle(
+                        fontSize: 16, 
+                        color: Colors.black87, 
+                        height: 1.4,
+                      ),
+                      onTapUrl: (url) async {
+                        final Uri uri = Uri.parse(url);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                          return true;
+                        }
+                        return false;
+                      },
                     ),
                   ),
                 ),
@@ -180,9 +223,17 @@ class _AdjustPageState extends State<AdjustPage> {
                     color: const Color(0xFFF0EAE1),
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  child: const TextField(
-                    decoration: InputDecoration(
-                      hintText: 'ค้นหา เช่น สภาพดิน',
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.trim().toLowerCase();
+                        _currentPage = 1; // รีเซ็ตไปหน้าแรกทันทีเมื่อค้นหา
+                        _applyFilterAndPagination();
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      hintText: 'ค้นหา เช่น วิธีปรับสภาพดิน...',
+                      hintStyle: TextStyle(color: Colors.grey),
                       border: InputBorder.none,
                       suffixIcon: Icon(Icons.search, color: Colors.black),
                     ),
@@ -272,22 +323,28 @@ class _AdjustPageState extends State<AdjustPage> {
     
     pageButtons.add(_buildPageBtn("<", disabled: _currentPage == 1, onTap: () {
       if (_currentPage > 1) { 
-        setState(() => _currentPage--); 
-        _updateDisplayedItems(); 
+        setState(() {
+          _currentPage--;
+          _applyFilterAndPagination(); 
+        });
       }
     }));
     
     for (int i = 1; i <= _lastPage; i++) {
       pageButtons.add(_buildPageBtn(i.toString(), isActive: _currentPage == i, onTap: () {
-        setState(() => _currentPage = i); 
-        _updateDisplayedItems();
+        setState(() {
+          _currentPage = i; 
+          _applyFilterAndPagination();
+        });
       }));
     }
     
     pageButtons.add(_buildPageBtn(">", disabled: _currentPage == _lastPage, onTap: () {
       if (_currentPage < _lastPage) { 
-        setState(() => _currentPage++); 
-        _updateDisplayedItems(); 
+        setState(() {
+          _currentPage++; 
+          _applyFilterAndPagination(); 
+        });
       }
     }));
     
@@ -318,4 +375,4 @@ class _AdjustPageState extends State<AdjustPage> {
       ),
     );
   }
-} // 👈 ปิดโครงสร้างคลาสหลักทั้งหมดตรงนี้อย่างปลอดภัย
+}

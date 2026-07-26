@@ -28,6 +28,10 @@ class _PlantsPageState extends State<PlantsPage> {
   // 'all' = แสดงทั้งหมด, '1' = พืชไร่, '2' = พืชสวน, '3' = พืชเศรษฐกิจ
   String _selectedFilter = 'all';
 
+  // 🟩 เพิ่ม Controller และ ตัวแปรสำหรับเก็บคำค้นหา
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   // เพิ่มลิงก์ทางผ่านหลักของ Ngrok สำหรับจัดการ URL รูปภาพพืชให้เป็นศูนย์กลาง
   static const String ngrokUrl =
       'https://uselessly-disclose-stingray.ngrok-free.dev';
@@ -36,6 +40,12 @@ class _PlantsPageState extends State<PlantsPage> {
   void initState() {
     super.initState();
     _loadDataFromAPI();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose(); // 🟩 คืนคืนหน่วยความจำ controller
+    super.dispose();
   }
 
   // ฟังก์ชันจัดฟอร์แมตสลับหัว IP รูปภาพเพื่อวิ่งเข้าอุโมงค์ Ngrok ป้องกันลิงก์ตาย
@@ -89,18 +99,32 @@ class _PlantsPageState extends State<PlantsPage> {
   // 🔹 ฟังก์ชันสำหรับกรองข้อมูลและตัดแบ่งข้อมูล (วนกลับมาแสดงทั้งหมดเมื่อค่าเป็น 'all')
   void _updateDisplayedItems() {
     setState(() {
-      // 1. กำหนดให้ข้อมูลตั้งต้นเป็นข้อมูลทั้งหมดจาก API เสมอเหมือนตอนโหลดแอปครั้งแรก
+      // 1. กำหนดให้ข้อมูลตั้งต้นเป็นข้อมูลทั้งหมดจาก API เสมอ
       List<dynamic> filteredItems = _allRawItems;
 
-      // ถ้าตัวเลือกไม่ใช่ 'all' (คือเลือก '1', '2', '3') ถึงจะทำการกรองข้อมูล
+      // 2. กรองตามประเภทพืช (ถ้าไม่ใช่ 'all')
       if (_selectedFilter != 'all') {
-        filteredItems = _allRawItems.where((item) {
+        filteredItems = filteredItems.where((item) {
           final typeCode = item['plantsTypeCode'].toString();
           return typeCode == _selectedFilter;
         }).toList();
       }
 
-      // 2. คำนวณจำนวนหน้าใหม่ตามจำนวนข้อมูล (ไม่ว่าจะถูกกรอง หรือมาทั้งหมด)
+      // 🟩 3. กรองตามคำค้นหา (normal_name, scientific_name, other_name)
+      if (_searchQuery.trim().isNotEmpty) {
+        final query = _searchQuery.trim().toLowerCase();
+        filteredItems = filteredItems.where((item) {
+          final normalName = (item['normal_name'] ?? '').toString().toLowerCase();
+          final scientificName = (item['scientific_name'] ?? '').toString().toLowerCase();
+          final otherName = (item['other_name'] ?? '').toString().toLowerCase();
+
+          return normalName.contains(query) ||
+                 scientificName.contains(query) ||
+                 otherName.contains(query);
+        }).toList();
+      }
+
+      // 4. คำนวณจำนวนหน้าใหม่ตามจำนวนข้อมูลที่ผ่านการกรอง
       _lastPage = (filteredItems.length / _itemsPerPage).ceil();
       if (_lastPage < 1) _lastPage = 1;
 
@@ -111,7 +135,7 @@ class _PlantsPageState extends State<PlantsPage> {
 
       int startIndex = (_currentPage - 1) * _itemsPerPage;
 
-      // 3. ตัดแบ่งข้อมูลมาแสดงแค่ 3 ชิ้นตามหน้าปัจจุบัน
+      // 5. ตัดแบ่งข้อมูลมาแสดงแค่ 3 ชิ้นตามหน้าปัจจุบัน
       _currentPageItems = filteredItems
           .skip(startIndex)
           .take(_itemsPerPage)
@@ -227,7 +251,6 @@ class _PlantsPageState extends State<PlantsPage> {
                         const Divider(color: Colors.black26),
                         const SizedBox(height: 5),
 
-                        // 🟢 เปลี่ยนจาก Text เป็น HtmlWidget เพื่อเรนเดอร์โครงสร้างที่มาจาก CKEditor
                         HtmlWidget(
                           detaill,
                           textStyle: const TextStyle(
@@ -235,7 +258,6 @@ class _PlantsPageState extends State<PlantsPage> {
                             height: 1.4,
                             color: Colors.black,
                           ),
-                          // ตัวเลือกเสริม: หากต้องการเปิดลิงก์ใน HTML เมื่อมีคนกดที่รูปภาพหรือข้อความ
                           onTapUrl: (url) async {
                             final Uri uri = Uri.parse(url);
                             if (await canLaunchUrl(uri)) {
@@ -278,10 +300,9 @@ class _PlantsPageState extends State<PlantsPage> {
                           },
                         ),
 
-                        // 🟢 เพิ่มส่วนของ plant ต่อจาก nature ตรงนี้ครับ
                         const SizedBox(height: 12),
                         const Text(
-                          "ข้อมูลการปลูก", // 💡 สามารถเปลี่ยนชื่อหัวข้อตรงนี้ได้ตามต้องการครับ (เช่น วิธีปลูก / ข้อมูลพืช)
+                          "ข้อมูลการปลูก",
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -289,7 +310,7 @@ class _PlantsPageState extends State<PlantsPage> {
                           ),
                         ),
                         HtmlWidget(
-                          plant, // เรียกใช้ตัวแปร plant ผ่าน HtmlWidget เพื่อรองรับรูปภาพและรูปแบบจาก CKEditor
+                          plant,
                           textStyle: const TextStyle(
                             fontSize: 14,
                             height: 1.4,
@@ -501,7 +522,6 @@ class _PlantsPageState extends State<PlantsPage> {
                                                     .externalApplication,
                                               );
                                             } else {
-                                              // แจ้งเตือนกรณีเปิดลิงก์ไม่ได้
                                               ScaffoldMessenger.of(
                                                 context,
                                               ).showSnackBar(
@@ -513,7 +533,6 @@ class _PlantsPageState extends State<PlantsPage> {
                                               );
                                             }
                                           } else {
-                                            // แจ้งเตือนกรณีไม่มีข้อมูลลิงก์ใน API
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
@@ -698,25 +717,47 @@ class _PlantsPageState extends State<PlantsPage> {
                   ],
                 ),
                 const SizedBox(height: 15),
+
+                // 🟩 ปรับแก้ไข TextField สำหรับรับค่าคำค้นหา
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 15),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF0EAE1),
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  child: const TextField(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                        _currentPage = 1; // เมื่อพิมพ์ค้นหาให้เริ่มที่หน้า 1
+                        _updateDisplayedItems();
+                      });
+                    },
                     decoration: InputDecoration(
                       hintText: 'ค้นหา เช่น ชื่อพืช',
                       border: InputBorder.none,
-                      suffixIcon: Icon(Icons.search, color: Colors.black),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.black),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = '';
+                                  _currentPage = 1;
+                                  _updateDisplayedItems();
+                                });
+                              },
+                            )
+                          : const Icon(Icons.search, color: Colors.black),
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 5),
                 Align(
                   alignment: Alignment.centerRight,
                   child: PopupMenuButton<String>(
-                    // 🔹 เปลี่ยนประเภทเป็น String
                     icon: Icon(
                       _selectedFilter == 'all'
                           ? Icons.filter_alt_outlined
@@ -728,18 +769,15 @@ class _PlantsPageState extends State<PlantsPage> {
                     ),
                     tooltip: 'กรองประเภทพืช',
                     onSelected: (String value) {
-                      // 🔹 รับค่า String เข้ามาทำงาน
                       setState(() {
                         _selectedFilter = value;
-                        _currentPage =
-                            1; // เมื่อกรองใหม่ ให้กลับไปเริ่มที่หน้า 1 เสมอ
-                        _updateDisplayedItems(); // วนกลับไปคิดกระบวนการแสดงผลใหม่
+                        _currentPage = 1;
+                        _updateDisplayedItems();
                       });
                     },
                     itemBuilder: (BuildContext context) => [
                       const PopupMenuItem<String>(
-                        value:
-                            'all', // 🔹 ใช้คำว่า 'all' แทน null เพื่อสั่งให้ฟังก์ชันทำงาน
+                        value: 'all',
                         child: Text('พืชทั้งหมด'),
                       ),
                       const PopupMenuItem<String>(
@@ -761,27 +799,28 @@ class _PlantsPageState extends State<PlantsPage> {
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _currentPageItems.isEmpty
-                      ? const Center(
-                          child: Text(
-                            "ไม่พบข้อมูล",
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
-                          ),
-                        )
-                      : ListView.builder(
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: _currentPageItems.length,
-                          itemBuilder: (context, index) {
-                            final item = _currentPageItems[index];
-                            return GestureDetector(
-                              onTap: () => _showPlantDetailDialog(item),
-                              child: _buildItemCard(
-                                item['normal_name'] ?? 'ไม่มีชื่อพืช',
-                                item['img_url'] ??
-                                    'https://via.placeholder.com/150',
+                          ? const Center(
+                              child: Text(
+                                "ไม่พบข้อมูล",
+                                style: TextStyle(
+                                    fontSize: 18, color: Colors.grey),
                               ),
-                            );
-                          },
-                        ),
+                            )
+                          : ListView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: _currentPageItems.length,
+                              itemBuilder: (context, index) {
+                                final item = _currentPageItems[index];
+                                return GestureDetector(
+                                  onTap: () => _showPlantDetailDialog(item),
+                                  child: _buildItemCard(
+                                    item['normal_name'] ?? 'ไม่มีชื่อพืช',
+                                    item['img_url'] ??
+                                        'https://via.placeholder.com/150',
+                                  ),
+                                );
+                              },
+                            ),
                 ),
                 _buildDynamicPagination(),
                 const SizedBox(height: 15),

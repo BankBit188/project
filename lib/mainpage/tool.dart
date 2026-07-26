@@ -1,5 +1,7 @@
-import 'dart:io'; // 🟩 สำหรับใช้กับคลาส File ของรูปภาพ
+import 'dart:convert'; // 🟩 เพิ่มเพื่อใช้งาน jsonDecode
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 🟩 เพิ่มเพื่อใช้งาน rootBundle
 import 'package:project/navbar/navbars.dart';
 import 'package:project/mainpage/history.dart';
 import 'package:project/mainpage/menu.dart';
@@ -7,20 +9,14 @@ import 'package:project/mainpage/profile.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart'; 
-// 🟩 ลงแพ็กเกจเพิ่มเพื่อดึงรูปจากเครื่อง (flutter pub add image_picker)
 import 'package:project/service/reports_service.dart';
-// 🟩 Import ไฟล์บริการจัดการ Report
 import 'package:project/service/user_service.dart'; 
-// 🟩 เพิ่ม Import ตรงนี้เพื่อใช้ดึงข้อมูล Username ปัจจุบันมาส่ง Report
 
 import 'package:intl/date_symbol_data_local.dart';
-// 🟩 สำหรับเปิดใช้งาน Locale ภาษาไทย
 import 'package:intl/intl.dart'; 
-// 🟩 แพ็กเกจสำหรับจัดการ Format วันและเวลา
 
-// 🔵 1. นำเข้าไฟล์บริการข้อมูลอุปกรณ์ และบริการข้อมูลพืช
 import 'package:project/service/tool_service.dart';
-import 'package:project/service/plants_service.dart'; // 🌿 เพิ่ม Service ดึงข้อมูลพืช
+import 'package:project/service/plants_service.dart';
 
 class ToolPage extends StatefulWidget {
   const ToolPage({super.key});
@@ -30,53 +26,55 @@ class ToolPage extends StatefulWidget {
 }
 
 class _ToolPageState extends State<ToolPage> {
-  // 🟩 อินสแตนซ์ของ Secure Storage สำหรับอ่าน/ลบ Token
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
-  // 🟩 ตัวแปรสำหรับเก็บค่าเพื่อนำไปเช็คหรือส่งต่อให้ API ตัวอื่น
   String? _authToken;
   String? _userId;
 
-  // 🔵 2. เพิ่มตัวแปรเก็บข้อมูลอุปกรณ์จาก API และสเตตัสการโหลด
   Map<String, dynamic>? _toolData;
   bool _isLoadingTool = false;
 
-  // 🟩 ตัวแปรสำหรับเก็บสตริงวันเวลาปัจจุบันที่แปลงเป็นภาษาไทยแล้ว
   String _currentDateTimeString = "";
+
+  // 🟩 ตัวแปรสำหรับเก็บข้อมูลจังหวัด อำเภอ ตำบล ที่โหลดจาก JSON
+  List<dynamic> _thailandData = [];
 
   @override
   void initState() {
     super.initState();
     _initThaiDateTime();
-    // 🟩 เรียกเซ็ตค่าและดึงวันเวลาปัจจุบันภาษาไทย
     _loadToken();
-    // 🟩 เรียกโหลด Token ทันทีเมื่อเปิดหน้าอุปกรณ์ขึ้นมา
+    _loadAddressData(); // 🟩 เรียกโหลดข้อมูลที่อยู่จาก JSON ทันทีที่เปิดหน้า
   }
 
-  // 🟩 ฟังก์ชันสำหรับดึงและจัดฟอร์แมตวันเวลาปัจจุบันให้เป็นภาษาไทย พ.ศ.
+  // 🟩 ฟังก์ชันสำหรับโหลดข้อมูล thailand_data.json
+  Future<void> _loadAddressData() async {
+    try {
+      String jsonString = await rootBundle.loadString('assets/data/thailand_data.json');
+      if (!mounted) return;
+      setState(() {
+        _thailandData = jsonDecode(jsonString);
+      });
+      print("โหลดข้อมูลที่อยู่ Thailand Data สำเร็จ: ${_thailandData.length} จังหวัด");
+    } catch (e) {
+      debugPrint("Error loading JSON: $e");
+    }
+  }
+
   void _initThaiDateTime() {
-    // เปิดใช้งานข้อมูลวันเวลาในระบบภูมิภาคของภาษาไทย ('th')
     initializeDateFormatting('th', null).then((_) {
       final now = DateTime.now();
-      
-      // ฟอร์แมตวันที่ เช่น "20 มกราคม"
       final dateNew = DateFormat('d MMMM', 'th').format(now);
-      
-      // ดึงปี ค.ศ. ปัจจุบันมาบวก 543 เพื่อทำเป็นปี พ.ศ.
       final thaiYear = now.year + 543;
-      
-      // ฟอร์แมตเวลา เช่น "12.00"
       final timeNew = DateFormat('HH.mm').format(now);
 
       if (!mounted) return;
       setState(() {
-        // นำมาประกอบร่างตาม Format: "20 มกราคม 2569   12.00"
         _currentDateTimeString = "$dateNew $thaiYear   $timeNew";
       });
     });
   }
 
-  // 🟩 ฟังก์ชันสำหรับดึง Token และ User ID ออกจากหน่วยความจำ
   Future<void> _loadToken() async {
     String? token = await _secureStorage.read(key: "auth_token");
     String? userId = await _secureStorage.read(key: "Userid");
@@ -87,16 +85,11 @@ class _ToolPageState extends State<ToolPage> {
       _userId = userId;
     });
 
-    // เทสพิมพ์พ่นดูใน Debug Console ว่า ข้อมูลมาจริงไหม
-    print("ระบบตรวจสอบพบ Token ปัจจุบัน: $_authToken, UserID: $_userId");
-
-    // 🔵 3. หากมี User ID และ Token ครบถ้วน ให้ไปดึงข้อมูลจาก API ทันที
     if (_userId != null && _authToken != null) {
       _fetchToolData();
     }
   }
 
-  // 🔵 4. ฟังก์ชันดึงข้อมูลอุปกรณ์ของ User รายนี้จาก API หลังบ้าน
   Future<void> _fetchToolData() async {
     if (!mounted) return;
     setState(() {
@@ -107,35 +100,59 @@ class _ToolPageState extends State<ToolPage> {
       if (response != null && response['status'] == 'success') {
         if (!mounted) return;
         setState(() {
-          _toolData = response['data']; // 🟢 เก็บส่วนของ data เอาไว้ใช้งาน
+          _toolData = response['data'];
           _isLoadingTool = false;
         });
-        print("ดึงข้อมูลอุปกรณ์สำเร็จ: $_toolData");
       } else {
         if (!mounted) return;
         setState(() {
           _isLoadingTool = false;
         });
-        print("ไม่สามารถดึงข้อมูลอุปกรณ์ได้ หรือสถานะไม่ใช่ success");
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoadingTool = false;
       });
-      print("เกิดข้อผิดพลาดในการโหลดข้อมูลอุปกรณ์: $e");
     }
   }
 
-  // 📍 5. ฟังก์ชันเปิด Modal "ระบุสถานที่และที่ตั้ง" เมื่อกดปุ่มบันทึกข้อมูล
-  // 📍 5. ฟังก์ชันเปิด Modal "ระบุสถานที่และที่ตั้ง" เมื่อกดปุ่มบันทึกข้อมูล (ฉบับแก้ไขแล้ว)
+  // Helper ฟังก์ชันสำหรับดึงชื่อ (รองรับทั้ง name_th และ name)
+  String _getName(dynamic item) {
+    if (item is Map) {
+      return item['name_th'] ?? item['name'] ?? item['name_en'] ?? '';
+    }
+    return item.toString();
+  }
+
+  // Helper ฟังก์ชันดึงรายการอำเภอ
+  List<dynamic> _getAmphures(dynamic provinceObj) {
+    if (provinceObj is Map) {
+      return provinceObj['amphure'] ?? provinceObj['amphur'] ?? provinceObj['districts'] ?? [];
+    }
+    return [];
+  }
+
+  // Helper ฟังก์ชันดึงรายการตำบล
+  List<dynamic> _getTambons(dynamic amphurObj) {
+    if (amphurObj is Map) {
+      return amphurObj['tambon'] ?? amphurObj['district'] ?? amphurObj['subdistricts'] ?? [];
+    }
+    return [];
+  }
+
+  // 📍 5. ฟังก์ชันเปิด Modal "ระบุสถานที่และที่ตั้ง" (ใช้ข้อมูลจาก JSON)
   void _showSaveLocationDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
-    
-    // 🟢 กำหนดค่าเริ่มต้นให้กับ Dropdown เพื่อป้องกันการส่งค่า null/ว่าง ไปหา Laravel
-    String? selectedProvince = "เชียงราย";
-    String? selectedAmphur = "เมือง";     // อำเภอ
-    String? selectedDistrict = "เวียง";   // ตำบล
+
+    // ตัวแปรสำหรับเก็บค่าที่ถูกเลือกใน Modal
+    String? selectedProvince;
+    String? selectedAmphur;
+    String? selectedDistrict;
+
+    // รายการตัวเลือกที่จะเปลี่ยนไปตามการเลือก Dropdown
+    List<dynamic> amphurList = [];
+    List<dynamic> districtList = [];
 
     showDialog(
       context: context,
@@ -179,57 +196,96 @@ class _ToolPageState extends State<ToolPage> {
                     ),
                     const SizedBox(height: 12),
 
-                    // ช่อง จังหวัด (Dropdown)
+                    // ช่อง จังหวัด (Dropdown จาก JSON)
                     _buildLocationInputRow(
                       label: "จังหวัด :",
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: selectedProvince,
+                          hint: const Text("เลือกจังหวัด", style: TextStyle(fontSize: 14)),
                           isExpanded: true,
                           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-                          items: ["เชียงราย", "เชียงใหม่", "พะเยา", "กรุงเทพมหานคร"]
-                              .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14))))
-                              .toList(),
+                          items: _thailandData.map<DropdownMenuItem<String>>((prov) {
+                            String name = _getName(prov);
+                            return DropdownMenuItem<String>(
+                              value: name,
+                              child: Text(name, style: const TextStyle(fontSize: 14)),
+                            );
+                          }).toList(),
                           onChanged: (val) {
-                            setDialogState(() => selectedProvince = val);
+                            setDialogState(() {
+                              selectedProvince = val;
+                              selectedAmphur = null;
+                              selectedDistrict = null;
+                              districtList = [];
+
+                              // ค้นหาวัตถุจังหวัดที่ถูกเลือกเพื่อหาอำเภอต่อไป
+                              var provObj = _thailandData.firstWhere(
+                                (element) => _getName(element) == val,
+                                orElse: () => null,
+                              );
+                              amphurList = provObj != null ? _getAmphures(provObj) : [];
+                            });
                           },
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
 
-                    // ช่อง อำเภอ (Dropdown -> แก้ไขแมปเข้า selectedAmphur)
+                    // ช่อง อำเภอ (Dropdown จาก JSON)
                     _buildLocationInputRow(
                       label: "อำเภอ :",
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: selectedAmphur,
+                          hint: const Text("เลือกอำเภอ", style: TextStyle(fontSize: 14)),
                           isExpanded: true,
                           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-                          items: ["เมือง", "แม่สาย", "พาน", "เชียงของ"]
-                              .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14))))
-                              .toList(),
+                          items: amphurList.map<DropdownMenuItem<String>>((amp) {
+                            String name = _getName(amp);
+                            return DropdownMenuItem<String>(
+                              value: name,
+                              child: Text(name, style: const TextStyle(fontSize: 14)),
+                            );
+                          }).toList(),
                           onChanged: (val) {
-                            setDialogState(() => selectedAmphur = val);
+                            setDialogState(() {
+                              selectedAmphur = val;
+                              selectedDistrict = null;
+
+                              // ค้นหาวัตถุอำเภอที่ถูกเลือกเพื่อหาตำบลต่อไป
+                              var ampObj = amphurList.firstWhere(
+                                (element) => _getName(element) == val,
+                                orElse: () => null,
+                              );
+                              districtList = ampObj != null ? _getTambons(ampObj) : [];
+                            });
                           },
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
 
-                    // ช่อง ตำบล (Dropdown -> แก้ไขแมปเข้า selectedDistrict)
+                    // ช่อง ตำบล (Dropdown จาก JSON)
                     _buildLocationInputRow(
                       label: "ตำบล :",
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: selectedDistrict,
+                          hint: const Text("เลือกตำบล", style: TextStyle(fontSize: 14)),
                           isExpanded: true,
                           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-                          items: ["เวียง", "รอบเวียง", "บ้านดู่", "นางแล"]
-                              .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14))))
-                              .toList(),
+                          items: districtList.map<DropdownMenuItem<String>>((dt) {
+                            String name = _getName(dt);
+                            return DropdownMenuItem<String>(
+                              value: name,
+                              child: Text(name, style: const TextStyle(fontSize: 14)),
+                            );
+                          }).toList(),
                           onChanged: (val) {
-                            setDialogState(() => selectedDistrict = val);
+                            setDialogState(() {
+                              selectedDistrict = val;
+                            });
                           },
                         ),
                       ),
@@ -243,7 +299,6 @@ class _ToolPageState extends State<ToolPage> {
                         // ปุ่มยืนยัน
                         InkWell(
                           onTap: () async {
-                            // 🟢 1. ตรวจสอบ Token ก่อน
                             if (_authToken == null || _userId == null || _authToken!.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text("ไม่พบข้อมูลการเข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่อีกครั้ง")),
@@ -251,7 +306,6 @@ class _ToolPageState extends State<ToolPage> {
                               return;
                             }
 
-                            // 🟢 2. Validation เช็คว่ากรอกข้อมูลครบถ้วนไหม
                             if (titleController.text.trim().isEmpty ||
                                 selectedProvince == null ||
                                 selectedAmphur == null ||
@@ -262,7 +316,6 @@ class _ToolPageState extends State<ToolPage> {
                               return;
                             }
 
-                            // แสดง Loading Dialog
                             showDialog(
                               context: context,
                               barrierDismissible: false,
@@ -272,27 +325,25 @@ class _ToolPageState extends State<ToolPage> {
                             );
 
                             try {
-                              // เรียกใช้ API createhistory
                               await ToolService.createhistory(
                                 userId: _userId!,
                                 token: _authToken!,
                                 title: titleController.text.trim(),
                                 province: selectedProvince!,
-                                Amphur: selectedAmphur!,     // อำเภอ
-                                district: selectedDistrict!, // ตำบล
+                                Amphur: selectedAmphur!,
+                                district: selectedDistrict!,
                                 toolData: _toolData,
                               );
 
                               if (context.mounted) {
-                                Navigator.pop(context); // ปิด Dialog Loading
-                                Navigator.pop(dialogContext); // ปิด Modal ป๊อปอัป
+                                Navigator.pop(context);
+                                Navigator.pop(dialogContext);
                                 titleController.dispose();
 
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text("บันทึกข้อมูลเรียบร้อยแล้ว")),
                                 );
 
-                                // นำทางไปหน้า HistoryPage
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -302,7 +353,7 @@ class _ToolPageState extends State<ToolPage> {
                               }
                             } catch (e) {
                               if (context.mounted) {
-                                Navigator.pop(context); // ปิด Dialog Loading
+                                Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text("บันทึกข้อมูลไม่สำเร็จ: $e")),
                                 );
@@ -366,7 +417,6 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  // Widget ช่วยสร้างแถวฟอร์มระบุสถานที่ (แคปซูลขอบมน)
   Widget _buildLocationInputRow({required String label, required Widget child}) {
     return Row(
       children: [
@@ -387,7 +437,7 @@ class _ToolPageState extends State<ToolPage> {
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFE8C8), // สีพื้นหลังแคปซูล
+              color: const Color(0xFFEFE8C8),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.black87, width: 1),
             ),
@@ -398,7 +448,6 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  // 🌿 6. ฟังก์ชันสำหรับคำนวณหาพืชที่เหมาะสมโดยใช้ค่าจาก API (_toolData)
   void _recommendPlantsFromToolData() async {
     if (_toolData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -475,7 +524,6 @@ class _ToolPageState extends State<ToolPage> {
     }
   }
 
-  // 🌿 UI Modal เปิดป๊อปอัปแสดงผลลัพธ์พืช 5 อันดับแรก
   void _showResultsBottomSheet(List<Map<String, dynamic>> items) {
     showModalBottomSheet(
       context: context,
@@ -602,7 +650,6 @@ class _ToolPageState extends State<ToolPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 🛠️ ส่วนหัว: ข้อความอุปกรณ์ + รีเฟรช ชิดซ้าย และเมนูสามขีด ชิดขวา
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -639,7 +686,6 @@ class _ToolPageState extends State<ToolPage> {
                       ],
                     ),
 
-                    // --- PopupMenuButton ---
                     Theme(
                       data: Theme.of(context).copyWith(dividerColor: Colors.black54),
                       child: PopupMenuButton<String>(
@@ -677,7 +723,6 @@ class _ToolPageState extends State<ToolPage> {
                           } else if (value == 'logout') {
                             await _secureStorage.delete(key: "auth_token");
                             await _secureStorage.delete(key: "Userid");
-                            print("ลบ Token สำเร็จ ออกจากระบบเรียบร้อยแล้ว");
 
                             if (!mounted) return;
                             Navigator.pushAndRemoveUntil(
@@ -687,8 +732,6 @@ class _ToolPageState extends State<ToolPage> {
                               ),
                               (Route<dynamic> route) => false,
                             );
-                          } else {
-                            print("คุณคลิกเลือก: $value");
                           }
                         },
                         itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -714,7 +757,6 @@ class _ToolPageState extends State<ToolPage> {
                 ),
                 const SizedBox(height: 35),
 
-                // 🔵 ส่วนแสดงผล NPK จากข้อมูล API
                 _buildElementRow(
                   "N", _toolData?['N']?.toString() ?? "-", 
                   "P", _toolData?['P']?.toString() ?? "-", 
@@ -722,7 +764,6 @@ class _ToolPageState extends State<ToolPage> {
                 ),
                 const SizedBox(height: 20),
 
-                // 🔵 ส่วนแสดงผล Ca, Mg, S จากข้อมูล API
                 _buildElementRow(
                   "Ca", _toolData?['Ca']?.toString() ?? "-", 
                   "Mg", _toolData?['Mg']?.toString() ?? "-", 
@@ -730,12 +771,18 @@ class _ToolPageState extends State<ToolPage> {
                 ),
                 const SizedBox(height: 40),
 
-                // 🔵 ส่วนแสดงผล ความชื้น, อุณหภูมิ, ความเค็ม จากข้อมูล API
                 _buildDetailRow(
                   Icons.water_drop,
                   "ความชื้น",
                   _toolData != null ? "${_toolData!['humid']} %" : "กำลังโหลด...",
                   Colors.lightBlue,
+                ),
+                const SizedBox(height: 20),
+                _buildDetailRow(
+                  Icons.science,
+                  "ค่า pH",
+                  _toolData != null ? "${_toolData!['PH']}" : "กำลังโหลด...",
+                  Colors.purple,
                 ),
                 const SizedBox(height: 20),
                 _buildDetailRow(
@@ -753,7 +800,6 @@ class _ToolPageState extends State<ToolPage> {
                 ),
                 
                 const Spacer(),
-                // 🛠️ ปุ่มด้านล่าง: ปุ่มบันทึกข้อมูลจะเปิด Modal ระบุสถานที่
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -771,7 +817,6 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  // --- ส่วนของฟังก์ชันสร้าง ป๊อปอัป (Dialog) แจ้งปัญหา ---
   void _showReportDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController detailController = TextEditingController();

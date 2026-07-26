@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:project/service/plants_service.dart'; // 👈 1. นำเข้า PlantsService เรียบร้อย
+import 'package:project/service/plants_service.dart';
+
+// นำเข้าสำหรับการเรนเดอร์ HTML และการเปิดลิงก์
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SoilPage extends StatefulWidget {
   const SoilPage({super.key});
@@ -10,7 +14,7 @@ class SoilPage extends StatefulWidget {
 
 class _SoilPageState extends State<SoilPage> {
   List<dynamic> _allRawItems = []; // 🔹 เก็บข้อมูลพืชทั้งหมดที่ได้จาก API
-  List<dynamic> _filteredItems = []; // 🔹 เก็บข้อมูลพืชที่ผ่านการกรองธาตุอาหารและประเภทพืชแล้ว
+  List<dynamic> _filteredItems = []; // 🔹 เก็บข้อมูลพืชที่ผ่านการกรองธาตุอาหาร ประเภทพืช และการค้นหาแล้ว
   List<dynamic> _currentPageItems = []; // 🔹 เก็บข้อมูลที่จะแบ่งมาแสดงในหน้าปัจจุบัน
   
   bool _isLoading = false;
@@ -18,13 +22,16 @@ class _SoilPageState extends State<SoilPage> {
   int _lastPage = 1;
   final int _itemsPerPage = 3; // กำหนดให้แสดงหน้าละ 3 ชิ้นคงเดิม
   
-  // 🔹 ตัวแปรเก็บธาตุอาหารที่เลือกอยู่ (เริ่มต้นเปลี่ยนเป็น "ไนโตรเจน" ให้ตรงกับข้อมูลกลุ่มแรก)
+  // 🔹 ตัวแปรเก็บธาตุอาหารที่เลือกอยู่
   String _selectedNutrient = "ไนโตรเจน"; 
 
-  // 🔹 เพิ่มตัวแปรสำหรับคัดกรองประเภทพืช (0 = แสดงทั้งหมด, 1 = พืชไร่, 2 = พืชสวน, 3 = พืชเศรษฐกิจ)
+  // 🔹 ตัวแปรสำหรับคัดกรองประเภทพืช (0 = แสดงทั้งหมด, 1 = พืชไร่, 2 = พืชสวน, 3 = พืชเศรษฐกิจ)
   int _selectedPlantType = 0; 
 
-  // 🔹 เพิ่มลิงก์ทางผ่านหลักของ Ngrok สำหรับจัดการ URL รูปภาพพืช
+  // 🟩 เพิ่มตัวแปรสำหรับเก็บข้อความค้นหา (Search Query)
+  String _searchQuery = "";
+
+  // 🔹 ลิงก์ทางผ่านหลักของ Ngrok สำหรับจัดการ URL รูปภาพพืช
   static const String ngrokUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev';
 
   @override
@@ -95,11 +102,11 @@ class _SoilPageState extends State<SoilPage> {
     }
   }
 
-  // 🔹 ฟังก์ชันคัดกรองข้อมูลตามธาตุอาหาร + ประเภทพืช และหั่นชิ้นข้อมูลสลับหน้าเพจ (Pagination)
+  // 🔹 ฟังก์ชันคัดกรองข้อมูลตามธาตุอาหาร + ประเภทพืช + คำค้นหา และหั่นชิ้นข้อมูลแบ่งหน้า (Pagination)
   void _applyFilterAndPagination() {
     String targetKey = _getNutrientKey(_selectedNutrient);
 
-    // 1. กรองข้อมูลจากฟิลด์ "soil" และ "plantsTypeCode"
+    // 1. กรองข้อมูลจากฟิลด์ "soil", "plantsTypeCode" และข้อความค้นหา
     _filteredItems = _allRawItems.where((item) {
       // ตรวจสอบธาตุอาหาร
       String soilValue = item['soil'] ?? '';
@@ -109,14 +116,24 @@ class _SoilPageState extends State<SoilPage> {
       bool matchesType = _selectedPlantType == 0 || 
           (item['plantsTypeCode'] != null && int.tryParse(item['plantsTypeCode'].toString()) == _selectedPlantType);
 
-      return matchesNutrient && matchesType;
+      // 🟩 ตรวจสอบการค้นหาจาก normal_name, scientific_name, หรือ other_name
+      String normalName = (item['normal_name'] ?? '').toString().toLowerCase();
+      String scientificName = (item['scientific_name'] ?? '').toString().toLowerCase();
+      String otherName = (item['other_name'] ?? '').toString().toLowerCase();
+
+      bool matchesSearch = _searchQuery.isEmpty ||
+          normalName.contains(_searchQuery) ||
+          scientificName.contains(_searchQuery) ||
+          otherName.contains(_searchQuery);
+
+      return matchesNutrient && matchesType && matchesSearch;
     }).toList();
 
     // 2. คำนวณจำนวนหน้าทั้งหมดใหม่
     _lastPage = (_filteredItems.length / _itemsPerPage).ceil();
     if (_lastPage < 1) _lastPage = 1;
 
-    // 3. ป้องกันบั๊กหน้าปัจจุบันเกินขอบเขตหลังจากเปลี่ยนตัวกรอง
+    // 3. ป้องกันบั๊กหน้าปัจจุบันเกินขอบเขตหลังจากเปลี่ยนตัวกรองหรือคำค้นหา
     if (_currentPage > _lastPage) _currentPage = 1;
 
     // 4. ทำการตัดข้อมูล (Skip/Take) มาเฉพาะชิ้นที่จะนำมาแสดงในหน้านั้นๆ
@@ -134,6 +151,16 @@ class _SoilPageState extends State<SoilPage> {
     if (minVal == null && maxVal != null) return '$maxVal';
     if (minVal.toString() == maxVal.toString()) return '$minVal';
     return '$minVal - $maxVal';
+  }
+
+  // 🔹 ฟังก์ชันช่วยสำหรับเปิด URL จาก HtmlWidget
+  Future<bool> _handleUrlTap(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return true;
+    }
+    return false;
   }
 
   // 🔹 ฟังก์ชันแสดงหน้าจอ Popup รายละเอียดเชิงลึกของพืชเมื่อคลิกเลือกการ์ด
@@ -155,6 +182,7 @@ class _SoilPageState extends State<SoilPage> {
           backgroundColor: const Color(0xFFEFE8CE), 
           child: Container(
             padding: const EdgeInsets.all(20),
+            constraints: const BoxConstraints(maxHeight: 680),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,16 +228,37 @@ class _SoilPageState extends State<SoilPage> {
                         Text("ชื่ออื่นๆ : $otherName", style: const TextStyle(fontSize: 15, color: Colors.black)),
                         const Divider(color: Colors.black26),
                         const SizedBox(height: 5),
-                        Text(detaill, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+
+                        // แสดงผลรายละเอียดพืชด้วย HtmlWidget
+                        HtmlWidget(
+                          detaill,
+                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
+                          onTapUrl: _handleUrlTap,
+                        ),
                         const SizedBox(height: 12),
+
                         const Text("ลักษณะทั่วไป", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text(nature, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+                        HtmlWidget(
+                          nature,
+                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
+                          onTapUrl: _handleUrlTap,
+                        ),
                         const SizedBox(height: 12),
+
                         const Text("การดูแลรักษา", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text(care, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+                        HtmlWidget(
+                          care,
+                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
+                          onTapUrl: _handleUrlTap,
+                        ),
                         const SizedBox(height: 12),
+
                         const Text("การเก็บเกี่ยว", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text(harvest, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+                        HtmlWidget(
+                          harvest,
+                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
+                          onTapUrl: _handleUrlTap,
+                        ),
                         
                         const Divider(color: Colors.black26, height: 25),
                         
@@ -389,14 +438,23 @@ class _SoilPageState extends State<SoilPage> {
                   ],
                 ),
                 const SizedBox(height: 15),
+
+                // 🟩 ช่องค้นหาพืช (ปรับปรุงใหม่ให้ตอบสนองการพิมพ์)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 15),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF0EAE1),
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  child: const TextField(
-                    decoration: InputDecoration(
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.trim().toLowerCase(); // แปลงข้อความค้นหาเป็นพิมพ์เล็ก
+                        _currentPage = 1; // รีเซ็ตกลับไปหน้าแรกทันทีเมื่อค้นหา
+                        _applyFilterAndPagination(); // ประมวลผลตัวกรองใหม่
+                      });
+                    },
+                    decoration: const InputDecoration(
                       hintText: 'ค้นหา เช่น ชื่อพืช',
                       hintStyle: TextStyle(color: Colors.grey),
                       border: InputBorder.none,
@@ -406,7 +464,7 @@ class _SoilPageState extends State<SoilPage> {
                 ),
                 const SizedBox(height: 12),
                 
-                // 🔹 แถบเลือกธาตุอาหาร + ปุ่มกรองประเภทพืช (ที่แก้ไขแล้ว)
+                // 🔹 แถบเลือกธาตุอาหาร + ปุ่มกรองประเภทพืช
                 Row(
                   children: [
                     Expanded(
@@ -427,7 +485,6 @@ class _SoilPageState extends State<SoilPage> {
                     ),
                     const SizedBox(width: 5),
                     
-                    // 👈 แก้ไขเปลี่ยน Icon เปล่าๆ ให้กลายเป็น PopupMenuButton เพื่อกดกรองประเภทพืชได้
                     PopupMenuButton<int>(
                       initialValue: _selectedPlantType,
                       icon: Icon(

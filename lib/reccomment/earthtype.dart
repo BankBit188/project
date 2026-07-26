@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:project/service/plants_service.dart'; // 👈 Import แพ็กเกจของ PlantsService เข้ามาใช้งาน
+import 'package:project/service/plants_service.dart';
+
+// 🟩 เพิ่ม Import สำหรับการเรนเดอร์ข้อความ HTML และการจัดการเปิดลิงก์
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EarthTypePage extends StatefulWidget {
   const EarthTypePage({super.key});
@@ -10,7 +14,7 @@ class EarthTypePage extends StatefulWidget {
 
 class _EarthTypePageState extends State<EarthTypePage> {
   List<dynamic> _allRawItems = []; // 🔹 เก็บข้อมูลพืชดิบทั้งหมดจากหลังบ้าน
-  List<dynamic> _filteredItems = []; // 🔹 เก็บข้อมูลพืชที่กรองแยกประเภทดินแล้ว
+  List<dynamic> _filteredItems = []; // 🔹 เก็บข้อมูลพืชที่กรองแยกประเภทดิน ประเภทพืช และการค้นหาแล้ว
   List<dynamic> _currentPageItems = []; // 🔹 เก็บข้อมูลพืชที่จะเฉือนแสดงเฉพาะในหน้าปัจจุบัน
   
   bool _isLoading = false;
@@ -21,6 +25,9 @@ class _EarthTypePageState extends State<EarthTypePage> {
 
   // 🔹 ตัวแปรเก็บค่าประเภทพืชสำหรับปุ่มตัวกรอง (Icon)
   String _selectedPlantType = "ทั้งหมด"; // ตัวเลือก: ทั้งหมด, พืชไร่, พืชสวน, พืชเศรษฐกิจ
+
+  // 🟩 ตัวแปรสำหรับเก็บข้อความค้นหา (Search Query)
+  String _searchQuery = "";
 
   // 🔹 เพิ่มตัวแปร Ngrok สำหรับแปลงที่อยู่รูปภาพ
   static const String ngrokUrl = 'https://uselessly-disclose-stungray.ngrok-free.dev';
@@ -90,7 +97,7 @@ class _EarthTypePageState extends State<EarthTypePage> {
     }
   }
 
-  // 🔹 ฟังก์ชันคำนวณคัดแยกคุณสมบัติดิน และจัดส่วนการแบ่งหน้า (Pagination)
+  // 🔹 ฟังก์ชันคำนวณคัดแยกคุณสมบัติดิน ประเภทพืช คำค้นหา และจัดส่วนการแบ่งหน้า (Pagination)
   void _applyFilterAndPagination() {
     int targetSoilCode = _getSoilTypeCode(_selectedSoilType);
 
@@ -103,7 +110,7 @@ class _EarthTypePageState extends State<EarthTypePage> {
       return currentCode == targetSoilCode;
     }).toList();
 
-    // 2. 🛠️ แก้ไขจุดนี้: ทำการกรองประเภทพืช (plantsTypeCode) ต่อจากที่กรองเรื่องดินเสร็จแล้ว
+    // 2. กรองประเภทพืช (plantsTypeCode) ต่อจากที่กรองเรื่องดินเสร็จแล้ว
     if (_selectedPlantType != "ทั้งหมด") {
       int targetPlantCode = _getPlantTypeCode(_selectedPlantType);
       
@@ -116,17 +123,30 @@ class _EarthTypePageState extends State<EarthTypePage> {
       }).toList();
     }
 
+    // 🟩 3. กรองตามคำค้นหา (normal_name, scientific_name, other_name)
+    if (_searchQuery.isNotEmpty) {
+      tempFiltered = tempFiltered.where((item) {
+        String normalName = (item['normal_name'] ?? '').toString().toLowerCase();
+        String scientificName = (item['scientific_name'] ?? '').toString().toLowerCase();
+        String otherName = (item['other_name'] ?? '').toString().toLowerCase();
+
+        return normalName.contains(_searchQuery) ||
+               scientificName.contains(_searchQuery) ||
+               otherName.contains(_searchQuery);
+      }).toList();
+    }
+
     // กำหนดค่าผลลัพธ์สุดท้ายให้ตัวแปรแสดงผล
     _filteredItems = tempFiltered;
 
-    // 3. ปรับยอดจำนวนหน้าแถบ Pagination ทั้งหมดใหม่
+    // 4. ปรับยอดจำนวนหน้าแถบ Pagination ทั้งหมดใหม่
     _lastPage = (_filteredItems.length / _itemsPerPage).ceil();
     if (_lastPage < 1) _lastPage = 1;
 
-    // 4. ป้องกันหน้าปัจจุบันเตลิดกรณีเปลี่ยนชิปแล้วหน้าเกินขอบเขต
+    // 5. ป้องกันหน้าปัจจุบันเตลิดกรณีเปลี่ยนตัวกรองหรือค้นหาแล้วหน้าเกินขอบเขต
     if (_currentPage > _lastPage) _currentPage = 1;
 
-    // 5. หั่นสไลด์ข้อมูลมาฉายในหน้าปัจจุบัน (เช่น หน้าละ 3 ตัว)
+    // 6. หั่นสไลด์ข้อมูลมาฉายในหน้าปัจจุบัน (เช่น หน้าละ 3 ตัว)
     int startIndex = (_currentPage - 1) * _itemsPerPage;
     _currentPageItems = _filteredItems
         .skip(startIndex)
@@ -141,6 +161,16 @@ class _EarthTypePageState extends State<EarthTypePage> {
     if (minVal == null && maxVal != null) return '$maxVal';
     if (minVal.toString() == maxVal.toString()) return '$minVal';
     return '$minVal - $maxVal';
+  }
+
+  // 🟩 ฟังก์ชันช่วยสำหรับเปิด URL จาก HtmlWidget
+  Future<bool> _handleUrlTap(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return true;
+    }
+    return false;
   }
 
   // 🔹 หน้าต่าง Dialog แสดงผลรายละเอียดคุณสมบัติพืชและการจัดเรียงตามรูปภาพ UI ล่าสุด
@@ -208,16 +238,37 @@ class _EarthTypePageState extends State<EarthTypePage> {
                         Text("ชื่ออื่นๆ : $otherName", style: const TextStyle(fontSize: 15, color: Colors.black)),
                         const Divider(color: Colors.black26),
                         const SizedBox(height: 5),
-                        Text(detaill, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+
+                        // แสดงผลรายละเอียดพืชด้วย HtmlWidget
+                        HtmlWidget(
+                          detaill,
+                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
+                          onTapUrl: _handleUrlTap,
+                        ),
                         const SizedBox(height: 12),
+
                         const Text("ลักษณะทั่วไป", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text(nature, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+                        HtmlWidget(
+                          nature,
+                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
+                          onTapUrl: _handleUrlTap,
+                        ),
                         const SizedBox(height: 12),
+
                         const Text("การดูแลรักษา", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text(care, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+                        HtmlWidget(
+                          care,
+                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
+                          onTapUrl: _handleUrlTap,
+                        ),
                         const SizedBox(height: 12),
+
                         const Text("การเก็บเกี่ยว", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text(harvest, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black)),
+                        HtmlWidget(
+                          harvest,
+                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
+                          onTapUrl: _handleUrlTap,
+                        ),
                         
                         const Divider(color: Colors.black26, height: 25),
                         
@@ -416,8 +467,15 @@ class _EarthTypePageState extends State<EarthTypePage> {
                     color: const Color(0xFFF0EAE1),
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  child: const TextField(
-                    decoration: InputDecoration(
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.trim().toLowerCase(); // แปลงข้อความค้นหาเป็นพิมพ์เล็ก
+                        _currentPage = 1; // รีเซ็ตกลับไปหน้าแรกทันทีเมื่อค้นหา
+                        _applyFilterAndPagination(); // ประมวลผลตัวกรองใหม่
+                      });
+                    },
+                    decoration: const InputDecoration(
                       hintText: 'ค้นหา เช่น ชื่อพืช',
                       hintStyle: TextStyle(color: Colors.grey),
                       border: InputBorder.none,
@@ -463,7 +521,7 @@ class _EarthTypePageState extends State<EarthTypePage> {
                       : _currentPageItems.isEmpty
                           ? const Center(
                               child: Text(
-                                "ไม่มีพืชที่เหมาะกับประเภทดินนี้",
+                                "ไม่มีพืชที่ตรงตามเงื่อนไขนี้",
                                 style: TextStyle(fontSize: 18, color: Colors.grey),
                               ),
                             )

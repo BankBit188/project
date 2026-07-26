@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:project/service/earth_service.dart'; // 👈 นำเข้า Service ที่สร้างขึ้นมาใหม่
+import 'package:project/service/earth_service.dart';
 import 'package:flutter/foundation.dart';
+
+// 🟩 เพิ่ม Import สำหรับเรนเดอร์ HTML และจัดการการคลิกลิงก์
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EarthPage extends StatefulWidget {
   const EarthPage({super.key});
@@ -11,12 +15,16 @@ class EarthPage extends StatefulWidget {
 
 class _EarthPageState extends State<EarthPage> {
   List<dynamic> _allRawItems = []; // 🔹 เก็บข้อมูลดินทั้งหมดที่ดึงมาจาก Laravel
+  List<dynamic> _filteredItems = []; // 🟩 เก็บข้อมูลประเภทดินที่ผ่านการกรองคำค้นหาแล้ว
   List<dynamic> _currentPageItems = []; // 🔹 เก็บข้อมูลที่จะแสดงบนหน้าปัจจุบัน
   bool _isLoading = false;
 
   int _currentPage = 1; // หน้าปัจจุบัน
   int _lastPage = 1; // จำนวนหน้าทั้งหมด (คำนวณอัตโนมัติ)
   final int _itemsPerPage = 3; // กำหนดแสดงผลหน้าละ 3 ชิ้นคงที่เหมือนหน้าพืช
+
+  // 🟩 ตัวแปรสำหรับเก็บคำค้นหา
+  String _searchQuery = "";
 
   // 🔹 ตัวแปร URL ทางผ่านหลักของ Ngrok สำหรับจัดการรูปภาพ
   static const String ngrokUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev';
@@ -42,6 +50,7 @@ class _EarthPageState extends State<EarthPage> {
 
   // 🔹 ฟังก์ชันเชื่อมต่อดึงข้อมูลผ่าน EarthService
   Future<void> _fetchDataFromAPI() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final response = await EarthService.getEarthTypes();
@@ -50,30 +59,48 @@ class _EarthPageState extends State<EarthPage> {
           ? response 
           : (response['data'] ?? []);
 
-      setState(() {
-        _allRawItems = fetchedData;
-
-        _lastPage = (_allRawItems.length / _itemsPerPage).ceil();
-        if (_lastPage < 1) _lastPage = 1;
-
-        _updateDisplayedItems(); 
-      });
+      if (mounted) {
+        setState(() {
+          _allRawItems = fetchedData;
+          _applyFilterAndPagination(); 
+        });
+      }
     } catch (e) {
       print("เกิดข้อผิดพลาดในการดึงข้อมูลดิน: $e");
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // 🔹 ฟังก์ชันสำหรับตัดข้อมูลมาแสดงแค่ตามจำนวนต่อหน้า
-  void _updateDisplayedItems() {
+  // 🟩 ฟังก์ชันสำหรับกรองข้อมูลตาม earthTypeName และจัดส่วนแบ่งหน้า (Pagination)
+  void _applyFilterAndPagination() {
+    List<dynamic> tempFiltered = _allRawItems;
+
+    // กรองคำตาม earthTypeName
+    if (_searchQuery.isNotEmpty) {
+      tempFiltered = tempFiltered.where((item) {
+        String earthTypeName = (item['earthTypeName'] ?? '').toString().toLowerCase();
+        return earthTypeName.contains(_searchQuery);
+      }).toList();
+    }
+
+    _filteredItems = tempFiltered;
+
+    // คำนวณจำนวนหน้าทั้งหมด
+    _lastPage = (_filteredItems.length / _itemsPerPage).ceil();
+    if (_lastPage < 1) _lastPage = 1;
+
+    // ป้องกันกรณีหน้าปัจจุบันเกินจำนวนหน้าที่มีอยู่หลังจากกรอง
+    if (_currentPage > _lastPage) _currentPage = 1;
+
+    // ตัดสไลด์ข้อมูลมาแสดงในหน้าปัจจุบัน
     int startIndex = (_currentPage - 1) * _itemsPerPage;
-    setState(() {
-      _currentPageItems = _allRawItems
-          .skip(startIndex)
-          .take(_itemsPerPage)
-          .toList();
-    });
+    _currentPageItems = _filteredItems
+        .skip(startIndex)
+        .take(_itemsPerPage)
+        .toList();
   }
 
   // 🔹 ฟังก์ชันแสดงหน้าจอ Popup รายละเอียดดิน
@@ -132,9 +159,24 @@ class _EarthPageState extends State<EarthPage> {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    child: Text(
+                    child: HtmlWidget(
                       detail,
-                      style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.4),
+                      textStyle: const TextStyle(
+                        fontSize: 16, 
+                        color: Colors.black87, 
+                        height: 1.4,
+                      ),
+                      onTapUrl: (url) async {
+                        final Uri uri = Uri.parse(url);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                          return true;
+                        }
+                        return false;
+                      },
                     ),
                   ),
                 ),
@@ -182,9 +224,17 @@ class _EarthPageState extends State<EarthPage> {
                     color: const Color(0xFFF0EAE1),
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  child: const TextField(
-                    decoration: InputDecoration(
-                      hintText: 'ค้นหา เช่น ประเภทดิน',
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.trim().toLowerCase();
+                        _currentPage = 1; // รีเซ็ตไปหน้าแรกทันทีที่พิมพ์ค้นหา
+                        _applyFilterAndPagination();
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      hintText: 'ค้นหา เช่น ดินร่วน, ดินเหนียว...',
+                      hintStyle: TextStyle(color: Colors.grey),
                       border: InputBorder.none,
                       suffixIcon: Icon(Icons.search, color: Colors.black),
                     ),
@@ -216,7 +266,6 @@ class _EarthPageState extends State<EarthPage> {
                               },
                             ),
                 ),
-                // แถบเปลี่ยนหน้าที่แก้ไขให้อยู่ตรงกลางเรียบร้อยแล้ว 
                 _buildDynamicPagination(),
                 const SizedBox(height: 15),
               ],
@@ -280,32 +329,36 @@ class _EarthPageState extends State<EarthPage> {
     );
   }
 
-  // 🛠️ ปรับปรุงส่วนนี้ให้อยู่ตรงกลางหน้าจออย่างสมบูรณ์แบบ
   Widget _buildDynamicPagination() {
     List<Widget> pageButtons = [];
     
     pageButtons.add(_buildPageBtn("<", disabled: _currentPage == 1, onTap: () {
       if (_currentPage > 1) { 
-        setState(() => _currentPage--); 
-        _updateDisplayedItems(); 
+        setState(() {
+          _currentPage--;
+          _applyFilterAndPagination();
+        }); 
       }
     }));
     
     for (int i = 1; i <= _lastPage; i++) {
       pageButtons.add(_buildPageBtn(i.toString(), isActive: _currentPage == i, onTap: () {
-        setState(() => _currentPage = i); 
-        _updateDisplayedItems();
+        setState(() {
+          _currentPage = i; 
+          _applyFilterAndPagination();
+        }); 
       }));
     }
     
     pageButtons.add(_buildPageBtn(">", disabled: _currentPage == _lastPage, onTap: () {
       if (_currentPage < _lastPage) { 
-        setState(() => _currentPage++); 
-        _updateDisplayedItems(); 
+        setState(() {
+          _currentPage++;
+          _applyFilterAndPagination();
+        }); 
       }
     }));
     
-    // 🛠️ แก้ไขโครงสร้างการจัดวาง: ใช้ Row หลักดันเนื้อหากลางจอ แล้วปล่อยให้ SingleChildScrollView ทำงานภายในกรณีปุ่มเยอะเกินหน้าจอ
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
