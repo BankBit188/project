@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+
 import 'package:project/navbar/navbars.dart'; 
 import 'package:project/mainpage/menu.dart'; 
 import 'package:project/mainpage/datawarehouse.dart'; 
@@ -17,6 +21,10 @@ class RecommendPlantsPage extends StatefulWidget {
 class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
   int _selectedIndex = 2;
   bool _isLoading = false; // สำหรับแสดงสถานะกำลังประมวลผล
+
+  // เพิ่มลิงก์ทางผ่านหลักของ Ngrok สำหรับจัดการ URL รูปภาพพืช
+  static const String ngrokUrl =
+      'https://uselessly-disclose-stingray.ngrok-free.dev';
 
   // 🛠️ สร้าง Controllers สำหรับดักจับและดึงค่าตัวเลขจากช่องกรอกข้อมูลต่างๆ
   final TextEditingController _phController = TextEditingController();
@@ -44,6 +52,28 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
     _mgController.dispose();
     _sController.dispose();
     super.dispose();
+  }
+
+  // ฟังก์ชันจัดฟอร์แมตสลับหัว IP รูปภาพเพื่อวิ่งเข้าอุโมงค์ Ngrok ป้องกันลิงก์ตาย
+  String _formatImgUrl(String imgUrl) {
+    String cleanImgUrl = imgUrl.replaceAll(r'\/', '/');
+    if (cleanImgUrl.contains('10.0.2.2:8000')) {
+      return cleanImgUrl.replaceAll('http://10.0.2.2:8000', ngrokUrl);
+    } else if (cleanImgUrl.contains('127.0.0.1:8000')) {
+      return cleanImgUrl.replaceAll('http://127.0.0.1:8000', ngrokUrl);
+    } else if (cleanImgUrl.contains('localhost:8000')) {
+      return cleanImgUrl.replaceAll('http://localhost:8000', ngrokUrl);
+    }
+    return cleanImgUrl;
+  }
+
+  // ฟังก์ชันสำหรับจัดรูปช่วงข้อมูล (เช่น min - max) ป้องกันค่า null พัง
+  String _formatRange(dynamic minVal, dynamic maxVal) {
+    if (minVal == null && maxVal == null) return '-';
+    if (minVal != null && maxVal == null) return '$minVal';
+    if (minVal == null && maxVal != null) return '$maxVal';
+    if (minVal.toString() == maxVal.toString()) return '$minVal';
+    return '$minVal - $maxVal';
   }
 
   // 🛠️ ฟังก์ชันคำนวณจับคู่ค่าดินเพื่อหาพืชที่เหมาะสมที่สุด 5 อันดับ
@@ -112,14 +142,14 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("เกิดข้อผิดพลาดในการคำนวณ: $e")),
       );
-    } finally { // 🛠️ แก้ไขคำสะกดเป็น "finally" เพื่อป้องกันการเกิด Error
+    } finally {
       setState(() {
         _isLoading = false;
       });
     }
   }
 
-  // 🛠️ UI Modal เปิดป๊อปอัปแสดงผลลัพธ์พืช 5 อันดับ (ลอกเลียนแบบดีไซน์จากรูปที่ 1 ทั้งหมด)
+  // 🛠️ UI Modal เปิดป๊อปอัปแสดงผลลัพธ์พืช 5 อันดับ
   void _showResultsBottomSheet(List<Map<String, dynamic>> items) {
     showModalBottomSheet(
       context: context,
@@ -127,7 +157,7 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
       backgroundColor: Colors.transparent, // ทำให้ขอบนอกโปร่งใสเพื่อโชว์ส่วนโค้งมน
       builder: (context) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.95, // สูงประมาณ 80% ของจอ
+          height: MediaQuery.of(context).size.height * 0.95, // สูงประมาณ 95% ของจอ
           decoration: const BoxDecoration(
             color: Color(0xFFF1E6C9), // พื้นหลังครีมสว่างตามธีมแอปพลิเคชัน
             borderRadius: BorderRadius.only(
@@ -174,49 +204,61 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
                   itemBuilder: (context, index) {
                     var plant = items[index]['plantData'];
                     String plantName = plant['normal_name'] ?? 'ไม่ระบุชื่อ';
-                    String imageUrl = plant['img_url'] ?? ''; // ลิงก์รูปภาพพืชจากฐานข้อมูล
+                    String rawImageUrl = plant['img_url'] ?? plant['img'] ?? '';
+                    String formattedImgUrl = _formatImgUrl(rawImageUrl);
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 15),
-                      padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6F8E5F), // กล่องการ์ดพืชสีเขียวหม่นสไตล์มินิมอล
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF2E5A36), width: 1.5),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // ลำดับตามด้วยชื่อพืช
-                          Expanded(
-                            child: Text(
-                              "${index + 1} $plantName",
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                    // 🟩 ห่อด้วย GestureDetector เพื่อให้คลิกการ์ดแล้วเปิด Dialog เหมือนใน plants.dart
+                    return GestureDetector(
+                      onTap: () => _showPlantDetailDialog(Map<String, dynamic>.from(plant)),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 15),
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6F8E5F), // กล่องการ์ดพืชสีเขียวหม่นสไตล์มินิมอล
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF2E5A36), width: 1.5),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // ลำดับตามด้วยชื่อพืช
+                            Expanded(
+                              child: Text(
+                                "${index + 1} $plantName",
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          ),
-                          // กรอบรูปภาพพืชขอบมนด้านขวา
-                          Container(
-                            width: 110,
-                            height: 90,
-                            decoration: BoxDecoration(
-                              color: Colors.white24,
+                            const SizedBox(width: 10),
+                            // กรอบรูปภาพพืชขอบมนด้านขวา
+                            ClipRRect(
                               borderRadius: BorderRadius.circular(15),
-                              image: imageUrl.isNotEmpty
-                                  ? DecorationImage(
-                                      image: NetworkImage(imageUrl),
+                              child: formattedImgUrl.isNotEmpty
+                                  ? Image.network(
+                                      formattedImgUrl,
+                                      width: 110,
+                                      height: 90,
                                       fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => Container(
+                                        width: 110,
+                                        height: 90,
+                                        color: Colors.white24,
+                                        child: const Icon(Icons.eco, color: Colors.white, size: 40),
+                                      ),
                                     )
-                                  : null,
+                                  : Container(
+                                      width: 110,
+                                      height: 90,
+                                      color: Colors.white24,
+                                      child: const Icon(Icons.eco, color: Colors.white, size: 40),
+                                    ),
                             ),
-                            child: imageUrl.isEmpty
-                                ? const Icon(Icons.eco, color: Colors.white, size: 40)
-                                : null,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -226,6 +268,541 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
           ),
         );
       },
+    );
+  }
+
+  // 🟩 ฟังก์ชันแสดง Modal รายละเอียดข้อมูลพืช (ถอดแบบจาก plants.dart)
+  void _showPlantDetailDialog(Map<String, dynamic> item) {
+    String normalName = item['normal_name'] ?? 'ไม่มีชื่อพืช';
+    String scientificName = item['scientific_name'] ?? 'ไม่มีชื่อวิทยาศาสตร์';
+    String otherName = item['other_name'] ?? 'ไม่มีชื่ออื่นๆ';
+    String imgUrl = _formatImgUrl(item['img_url'] ?? item['img'] ?? '');
+    String detaill = item['detaill'] ?? 'ไม่มีข้อมูลรายละเอียดพืช';
+    String nature = item['nature'] ?? 'ไม่มีข้อมูลลักษณะทั่วไป';
+    String plant = item['plant'] ?? 'ไม่มีข้อมูลการปลูก';
+    String care = item['care'] ?? 'ไม่มีข้อมูลการดูแล';
+    String harvest = item['harvest'] ?? 'ไม่มีข้อมูลการเก็บเกี่ยว';
+
+    String? webLink = item['link'];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          backgroundColor: const Color(0xFFEFE8CE),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            constraints: const BoxConstraints(maxHeight: 680),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        normalName,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        size: 28,
+                        color: Colors.black,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.network(
+                      imgUrl,
+                      width: 220,
+                      height: 220,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 220,
+                        height: 220,
+                        color: Colors.grey.shade300,
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          size: 50,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "ชื่อสามัญ : $normalName",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        Text(
+                          "ชื่อวิทยาศาสตร์ : $scientificName",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.black,
+                          ),
+                        ),
+                        Text(
+                          "ชื่ออื่นๆ : $otherName",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const Divider(color: Colors.black26),
+                        const SizedBox(height: 5),
+
+                        HtmlWidget(
+                          detaill,
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black,
+                          ),
+                          onTapUrl: (url) async {
+                            final Uri uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              return true;
+                            }
+                            return false;
+                          },
+                        ),
+
+                        const SizedBox(height: 12),
+                        const Text(
+                          "ลักษณะทั่วไป",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        HtmlWidget(
+                          nature,
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black,
+                          ),
+                          onTapUrl: (url) async {
+                            final Uri uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              return true;
+                            }
+                            return false;
+                          },
+                        ),
+
+                        const SizedBox(height: 12),
+                        const Text(
+                          "ข้อมูลการปลูก",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        HtmlWidget(
+                          plant,
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black,
+                          ),
+                          onTapUrl: (url) async {
+                            final Uri uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              return true;
+                            }
+                            return false;
+                          },
+                        ),
+
+                        const SizedBox(height: 12),
+                        const Text(
+                          "การดูแลรักษา",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        HtmlWidget(
+                          care,
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black,
+                          ),
+                          onTapUrl: (url) async {
+                            final Uri uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              return true;
+                            }
+                            return false;
+                          },
+                        ),
+
+                        const SizedBox(height: 12),
+                        const Text(
+                          "การเก็บเกี่ยว",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        HtmlWidget(
+                          harvest,
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.black,
+                          ),
+                          onTapUrl: (url) async {
+                            final Uri uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              return true;
+                            }
+                            return false;
+                          },
+                        ),
+
+                        const Divider(color: Colors.black26, height: 25),
+
+                        const Center(
+                          child: Text(
+                            "สภาพดินและธาตุอาหารในดินที่เหมาะสม",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+
+                        Center(
+                          child: Wrap(
+                            spacing: 15,
+                            runSpacing: 10,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              _buildNutrientText(
+                                "N",
+                                _formatRange(item['minN'], item['maxN']),
+                              ),
+                              _buildNutrientText(
+                                "P",
+                                _formatRange(item['minP'], item['maxP']),
+                              ),
+                              _buildNutrientText(
+                                "K",
+                                _formatRange(item['minK'], item['maxK']),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        Center(
+                          child: Wrap(
+                            spacing: 15,
+                            runSpacing: 10,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              _buildNutrientText(
+                                "Ca",
+                                _formatRange(item['minCa'], item['maxCa']),
+                              ),
+                              _buildNutrientText(
+                                "Mg",
+                                _formatRange(item['minMg'], item['maxMg']),
+                              ),
+                              _buildNutrientText(
+                                "S",
+                                _formatRange(item['minS'], item['maxS']),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 25),
+
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Column(
+                            children: [
+                              _buildEnvGridRow(
+                                iconLeft: Icons.opacity,
+                                colorLeft: Colors.blue,
+                                titleLeft: "ความชื้น",
+                                valueLeft:
+                                    "${_formatRange(item['minhumid'], item['maxhumid'])} %",
+                                iconRight: Icons.grid_3x3,
+                                colorRight: Colors.black87,
+                                titleRight: "pH",
+                                valueRight: _formatRange(
+                                  item['minPH'],
+                                  item['maxPH'],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildEnvGridRow(
+                                iconLeft: Icons.thermostat,
+                                colorLeft: Colors.black87,
+                                titleLeft: "อุณหภูมิ",
+                                valueLeft:
+                                    "${_formatRange(item['mintemperature'], item['maxtemperature'])} °C",
+                                iconRight: Icons.waves,
+                                colorRight: Colors.brown,
+                                titleRight: "ความเค็ม",
+                                valueRight:
+                                    "${_formatRange(item['minsalty'], item['maxsalty'])} mS/cm",
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(color: Colors.black26, height: 30),
+                        Center(
+                          child: Column(
+                            children: [
+                              const Text(
+                                "ความต้องการและปริมาณการผลิต",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              RichText(
+                                textAlign: TextAlign.center,
+                                text: TextSpan(
+                                  text: 'คลิกเพื่อดูรายละเอียด',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: 'เพิ่มเติม',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.blue,
+                                        decoration: TextDecoration.underline,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = () async {
+                                          if (webLink != null &&
+                                              webLink.isNotEmpty) {
+                                            final Uri url = Uri.parse(webLink);
+                                            if (await canLaunchUrl(url)) {
+                                              await launchUrl(
+                                                url,
+                                                mode: LaunchMode
+                                                    .externalApplication,
+                                              );
+                                            } else {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'ไม่สามารถเปิดลิงก์นี้ได้',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          } else {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'ไม่มีข้อมูลลิงก์รายละเอียด',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 🟩 Helper สำหรับสร้างข้อความธาตุอาหาร
+  Widget _buildNutrientText(String label, String value) {
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 16, color: Colors.black),
+        children: [
+          TextSpan(
+            text: "$label ",
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const TextSpan(
+            text: ": ",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          TextSpan(
+            text: value,
+            style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🟩 Helper สำหรับสร้างแถวแสดงค่าสภาพแวดล้อม
+  Widget _buildEnvGridRow({
+    required IconData? iconLeft,
+    required Color colorLeft,
+    required String titleLeft,
+    required String valueLeft,
+    required IconData? iconRight,
+    required Color colorRight,
+    required String titleRight,
+    required String valueRight,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 1,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (iconLeft != null)
+                Icon(iconLeft, color: colorLeft, size: 28)
+              else
+                const SizedBox(width: 28, height: 28),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      "$titleLeft : ",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    Text(
+                      valueLeft,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 1,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (iconRight != null)
+                Icon(iconRight, color: colorRight, size: 28)
+              else
+                const SizedBox(width: 28, height: 28),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      "$titleRight : ",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    Text(
+                      valueRight,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
