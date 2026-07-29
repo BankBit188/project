@@ -167,6 +167,7 @@ class _ToolPageState extends State<ToolPage> {
     return [];
   }
 
+  //บันทึกข้อมูลสถานที่และที่ตั้ง
   void _showSaveLocationDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
 
@@ -1378,6 +1379,7 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
+  //แจ้งปัญหา
   void _showReportDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController detailController = TextEditingController();
