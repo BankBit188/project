@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart'
-hide ImageSource;
+    hide ImageSource;
 
 import 'package:project/navbar/navbars.dart';
 import 'package:project/mainpage/history.dart';
@@ -196,7 +196,37 @@ class _ToolPageState extends State<ToolPage> {
     return [];
   }
 
-  //บันทึกข้อมูลสถานที่และที่ตั้ง
+  // 🟩 ฟังก์ชันประเมินคะแนนความเหมาะสมแบบ Fuzzy Matching
+  double _evaluateFuzzyMatch(
+    double? input,
+    dynamic minVal,
+    dynamic maxVal,
+    String factorName,
+    List<String> matchedTags,
+  ) {
+    if (input == null || minVal == null || maxVal == null) return 0.0;
+    double min = double.tryParse(minVal.toString()) ?? 0.0;
+    double max = double.tryParse(maxVal.toString()) ?? double.infinity;
+
+    if (input >= min && input <= max) {
+      matchedTags.add(factorName);
+      return 1.0;
+    }
+
+    double range = (max - min).abs();
+    if (range == 0) range = 1.0;
+    double margin = range * 0.20;
+
+    if ((input < min && (min - input) <= margin) ||
+        (input > max && (input - max) <= margin)) {
+      matchedTags.add("$factorName (ใกล้เคียง)");
+      return 0.5;
+    }
+
+    return 0.0;
+  }
+
+  // บันทึกข้อมูลสถานที่และที่ตั้ง
   void _showSaveLocationDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
 
@@ -558,6 +588,7 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
+  // 🟩 ปรับปรุงฟังก์ชันแนะนำพืชด้วย Fuzzy Matching (คำนวณจากทั้ง 10 ปัจจัย)
   void _recommendPlantsFromToolData() async {
     if (_toolData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -578,7 +609,10 @@ class _ToolPageState extends State<ToolPage> {
       List<dynamic> allPlants = await PlantsService.getplants();
 
       double? inputPH = double.tryParse(
-        _toolData?['pH']?.toString() ?? _toolData?['ph']?.toString() ?? '',
+        _toolData?['PH']?.toString() ??
+            _toolData?['pH']?.toString() ??
+            _toolData?['ph']?.toString() ??
+            '',
       );
       double? inputHumid = double.tryParse(
         _toolData?['humid']?.toString() ?? '',
@@ -596,40 +630,80 @@ class _ToolPageState extends State<ToolPage> {
       double? inputMg = double.tryParse(_toolData?['Mg']?.toString() ?? '');
       double? inputS = double.tryParse(_toolData?['S']?.toString() ?? '');
 
+      // นับจำนวนปัจจัยที่มีข้อมูลค่าตรวจวัดจริงเพื่อใช้หารเป็นตัวกลางคะแนน %
+      int activeCriteriaCount = 0;
+      if (inputPH != null) activeCriteriaCount++;
+      if (inputHumid != null) activeCriteriaCount++;
+      if (inputTemp != null) activeCriteriaCount++;
+      if (inputSalty != null) activeCriteriaCount++;
+      if (inputN != null) activeCriteriaCount++;
+      if (inputP != null) activeCriteriaCount++;
+      if (inputK != null) activeCriteriaCount++;
+      if (inputCa != null) activeCriteriaCount++;
+      if (inputMg != null) activeCriteriaCount++;
+      if (inputS != null) activeCriteriaCount++;
+
+      if (activeCriteriaCount == 0) activeCriteriaCount = 1;
+
       List<Map<String, dynamic>> scoredPlants = [];
 
       for (var plant in allPlants) {
-        int score = 0;
+        double totalScore = 0.0;
+        List<String> matchedTags = [];
 
-        bool checkRange(double? input, dynamic minVal, dynamic maxVal) {
-          if (input == null || minVal == null || maxVal == null) return false;
-          double min = double.tryParse(minVal.toString()) ?? 0.0;
-          double max = double.tryParse(maxVal.toString()) ?? double.infinity;
-          return input >= min && input <= max;
+        if (inputPH != null) {
+          totalScore += _evaluateFuzzyMatch(
+              inputPH, plant['minPH'], plant['maxPH'], "pH", matchedTags);
+        }
+        if (inputHumid != null) {
+          totalScore += _evaluateFuzzyMatch(
+              inputHumid, plant['minhumid'], plant['maxhumid'], "ความชื้น", matchedTags);
+        }
+        if (inputTemp != null) {
+          totalScore += _evaluateFuzzyMatch(
+              inputTemp, plant['mintemperature'], plant['maxtemperature'], "อุณหภูมิ", matchedTags);
+        }
+        if (inputSalty != null) {
+          totalScore += _evaluateFuzzyMatch(
+              inputSalty, plant['minsalty'], plant['maxsalty'], "ความเค็ม", matchedTags);
+        }
+        if (inputN != null) {
+          totalScore += _evaluateFuzzyMatch(
+              inputN, plant['minN'], plant['maxN'], "N", matchedTags);
+        }
+        if (inputP != null) {
+          totalScore += _evaluateFuzzyMatch(
+              inputP, plant['minP'], plant['maxP'], "P", matchedTags);
+        }
+        if (inputK != null) {
+          totalScore += _evaluateFuzzyMatch(
+              inputK, plant['minK'], plant['maxK'], "K", matchedTags);
+        }
+        if (inputCa != null) {
+          totalScore += _evaluateFuzzyMatch(
+              inputCa, plant['minCa'], plant['maxCa'], "Ca", matchedTags);
+        }
+        if (inputMg != null) {
+          totalScore += _evaluateFuzzyMatch(
+              inputMg, plant['minMg'], plant['maxMg'], "Mg", matchedTags);
+        }
+        if (inputS != null) {
+          totalScore += _evaluateFuzzyMatch(
+              inputS, plant['minS'], plant['maxS'], "S", matchedTags);
         }
 
-        if (checkRange(inputPH, plant['minPH'], plant['maxPH'])) score++;
-        if (checkRange(inputHumid, plant['minhumid'], plant['maxhumid']))
-          score++;
-        if (checkRange(
-          inputTemp,
-          plant['mintemperature'],
-          plant['maxtemperature'],
-        ))
-          score++;
-        if (checkRange(inputSalty, plant['minsalty'], plant['maxsalty']))
-          score++;
-        if (checkRange(inputN, plant['minN'], plant['maxN'])) score++;
-        if (checkRange(inputP, plant['minP'], plant['maxP'])) score++;
-        if (checkRange(inputK, plant['minK'], plant['maxK'])) score++;
-        if (checkRange(inputCa, plant['minCa'], plant['maxCa'])) score++;
-        if (checkRange(inputMg, plant['minMg'], plant['maxMg'])) score++;
-        if (checkRange(inputS, plant['minS'], plant['maxS'])) score++;
+        double matchPercentage = (totalScore / activeCriteriaCount) * 100;
+        if (matchPercentage > 100) matchPercentage = 100;
 
-        scoredPlants.add({'plantData': plant, 'score': score});
+        scoredPlants.add({
+          'plantData': plant,
+          'matchPercentage': matchPercentage,
+          'matchedTags': matchedTags,
+        });
       }
 
-      scoredPlants.sort((a, b) => b['score'].compareTo(a['score']));
+      scoredPlants
+          .sort((a, b) => b['matchPercentage'].compareTo(a['matchPercentage']));
       List<Map<String, dynamic>> top5Plants = scoredPlants.take(5).toList();
 
       if (mounted) {
@@ -639,13 +713,14 @@ class _ToolPageState extends State<ToolPage> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("เกิดข้อผิดพลาดในการคำนวณ: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("เกิดข้อผิดพลาดในการคำนวณ: $e")),
+        );
       }
     }
   }
 
+  // 🟩 ปรับปรุงการแสดงผลรายการพืชแนะนำพร้อมเปอร์เซ็นต์และแท็ก
   void _showResultsBottomSheet(List<Map<String, dynamic>> items) {
     showModalBottomSheet(
       context: context,
@@ -699,12 +774,20 @@ class _ToolPageState extends State<ToolPage> {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     var plant = items[index]['plantData'];
+                    double matchPercentage = items[index]['matchPercentage'];
+                    List<String> matchedTags = items[index]['matchedTags'];
+
                     String plantName = plant['normal_name'] ?? 'ไม่ระบุชื่อ';
                     String rawImageUrl =
                         plant['img_cloudinary'] ?? plant['img'] ?? '';
                     String formattedImgUrl = _formatImgUrl(rawImageUrl);
 
-                    // 🟩 เพิ่ม GestureDetector ให้สามารถคลิกการ์ดพืชแล้วเปิด Modal ดูรายละเอียดได้
+                    Color badgeColor = matchPercentage >= 80
+                        ? Colors.green.shade800
+                        : (matchPercentage >= 50
+                            ? Colors.orange.shade800
+                            : Colors.red.shade800);
+
                     return GestureDetector(
                       onTap: () => _showPlantDetailDialog(
                         Map<String, dynamic>.from(plant),
@@ -720,53 +803,111 @@ class _ToolPageState extends State<ToolPage> {
                             width: 1.5,
                           ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                "${index + 1} $plantName",
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "${index + 1}. $plantName",
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: badgeColor,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          "ความเหมาะสม ${matchPercentage.toStringAsFixed(0)}%",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(15),
-                              child: formattedImgUrl.isNotEmpty
-                                  ? Image.network(
-                                      formattedImgUrl,
-                                      width: 110,
-                                      height: 90,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
+                                const SizedBox(width: 10),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(15),
+                                  child: formattedImgUrl.isNotEmpty
+                                      ? Image.network(
+                                          formattedImgUrl,
+                                          width: 100,
+                                          height: 85,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error,
+                                                  stackTrace) =>
                                               Container(
-                                                width: 110,
-                                                height: 90,
-                                                color: Colors.white24,
-                                                child: const Icon(
-                                                  Icons.eco,
-                                                  color: Colors.white,
-                                                  size: 40,
-                                                ),
-                                              ),
-                                    )
-                                  : Container(
-                                      width: 110,
-                                      height: 90,
-                                      color: Colors.white24,
-                                      child: const Icon(
-                                        Icons.eco,
+                                            width: 100,
+                                            height: 85,
+                                            color: Colors.white24,
+                                            child: const Icon(
+                                              Icons.eco,
+                                              color: Colors.white,
+                                              size: 40,
+                                            ),
+                                          ),
+                                        )
+                                      : Container(
+                                          width: 100,
+                                          height: 85,
+                                          color: Colors.white24,
+                                          child: const Icon(
+                                            Icons.eco,
+                                            color: Colors.white,
+                                            size: 40,
+                                          ),
+                                        ),
+                                ),
+                              ],
+                            ),
+                            if (matchedTags.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              const Divider(color: Colors.white30, height: 10),
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: matchedTags.map((tag) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: Colors.white54, width: 0.5),
+                                    ),
+                                    child: Text(
+                                      "✓ $tag",
+                                      style: const TextStyle(
                                         color: Colors.white,
-                                        size: 40,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                            ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -793,8 +934,8 @@ class _ToolPageState extends State<ToolPage> {
     String care = item['care'] ?? 'ไม่มีข้อมูลการดูแล';
     String harvest = item['harvest'] ?? 'ไม่มีข้อมูลการเก็บเกี่ยว';
 
-    String? supplylink = item['link_supply'] ?? 'ไม่มีลิงก์แหล่งซื้อ';
-    String? demandlink = item['link_demand'] ?? 'ไม่มีลิงก์แหล่งขาย';
+    String? supplylink = item['link_supply'] ?? item['supplyLink'] ?? item['link'];
+    String? demandlink = item['link_demand'] ?? item['demandLink'] ?? item['link'];
 
     showDialog(
       context: context,
@@ -1123,7 +1264,6 @@ class _ToolPageState extends State<ToolPage> {
                         Center(
                           child: Column(
                             children: [
-                              // 🟢 หัวข้อหลัก
                               const Text(
                                 "ความต้องการและปริมาณการผลิต",
                                 style: TextStyle(
@@ -1134,7 +1274,6 @@ class _ToolPageState extends State<ToolPage> {
                               ),
                               const SizedBox(height: 16),
 
-                              // 📦 1. หัวข้อย่อย: ปริมาณการผลิต (Supply)
                               const Text(
                                 "ปริมาณการผลิต",
                                 style: TextStyle(
@@ -1165,7 +1304,7 @@ class _ToolPageState extends State<ToolPage> {
                                         ..onTap = () => _openUrl(
                                           context,
                                           supplylink,
-                                        ), // 🔗 เรียกใช้ supplyLink
+                                        ),
                                     ),
                                   ],
                                 ),
@@ -1173,7 +1312,6 @@ class _ToolPageState extends State<ToolPage> {
 
                               const SizedBox(height: 16),
 
-                              // 📈 2. หัวข้อย่อย: ความต้องการ (Demand)
                               const Text(
                                 "ความต้องการ",
                                 style: TextStyle(
@@ -1204,7 +1342,7 @@ class _ToolPageState extends State<ToolPage> {
                                         ..onTap = () => _openUrl(
                                           context,
                                           demandlink,
-                                        ), // 🔗 เรียกใช้ demandLink
+                                        ),
                                     ),
                                   ],
                                 ),
@@ -1513,7 +1651,7 @@ class _ToolPageState extends State<ToolPage> {
                 _buildDetailRow(
                   Icons.science,
                   "ค่า pH",
-                  _toolData != null ? "${_toolData!['PH']}" : "กำลังโหลด...",
+                  _toolData != null ? "${_toolData!['PH'] ?? _toolData!['ph']}" : "กำลังโหลด...",
                   Colors.purple,
                 ),
                 const SizedBox(height: 20),
@@ -1559,7 +1697,7 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  //แจ้งปัญหา
+  // แจ้งปัญหา
   void _showReportDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController detailController = TextEditingController();
@@ -1760,12 +1898,12 @@ class _ToolPageState extends State<ToolPage> {
                                   try {
                                     final userData =
                                         await UserService.getUserById(
-                                          _userId!,
-                                          _authToken,
-                                        );
+                                      _userId!,
+                                      _authToken,
+                                    );
                                     currentUsername =
                                         userData['username'] ??
-                                        "ไม่ระบุชื่อผู้ใช้";
+                                            "ไม่ระบุชื่อผู้ใช้";
                                   } catch (userError) {
                                     print("ดึงชื่อผู้ใช้ล้มเหลว: $userError");
                                   }
@@ -1779,9 +1917,9 @@ class _ToolPageState extends State<ToolPage> {
 
                                 final response =
                                     await ReportsService.createReport(
-                                      reportData: reportData,
-                                      imageFile: selectedImageFile,
-                                    );
+                                  reportData: reportData,
+                                  imageFile: selectedImageFile,
+                                );
                                 if (context.mounted) {
                                   Navigator.of(context).pop();
                                   Navigator.of(context).pop();

@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class EarthService {
   // 🔹 ใช้ URL ของ Ngrok ตัวเดียวกับระบบพืชปลูกเพื่อให้คุยกับหลังบ้านได้เสถียร
-  static const String baseUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev/api';
+  static const String baseUrl = 'https://api-project-production-0935.up.railway.app/api';
 
   // ฟังก์ชันส่วนกลางสำหรับดึงหรือส่งข้อมูล API
   static Future<dynamic> _fetchAPI(String endpoint, {String method = 'GET', Map<String, dynamic>? body}) async {

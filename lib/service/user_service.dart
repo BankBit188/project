@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class UserService {
   // 1. กำหนด Base URL ของ API หลังบ้าน
-  static const String baseUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev/api';
+  static const String baseUrl = 'https://api-project-production-0935.up.railway.app/api';
 
   // 2. ฟังก์ชันส่วนกลางสำหรับยิง API
   static Future<dynamic> _fetchAPI(

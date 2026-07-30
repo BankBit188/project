@@ -68,7 +68,7 @@ class _ChatPageState extends State<ChatPage>
     setState(() => isLoading = true);
     try {
       final url = Uri.parse(
-        'https://uselessly-disclose-stingray.ngrok-free.dev/api/chat/history',
+        'https://api-project-production-0935.up.railway.app/api/chat/history',
       );
       final response = await http.post(
         url,
@@ -189,7 +189,7 @@ class _ChatPageState extends State<ChatPage>
 
     try {
       final url = Uri.parse(
-        'https://uselessly-disclose-stingray.ngrok-free.dev/api/chat',
+        'https://api-project-production-0935.up.railway.app/api/chat',
       );
       final response = await http.post(
         url,

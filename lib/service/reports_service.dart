@@ -6,7 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 class ReportsService {
   // 🔹 ใช้ URL ของ Ngrok ตามโครงสร้างเดิม
-  static const String baseUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev/api';
+  static const String baseUrl = 'https://api-project-production-0935.up.railway.app/api';
 
   // 📌 2. ประกาศใช้งาน FlutterSecureStorage
   static const _secureStorage = FlutterSecureStorage();

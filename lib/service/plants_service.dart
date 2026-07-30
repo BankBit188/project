@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 class PlantsService {
   // 🔹 1. เปลี่ยนมาใช้ลิงก์ Ngrok ของคุณเป็นทางผ่านหลักชิ้นเดียวจบ
-  static const String baseUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev/api';
+  static const String baseUrl = 'https://api-project-production-0935.up.railway.app/api';
 
   // 2. ฟังก์ชันส่วนกลางสำหรับยิง API (ปรับให้ดึงค่า baseUrl ตัวบนตรงๆ)
   static Future<dynamic> _fetchAPI(String endpoint, {String method = 'GET', Map<String, dynamic>? body}) async {
