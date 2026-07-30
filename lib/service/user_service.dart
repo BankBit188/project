@@ -103,13 +103,7 @@ class UserService {
   static Future<dynamic> getUserById(String id, String? token) async {
     return await _fetchAPI('/user/$id', method: 'GET', token: token);
   }
-
-  // ลบข้อมูลผู้ใช้ตาม ID
-  static Future<dynamic> deleteUser(int id) async {
-    return await _fetchAPI('/user/$id', method: 'DELETE');
-  }
   
-
   // 🟩 ฟังก์ชันสำหรับเปลี่ยนรหัสผ่านของผู้ใช้ (เรียกผ่าน _fetchAPI)
   static Future<dynamic> updatePassword({
     required String id,

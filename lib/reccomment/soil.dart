@@ -168,7 +168,7 @@ class _SoilPageState extends State<SoilPage> {
     String normalName = item['normal_name'] ?? 'ไม่มีชื่อพืช';
     String scientificName = item['scientific_name'] ?? 'ไม่มีชื่อวิทยาศาสตร์';
     String otherName = item['other_name'] ?? 'ไม่มีชื่ออื่นๆ';
-    String imgUrl = _formatImgUrl(item['img_url'] ?? item['img'] ?? '');
+    String imgUrl = _formatImgUrl(item['img_cloudinary'] ?? item['img'] ?? '');
     String detaill = item['detaill'] ?? 'ไม่มีข้อมูลรายละเอียดพืช';
     String nature = item['nature'] ?? 'ไม่มีข้อมูลลักษณะทั่วไป';
     String care = item['care'] ?? 'ไม่มีข้อมูลการดูแล';
@@ -540,7 +540,7 @@ class _SoilPageState extends State<SoilPage> {
                                   onTap: () => _showPlantDetailDialog(item),
                                   child: _buildItemCard(
                                     item['normal_name'] ?? 'ไม่มีชื่อพืช',
-                                    item['img_url'] ?? 'https://via.placeholder.com/150',
+                                    item['img_cloudinary'] ?? 'https://via.placeholder.com/150',
                                   ),
                                 );
                               },

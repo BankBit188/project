@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:project/navbar/navbars.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
-// 🟢 อย่าลืมตรวจสอบว่าโปรเจกต์ของคุณติดตั้งและนำเข้าตัวนี้แล้วหรือยังนะครับ
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
-import 'package:project/service/user_service.dart'; // นำเข้า UserService เพื่อใช้ฟังก์ชัน login และอื่นๆ
+import 'package:project/service/user_service.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -20,7 +17,6 @@ class _ChatPageState extends State<ChatPage>
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  // 🟢 1. ประกาศตัวแปรใช้งาน FlutterSecureStorage และตัวแปรเก็บ Token/UserID
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   String? _authToken;
   String? _userId;
@@ -29,7 +25,7 @@ class _ChatPageState extends State<ChatPage>
   bool isLoading = false;
 
   final int maxDailyLimit = 10;
-  int currentUsage = 0; // ค่านับใช้งานเริ่มต้น
+  int currentUsage = 0;
 
   @override
   bool get wantKeepAlive => true;
@@ -37,7 +33,6 @@ class _ChatPageState extends State<ChatPage>
   @override
   void initState() {
     super.initState();
-    // 🟢 2. เรียกฟังก์ชันเตรียมโหลด Token และโควตาเริ่มต้น
     _initializeChat();
 
     messages.add({
@@ -54,17 +49,22 @@ class _ChatPageState extends State<ChatPage>
     super.dispose();
   }
 
-  // 🟢 3. มัดรวมการดึง Token และไปดึงข้อมูลโควตาล่าสุดต่อจากเซิร์ฟเวอร์
+  // 🔒 1. ตรวจสอบทั้ง Token และ UserID ก่อนเริ่มต้นโหลดข้อมูล
   Future<void> _initializeChat() async {
-    await _loadToken(); // ดึงค่าจาก Secure Storage
-    if (_userId != null) {
-      await _fetchInitialQuota(); // โหลดโควตาเดิม
-      await _fetchChatHistory(); // 🟢 เพิ่มการโหลดประวัติแชตเก่าตรงนี้
+    await _loadToken(); 
+    // เช็กว่ามีทั้ง Token และ UserID หรือไม่
+    if (_authToken != null && _authToken!.isNotEmpty && _userId != null) {
+      await _fetchInitialQuota(); 
+      await _fetchChatHistory(); 
+    } else {
+      _showAuthErrorSnackBar("ไม่พบ Token หรือรหัสผู้ใช้ กรุณาเข้าสู่ระบบใหม่");
     }
   }
 
-  // 🟢 ฟังก์ชันสำหรับวิ่งไปดึงประวัติแชตจาก Laravel
+  // 🔒 2. ฟังก์ชันดึงประวัติแชต (เพิ่มการเช็ก Token + ดักจับ HTTP 401)
   Future<void> _fetchChatHistory() async {
+    if (_authToken == null || _authToken!.isEmpty) return;
+
     setState(() => isLoading = true);
     try {
       final url = Uri.parse(
@@ -75,26 +75,25 @@ class _ChatPageState extends State<ChatPage>
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $_authToken',
+          'Authorization': 'Bearer $_authToken', // 🔒 แนบ Token ใน Header
         },
         body: jsonEncode({'Userid': _userId}),
       );
-      print("โหลดประวัติแชตจากเซิร์ฟเวอร์ ID ที่ส่งไปคือ: ${_userId}");
+
+      print("โหลดประวัติแชตจากเซิร์ฟเวอร์ ID ที่ส่งไปคือ: $_userId");
+
       if (response.statusCode == 200) {
         final List<dynamic> historyData = jsonDecode(response.body);
 
         setState(() {
-          // ล้างอาร์เรย์ข้อความเก่าก่อน
           messages.clear();
 
-          // 🟢 ใส่ข้อความต้อนรับของ AI กลับเข้าไปให้อยู่บรรทัดบนสุดเสมอ ไม่ให้หายไป
           messages.add({
             "role": "ai",
             "text":
                 "สวัสดีครับ! ผมคือผู้ช่วย AI ด้านการเกษตร วันนี้มีอะไรให้ผมช่วยไหมครับ?",
           });
 
-          // วนลูปแปลงข้อมูลจากฐานข้อมูลยัดเข้าตัวแปรแชตใน Flutter
           if (historyData.isNotEmpty) {
             for (var msg in historyData) {
               messages.add({
@@ -105,12 +104,13 @@ class _ChatPageState extends State<ChatPage>
           }
         });
 
-        // เลื่อนหน้าจอลงไปล่างสุดหลังจากโหลดประวัติแชตเสร็จ
         _scrollToBottom();
-      }
-      else {
-        // 🟢 เพิ่มบรรทัดนี้เพื่อดูข้อความแจ้งเตือนใน Debug Console
-        print("Log Error 422 (ประวัติแชต): ${response.body}");
+      } else if (response.statusCode == 401) {
+        // 🔒 ดักจับ Sanctum Unauthenticated
+        print("Log Error 401 (ประวัติแชต): Token ไม่ถูกต้องหรือหมดอายุ");
+        _showAuthErrorSnackBar("Token หมดอายุหรือไม่มีสิทธิ์ กรุณาเข้าสู่ระบบใหม่");
+      } else {
+        print("Log Error ${response.statusCode} (ประวัติแชต): ${response.body}");
       }
     } catch (e) {
       print("เกิดข้อผิดพลาดในการโหลดประวัติแชต: $e");
@@ -119,7 +119,7 @@ class _ChatPageState extends State<ChatPage>
     }
   }
 
-  // 🟩 ฟังก์ชันสำหรับดึง Token และ User ID ออกจากหน่วยความจำ (ตามที่คุณเขียนเป๊ะๆ)
+  // 🟩 ฟังก์ชันสำหรับดึง Token และ User ID ออกจาก Secure Storage
   Future<void> _loadToken() async {
     String? token = await _secureStorage.read(key: "auth_token");
     String? userId = await _secureStorage.read(key: "Userid");
@@ -128,26 +128,21 @@ class _ChatPageState extends State<ChatPage>
       _authToken = token;
       _userId = userId;
     });
-    // เทสพิมพ์พ่นดูใน Debug Console ว่า ข้อมูลมาจริงไหม
     print("ระบบตรวจสอบพบ Token ปัจจุบัน: $_authToken, UserID: $_userId");
   }
 
-  // 🟢 4. ฟังก์ชันดึงโควตารายวันปัจจุบันจากฝั่ง Laravel หลังบ้าน
+  // 🔒 3. ฟังก์ชันดึงโควตาประจำวัน
   Future<void> _fetchInitialQuota() async {
-    if (_userId == null) return;
+    if (_userId == null || _authToken == null) return;
 
     setState(() => isLoading = true);
     try {
-      // 🟩 เรียกใช้งานผ่าน UserService ตามที่คุณกำหนด
       final data = await UserService.getUserById(_userId!, _authToken);
 
       if (data != null) {
-        // ดึงค่าจากคีย์ 'chat_quota' ตรงๆ ตามโครงสร้าง JSON (ถ้าไม่มีค่าให้ default เป็น 10)
         int remainingQuota = data['chat_quota'] ?? 10;
 
         setState(() {
-          // แปลงโควตาที่เหลือกลับมาเป็นค่านับสะสม (currentUsage) ให้ UI แบนเนอร์ทำงานถูกต้อง
-          // ตัวอย่าง: ถ้าเหลือ 10 -> currentUsage จะได้ 10 - 10 = 0 (แปลว่าใช้ไปแล้ว 0 ครั้ง)
           currentUsage = maxDailyLimit - remainingQuota;
         });
 
@@ -162,12 +157,12 @@ class _ChatPageState extends State<ChatPage>
     }
   }
 
-  // 🟢 5. ฟังก์ชันส่งข้อความ ปรับมาเช็กเงื่อนไขกับ _userId และแนบค่าส่งไปหลังบ้าน
+  // 🔒 4. ฟังก์ชันส่งข้อความ (ตรวจสอบ Token ก่อนส่ง + ดักจับ HTTP 401)
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    // เช็กโควตาเบื้องต้นจากหน้าจอแอปก่อน
+    // เช็กโควตาเบื้องต้นจาก UI
     if (currentUsage >= maxDailyLimit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -179,13 +174,9 @@ class _ChatPageState extends State<ChatPage>
       return;
     }
 
-    // ป้องกันกรณีที่อ่าน Secure Storage แล้วไม่เจอ ID
-    if (_userId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("ไม่พบรหัสผู้ใช้งาน กรุณาล็อกอินใหม่อีกครั้ง"),
-        ),
-      );
+    // 🔒 เช็กทั้ง Token และ UserID ก่อนสั่งส่งข้อมูล
+    if (_authToken == null || _authToken!.isEmpty || _userId == null) {
+      _showAuthErrorSnackBar("ไม่พบ Token หรือรหัสผู้ใช้งาน กรุณาล็อกอินใหม่อีกครั้ง");
       return;
     }
 
@@ -205,16 +196,31 @@ class _ChatPageState extends State<ChatPage>
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization':
-              'Bearer $_authToken', // 🔒 ส่ง Token ยืนยันสิทธิ์กับ Laravel
+          'Authorization': 'Bearer $_authToken', // 🔒 ส่ง Token ยืนยันสิทธิ์
         },
         body: jsonEncode({
           'message': text,
-          'Userid':_userId,
+          'Userid': _userId,
         }),
       ).timeout(const Duration(seconds: 120));
+
       print("ส่งข้อความไปหลังบ้านพร้อม UserID: $_userId, ข้อความ: $text");
-      // กรณีที่หลังบ้านตอบกลับว่าโควตาหมดจริง (Status 403)
+
+      // 🔒 ดักจับกรณี Token ไม่ผ่าน/หมดอายุ (HTTP 401)
+      if (response.statusCode == 401) {
+        setState(() {
+          messages.add({
+            "role": "ai",
+            "text": "เซสชันของคุณหมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่อีกครั้ง",
+          });
+          isLoading = false;
+        });
+        _showAuthErrorSnackBar("Token หมดอายุ กรุณาเข้าสู่ระบบใหม่");
+        _scrollToBottom();
+        return;
+      }
+
+      // กรณีที่หลังบ้านตอบกลับว่าโควตาหมดจริง (HTTP 403)
       if (response.statusCode == 403) {
         final data = jsonDecode(response.body);
         setState(() {
@@ -222,14 +228,14 @@ class _ChatPageState extends State<ChatPage>
             "role": "ai",
             "text": data['reply'] ?? 'โควตารายวันของคุณหมดแล้ว',
           });
-          currentUsage = maxDailyLimit; // ล็อก UI ทันที
+          currentUsage = maxDailyLimit;
           isLoading = false;
         });
         _scrollToBottom();
         return;
       }
 
-      // กรณีคุยผ่านสำเร็จและตัดโควตาแล้ว (Status 200)
+      // กรณีส่งข้อความสำเร็จ (HTTP 200)
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         int remainingQuota = data['remaining_quota'] ?? 0;
@@ -239,15 +245,13 @@ class _ChatPageState extends State<ChatPage>
             "role": "ai",
             "text": data['reply'] ?? 'ไม่มีการตอบกลับ',
           });
-          currentUsage =
-              maxDailyLimit - remainingQuota; // ปรับโควตาที่เหลือโชว์บนแบนเนอร์
+          currentUsage = maxDailyLimit - remainingQuota;
           isLoading = false;
         });
       } else {
-        // 🟢 เพิ่มบรรทัดนี้เพื่อดูข้อความแจ้งเตือนใน Debug Console
-        print("Log Error 422 (ส่งข้อความ): ${response.body}");
+        print("Log Error ${response.statusCode} (ส่งข้อความ): ${response.body}");
         final errorData = jsonDecode(response.body);
-        throw Exception('${errorData['reply'] ?? 'Server Error : 422'}');
+        throw Exception(errorData['reply'] ?? 'Server Error : ${response.statusCode}');
       }
     } catch (e) {
       setState(() {
@@ -259,6 +263,17 @@ class _ChatPageState extends State<ChatPage>
       });
     }
     _scrollToBottom();
+  }
+
+  // 🔒 ฟังก์ชันแสดง SnackBar แจ้งเตือนเรื่อง Authentication
+  void _showAuthErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red.shade700,
+      ),
+    );
   }
 
   void _scrollToBottom() {
@@ -276,7 +291,6 @@ class _ChatPageState extends State<ChatPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    // 🟩 ส่วน UI โครงสร้างความสวยงามคงเดิมทุกประการ ไม่จำเป็นต้องแก้โค้ดด้านล่างนี้ครับ
     return Scaffold(
       body: Container(
         width: double.infinity,

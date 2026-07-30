@@ -357,7 +357,7 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
                     List<String> matchedTags = items[index]['matchedTags'];
 
                     String plantName = plant['normal_name'] ?? 'ไม่ระบุชื่อ';
-                    String rawImageUrl = plant['img_url'] ?? plant['img'] ?? '';
+                    String rawImageUrl = plant['img_cloudinary'] ?? plant['img'] ?? '';
                     String formattedImgUrl = _formatImgUrl(rawImageUrl);
 
                     // เลือกสี Badge ตาม % ความเหมาะสม
@@ -486,7 +486,7 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
     String normalName = item['normal_name'] ?? 'ไม่มีชื่อพืช';
     String scientificName = item['scientific_name'] ?? 'ไม่มีชื่อวิทยาศาสตร์';
     String otherName = item['other_name'] ?? 'ไม่มีชื่ออื่นๆ';
-    String imgUrl = _formatImgUrl(item['img_url'] ?? item['img'] ?? '');
+    String imgUrl = _formatImgUrl(item['img_cloudinary'] ?? item['img'] ?? '');
     String detaill = item['detaill'] ?? 'ไม่มีข้อมูลรายละเอียดพืช';
     String nature = item['nature'] ?? 'ไม่มีข้อมูลลักษณะทั่วไป';
     String plant = item['plant'] ?? 'ไม่มีข้อมูลการปลูก';

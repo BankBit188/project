@@ -106,7 +106,7 @@ class _EarthPageState extends State<EarthPage> {
   // 🔹 ฟังก์ชันแสดงหน้าจอ Popup รายละเอียดดิน
   void _showEarthDetailDialog(Map<String, dynamic> item) {
     String title = item['earthTypeName'] ?? 'ไม่มีชื่อประเภทดิน';
-    String imgUrl = _formatImgUrl(item['img_url'] ?? item['img'] ?? '');
+    String imgUrl = _formatImgUrl(item['img_cloudinary'] ?? item['img'] ?? '');
     String detail = item['detail'] ?? 'ไม่มีข้อมูลรายละเอียดของดินประเภทนี้';
 
     showDialog(
@@ -260,7 +260,7 @@ class _EarthPageState extends State<EarthPage> {
                                   onTap: () => _showEarthDetailDialog(item),
                                   child: _buildItemCard(
                                     item['earthTypeName'] ?? 'ไม่มีชื่อประเภทดิน', 
-                                    item['img_url'] ?? item['img'] ?? 'https://via.placeholder.com/150',
+                                    item['img_cloudinary'] ?? item['img'] ?? 'https://via.placeholder.com/150',
                                   ),
                                 );
                               },

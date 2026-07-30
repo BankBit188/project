@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart' hide ImageSource;
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart'
+hide ImageSource;
 
 import 'package:project/navbar/navbars.dart';
 import 'package:project/mainpage/history.dart';
@@ -12,12 +13,12 @@ import 'package:project/mainpage/menu.dart';
 import 'package:project/mainpage/profile.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:image_picker/image_picker.dart'; 
+import 'package:image_picker/image_picker.dart';
 import 'package:project/service/reports_service.dart';
-import 'package:project/service/user_service.dart'; 
+import 'package:project/service/user_service.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
 
 import 'package:project/service/tool_service.dart';
 import 'package:project/service/plants_service.dart';
@@ -79,14 +80,36 @@ class _ToolPageState extends State<ToolPage> {
 
   Future<void> _loadAddressData() async {
     try {
-      String jsonString = await rootBundle.loadString('assets/data/thailand_data.json');
+      String jsonString = await rootBundle.loadString(
+        'assets/data/thailand_data.json',
+      );
       if (!mounted) return;
       setState(() {
         _thailandData = jsonDecode(jsonString);
       });
-      print("โหลดข้อมูลที่อยู่ Thailand Data สำเร็จ: ${_thailandData.length} จังหวัด");
+      print(
+        "โหลดข้อมูลที่อยู่ Thailand Data สำเร็จ: ${_thailandData.length} จังหวัด",
+      );
     } catch (e) {
       debugPrint("Error loading JSON: $e");
+    }
+  }
+
+  // 🔹 ฟังก์ชันสำหรับเปิด URL (ใส่ไว้ในตัว Class เดียวกันกับ Widget)
+  Future<void> _openUrl(BuildContext context, String? link) async {
+    if (link != null && link.isNotEmpty) {
+      final Uri url = Uri.parse(link);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ไม่สามารถเปิดลิงก์นี้ได้')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ไม่มีข้อมูลลิงก์รายละเอียด')),
+      );
     }
   }
 
@@ -155,14 +178,20 @@ class _ToolPageState extends State<ToolPage> {
 
   List<dynamic> _getAmphures(dynamic provinceObj) {
     if (provinceObj is Map) {
-      return provinceObj['amphure'] ?? provinceObj['amphur'] ?? provinceObj['districts'] ?? [];
+      return provinceObj['amphure'] ??
+          provinceObj['amphur'] ??
+          provinceObj['districts'] ??
+          [];
     }
     return [];
   }
 
   List<dynamic> _getTambons(dynamic amphurObj) {
     if (amphurObj is Map) {
-      return amphurObj['tambon'] ?? amphurObj['district'] ?? amphurObj['subdistricts'] ?? [];
+      return amphurObj['tambon'] ??
+          amphurObj['district'] ??
+          amphurObj['subdistricts'] ??
+          [];
     }
     return [];
   }
@@ -190,7 +219,10 @@ class _ToolPageState extends State<ToolPage> {
                 side: const BorderSide(color: Colors.black87, width: 1.5),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 25.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 25.0,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -211,7 +243,10 @@ class _ToolPageState extends State<ToolPage> {
                         style: const TextStyle(fontSize: 14),
                         decoration: const InputDecoration(
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                           border: InputBorder.none,
                           hintText: "เช่น แปลงนาที่ 1",
                         ),
@@ -224,14 +259,25 @@ class _ToolPageState extends State<ToolPage> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: selectedProvince,
-                          hint: const Text("เลือกจังหวัด", style: TextStyle(fontSize: 14)),
+                          hint: const Text(
+                            "เลือกจังหวัด",
+                            style: TextStyle(fontSize: 14),
+                          ),
                           isExpanded: true,
-                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-                          items: _thailandData.map<DropdownMenuItem<String>>((prov) {
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down,
+                            color: Colors.black,
+                          ),
+                          items: _thailandData.map<DropdownMenuItem<String>>((
+                            prov,
+                          ) {
                             String name = _getName(prov);
                             return DropdownMenuItem<String>(
                               value: name,
-                              child: Text(name, style: const TextStyle(fontSize: 14)),
+                              child: Text(
+                                name,
+                                style: const TextStyle(fontSize: 14),
+                              ),
                             );
                           }).toList(),
                           onChanged: (val) {
@@ -245,7 +291,9 @@ class _ToolPageState extends State<ToolPage> {
                                 (element) => _getName(element) == val,
                                 orElse: () => null,
                               );
-                              amphurList = provObj != null ? _getAmphures(provObj) : [];
+                              amphurList = provObj != null
+                                  ? _getAmphures(provObj)
+                                  : [];
                             });
                           },
                         ),
@@ -258,14 +306,25 @@ class _ToolPageState extends State<ToolPage> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: selectedAmphur,
-                          hint: const Text("เลือกอำเภอ", style: TextStyle(fontSize: 14)),
+                          hint: const Text(
+                            "เลือกอำเภอ",
+                            style: TextStyle(fontSize: 14),
+                          ),
                           isExpanded: true,
-                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-                          items: amphurList.map<DropdownMenuItem<String>>((amp) {
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down,
+                            color: Colors.black,
+                          ),
+                          items: amphurList.map<DropdownMenuItem<String>>((
+                            amp,
+                          ) {
                             String name = _getName(amp);
                             return DropdownMenuItem<String>(
                               value: name,
-                              child: Text(name, style: const TextStyle(fontSize: 14)),
+                              child: Text(
+                                name,
+                                style: const TextStyle(fontSize: 14),
+                              ),
                             );
                           }).toList(),
                           onChanged: (val) {
@@ -277,7 +336,9 @@ class _ToolPageState extends State<ToolPage> {
                                 (element) => _getName(element) == val,
                                 orElse: () => null,
                               );
-                              districtList = ampObj != null ? _getTambons(ampObj) : [];
+                              districtList = ampObj != null
+                                  ? _getTambons(ampObj)
+                                  : [];
                             });
                           },
                         ),
@@ -290,14 +351,25 @@ class _ToolPageState extends State<ToolPage> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: selectedDistrict,
-                          hint: const Text("เลือกตำบล", style: TextStyle(fontSize: 14)),
+                          hint: const Text(
+                            "เลือกตำบล",
+                            style: TextStyle(fontSize: 14),
+                          ),
                           isExpanded: true,
-                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-                          items: districtList.map<DropdownMenuItem<String>>((dt) {
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down,
+                            color: Colors.black,
+                          ),
+                          items: districtList.map<DropdownMenuItem<String>>((
+                            dt,
+                          ) {
                             String name = _getName(dt);
                             return DropdownMenuItem<String>(
                               value: name,
-                              child: Text(name, style: const TextStyle(fontSize: 14)),
+                              child: Text(
+                                name,
+                                style: const TextStyle(fontSize: 14),
+                              ),
                             );
                           }).toList(),
                           onChanged: (val) {
@@ -315,9 +387,15 @@ class _ToolPageState extends State<ToolPage> {
                       children: [
                         InkWell(
                           onTap: () async {
-                            if (_authToken == null || _userId == null || _authToken!.isEmpty) {
+                            if (_authToken == null ||
+                                _userId == null ||
+                                _authToken!.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("ไม่พบข้อมูลการเข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่อีกครั้ง")),
+                                const SnackBar(
+                                  content: Text(
+                                    "ไม่พบข้อมูลการเข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่อีกครั้ง",
+                                  ),
+                                ),
                               );
                               return;
                             }
@@ -327,7 +405,11 @@ class _ToolPageState extends State<ToolPage> {
                                 selectedAmphur == null ||
                                 selectedDistrict == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("กรุณากรอกข้อมูลสถานที่และเลือกที่ตั้งให้ครบถ้วน")),
+                                const SnackBar(
+                                  content: Text(
+                                    "กรุณากรอกข้อมูลสถานที่และเลือกที่ตั้งให้ครบถ้วน",
+                                  ),
+                                ),
                               );
                               return;
                             }
@@ -357,7 +439,9 @@ class _ToolPageState extends State<ToolPage> {
                                 titleController.dispose();
 
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("บันทึกข้อมูลเรียบร้อยแล้ว")),
+                                  const SnackBar(
+                                    content: Text("บันทึกข้อมูลเรียบร้อยแล้ว"),
+                                  ),
                                 );
 
                                 Navigator.push(
@@ -371,7 +455,9 @@ class _ToolPageState extends State<ToolPage> {
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("บันทึกข้อมูลไม่สำเร็จ: $e")),
+                                  SnackBar(
+                                    content: Text("บันทึกข้อมูลไม่สำเร็จ: $e"),
+                                  ),
                                 );
                               }
                             }
@@ -383,7 +469,10 @@ class _ToolPageState extends State<ToolPage> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF6BBA90),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.black87, width: 1.2),
+                              border: Border.all(
+                                color: Colors.black87,
+                                width: 1.2,
+                              ),
                             ),
                             child: const Text(
                               "ยืนยัน",
@@ -408,7 +497,10 @@ class _ToolPageState extends State<ToolPage> {
                             decoration: BoxDecoration(
                               color: const Color(0xFFE26A6A),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.black87, width: 1.2),
+                              border: Border.all(
+                                color: Colors.black87,
+                                width: 1.2,
+                              ),
                             ),
                             child: const Text(
                               "ยกเลิก",
@@ -432,7 +524,10 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  Widget _buildLocationInputRow({required String label, required Widget child}) {
+  Widget _buildLocationInputRow({
+    required String label,
+    required Widget child,
+  }) {
     return Row(
       children: [
         SizedBox(
@@ -466,7 +561,9 @@ class _ToolPageState extends State<ToolPage> {
   void _recommendPlantsFromToolData() async {
     if (_toolData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("ยังไม่มีข้อมูลสภาพดิน กรุณารอโหลดข้อมูลสักครู่")),
+        const SnackBar(
+          content: Text("ยังไม่มีข้อมูลสภาพดิน กรุณารอโหลดข้อมูลสักครู่"),
+        ),
       );
       return;
     }
@@ -474,18 +571,24 @@ class _ToolPageState extends State<ToolPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
       List<dynamic> allPlants = await PlantsService.getplants();
 
-      double? inputPH = double.tryParse(_toolData?['pH']?.toString() ?? _toolData?['ph']?.toString() ?? '');
-      double? inputHumid = double.tryParse(_toolData?['humid']?.toString() ?? '');
-      double? inputTemp = double.tryParse(_toolData?['temperature']?.toString() ?? '');
-      double? inputSalty = double.tryParse(_toolData?['salty']?.toString() ?? '');
+      double? inputPH = double.tryParse(
+        _toolData?['pH']?.toString() ?? _toolData?['ph']?.toString() ?? '',
+      );
+      double? inputHumid = double.tryParse(
+        _toolData?['humid']?.toString() ?? '',
+      );
+      double? inputTemp = double.tryParse(
+        _toolData?['temperature']?.toString() ?? '',
+      );
+      double? inputSalty = double.tryParse(
+        _toolData?['salty']?.toString() ?? '',
+      );
       double? inputN = double.tryParse(_toolData?['N']?.toString() ?? '');
       double? inputP = double.tryParse(_toolData?['P']?.toString() ?? '');
       double? inputK = double.tryParse(_toolData?['K']?.toString() ?? '');
@@ -506,9 +609,16 @@ class _ToolPageState extends State<ToolPage> {
         }
 
         if (checkRange(inputPH, plant['minPH'], plant['maxPH'])) score++;
-        if (checkRange(inputHumid, plant['minhumid'], plant['maxhumid'])) score++;
-        if (checkRange(inputTemp, plant['mintemperature'], plant['maxtemperature'])) score++;
-        if (checkRange(inputSalty, plant['minsalty'], plant['maxsalty'])) score++;
+        if (checkRange(inputHumid, plant['minhumid'], plant['maxhumid']))
+          score++;
+        if (checkRange(
+          inputTemp,
+          plant['mintemperature'],
+          plant['maxtemperature'],
+        ))
+          score++;
+        if (checkRange(inputSalty, plant['minsalty'], plant['maxsalty']))
+          score++;
         if (checkRange(inputN, plant['minN'], plant['maxN'])) score++;
         if (checkRange(inputP, plant['minP'], plant['maxP'])) score++;
         if (checkRange(inputK, plant['minK'], plant['maxK'])) score++;
@@ -516,25 +626,22 @@ class _ToolPageState extends State<ToolPage> {
         if (checkRange(inputMg, plant['minMg'], plant['maxMg'])) score++;
         if (checkRange(inputS, plant['minS'], plant['maxS'])) score++;
 
-        scoredPlants.add({
-          'plantData': plant,
-          'score': score,
-        });
+        scoredPlants.add({'plantData': plant, 'score': score});
       }
 
       scoredPlants.sort((a, b) => b['score'].compareTo(a['score']));
       List<Map<String, dynamic>> top5Plants = scoredPlants.take(5).toList();
 
       if (mounted) {
-        Navigator.pop(context); 
-        _showResultsBottomSheet(top5Plants); 
+        Navigator.pop(context);
+        _showResultsBottomSheet(top5Plants);
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context); 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("เกิดข้อผิดพลาดในการคำนวณ: $e")),
-        );
+        Navigator.pop(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("เกิดข้อผิดพลาดในการคำนวณ: $e")));
       }
     }
   }
@@ -557,7 +664,10 @@ class _ToolPageState extends State<ToolPage> {
           child: Column(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 15,
+                ),
                 decoration: const BoxDecoration(
                   color: Color(0xFF2E5A36),
                   borderRadius: BorderRadius.only(
@@ -590,19 +700,25 @@ class _ToolPageState extends State<ToolPage> {
                   itemBuilder: (context, index) {
                     var plant = items[index]['plantData'];
                     String plantName = plant['normal_name'] ?? 'ไม่ระบุชื่อ';
-                    String rawImageUrl = plant['img_url'] ?? plant['img'] ?? '';
+                    String rawImageUrl =
+                        plant['img_cloudinary'] ?? plant['img'] ?? '';
                     String formattedImgUrl = _formatImgUrl(rawImageUrl);
 
                     // 🟩 เพิ่ม GestureDetector ให้สามารถคลิกการ์ดพืชแล้วเปิด Modal ดูรายละเอียดได้
                     return GestureDetector(
-                      onTap: () => _showPlantDetailDialog(Map<String, dynamic>.from(plant)),
+                      onTap: () => _showPlantDetailDialog(
+                        Map<String, dynamic>.from(plant),
+                      ),
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 15),
                         padding: const EdgeInsets.all(15),
                         decoration: BoxDecoration(
                           color: const Color(0xFF6F8E5F),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFF2E5A36), width: 1.5),
+                          border: Border.all(
+                            color: const Color(0xFF2E5A36),
+                            width: 1.5,
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -627,18 +743,28 @@ class _ToolPageState extends State<ToolPage> {
                                       width: 110,
                                       height: 90,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => Container(
-                                        width: 110,
-                                        height: 90,
-                                        color: Colors.white24,
-                                        child: const Icon(Icons.eco, color: Colors.white, size: 40),
-                                      ),
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                                width: 110,
+                                                height: 90,
+                                                color: Colors.white24,
+                                                child: const Icon(
+                                                  Icons.eco,
+                                                  color: Colors.white,
+                                                  size: 40,
+                                                ),
+                                              ),
                                     )
                                   : Container(
                                       width: 110,
                                       height: 90,
                                       color: Colors.white24,
-                                      child: const Icon(Icons.eco, color: Colors.white, size: 40),
+                                      child: const Icon(
+                                        Icons.eco,
+                                        color: Colors.white,
+                                        size: 40,
+                                      ),
                                     ),
                             ),
                           ],
@@ -660,14 +786,15 @@ class _ToolPageState extends State<ToolPage> {
     String normalName = item['normal_name'] ?? 'ไม่มีชื่อพืช';
     String scientificName = item['scientific_name'] ?? 'ไม่มีชื่อวิทยาศาสตร์';
     String otherName = item['other_name'] ?? 'ไม่มีชื่ออื่นๆ';
-    String imgUrl = _formatImgUrl(item['img_url'] ?? item['img'] ?? '');
+    String imgUrl = _formatImgUrl(item['img_cloudinary'] ?? item['img'] ?? '');
     String detaill = item['detaill'] ?? 'ไม่มีข้อมูลรายละเอียดพืช';
     String nature = item['nature'] ?? 'ไม่มีข้อมูลลักษณะทั่วไป';
     String plant = item['plant'] ?? 'ไม่มีข้อมูลการปลูก';
     String care = item['care'] ?? 'ไม่มีข้อมูลการดูแล';
     String harvest = item['harvest'] ?? 'ไม่มีข้อมูลการเก็บเกี่ยว';
 
-    String? webLink = item['link'];
+    String? supplylink = item['link_supply'] ?? 'ไม่มีลิงก์แหล่งซื้อ';
+    String? demandlink = item['link_demand'] ?? 'ไม่มีลิงก์แหล่งขาย';
 
     showDialog(
       context: context,
@@ -996,6 +1123,7 @@ class _ToolPageState extends State<ToolPage> {
                         Center(
                           child: Column(
                             children: [
+                              // 🟢 หัวข้อหลัก
                               const Text(
                                 "ความต้องการและปริมาณการผลิต",
                                 style: TextStyle(
@@ -1004,58 +1132,79 @@ class _ToolPageState extends State<ToolPage> {
                                   color: Colors.black,
                                 ),
                               ),
+                              const SizedBox(height: 16),
+
+                              // 📦 1. หัวข้อย่อย: ปริมาณการผลิต (Supply)
+                              const Text(
+                                "ปริมาณการผลิต",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
                               const SizedBox(height: 4),
                               RichText(
                                 textAlign: TextAlign.center,
                                 text: TextSpan(
                                   text: 'คลิกเพื่อดูรายละเอียด',
                                   style: const TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 15,
                                     color: Colors.black,
                                   ),
                                   children: [
                                     TextSpan(
                                       text: 'เพิ่มเติม',
                                       style: const TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 15,
                                         color: Colors.blue,
                                         decoration: TextDecoration.underline,
                                         fontWeight: FontWeight.bold,
                                       ),
                                       recognizer: TapGestureRecognizer()
-                                        ..onTap = () async {
-                                          if (webLink != null &&
-                                              webLink.isNotEmpty) {
-                                            final Uri url = Uri.parse(webLink);
-                                            if (await canLaunchUrl(url)) {
-                                              await launchUrl(
-                                                url,
-                                                mode: LaunchMode
-                                                    .externalApplication,
-                                              );
-                                            } else {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'ไม่สามารถเปิดลิงก์นี้ได้',
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          } else {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'ไม่มีข้อมูลลิงก์รายละเอียด',
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                        },
+                                        ..onTap = () => _openUrl(
+                                          context,
+                                          supplylink,
+                                        ), // 🔗 เรียกใช้ supplyLink
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // 📈 2. หัวข้อย่อย: ความต้องการ (Demand)
+                              const Text(
+                                "ความต้องการ",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              RichText(
+                                textAlign: TextAlign.center,
+                                text: TextSpan(
+                                  text: 'คลิกเพื่อดูรายละเอียด',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    color: Colors.black,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: 'เพิ่มเติม',
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        color: Colors.blue,
+                                        decoration: TextDecoration.underline,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = () => _openUrl(
+                                          context,
+                                          demandlink,
+                                        ), // 🔗 เรียกใช้ demandLink
                                     ),
                                   ],
                                 ),
@@ -1233,11 +1382,17 @@ class _ToolPageState extends State<ToolPage> {
                                 height: 22,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.black87,
+                                  ),
                                 ),
                               )
                             : IconButton(
-                                icon: const Icon(Icons.refresh, size: 28, color: Colors.black87),
+                                icon: const Icon(
+                                  Icons.refresh,
+                                  size: 28,
+                                  color: Colors.black87,
+                                ),
                                 constraints: const BoxConstraints(),
                                 padding: EdgeInsets.zero,
                                 onPressed: () {
@@ -1249,7 +1404,9 @@ class _ToolPageState extends State<ToolPage> {
                     ),
 
                     Theme(
-                      data: Theme.of(context).copyWith(dividerColor: Colors.black54),
+                      data: Theme.of(
+                        context,
+                      ).copyWith(dividerColor: Colors.black54),
                       child: PopupMenuButton<String>(
                         icon: const Icon(
                           Icons.menu,
@@ -1290,26 +1447,31 @@ class _ToolPageState extends State<ToolPage> {
                             Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const MenuPage(isLoggedIn: false),
+                                builder: (context) =>
+                                    const MenuPage(isLoggedIn: false),
                               ),
                               (Route<dynamic> route) => false,
                             );
                           }
                         },
-                        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                          _buildPopupMenuItem('profile', 'โปรไฟล์'),
-                          const PopupMenuDivider(height: 1),
-                          _buildPopupMenuItem('history', 'ประวัติการบันทึก'),
-                          const PopupMenuDivider(height: 1),
-                          _buildPopupMenuItem('report', 'รายงานปัญหา'),
-                          const PopupMenuDivider(height: 1),
-                          _buildPopupMenuItem('logout', 'ออกจากระบบ'),
-                        ],
+                        itemBuilder: (BuildContext context) =>
+                            <PopupMenuEntry<String>>[
+                              _buildPopupMenuItem('profile', 'โปรไฟล์'),
+                              const PopupMenuDivider(height: 1),
+                              _buildPopupMenuItem(
+                                'history',
+                                'ประวัติการบันทึก',
+                              ),
+                              const PopupMenuDivider(height: 1),
+                              _buildPopupMenuItem('report', 'รายงานปัญหา'),
+                              const PopupMenuDivider(height: 1),
+                              _buildPopupMenuItem('logout', 'ออกจากระบบ'),
+                            ],
                       ),
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 6),
                 Text(
                   _currentDateTimeString.isNotEmpty
@@ -1320,23 +1482,31 @@ class _ToolPageState extends State<ToolPage> {
                 const SizedBox(height: 35),
 
                 _buildElementRow(
-                  "N", _toolData?['N']?.toString() ?? "-", 
-                  "P", _toolData?['P']?.toString() ?? "-", 
-                  "K", _toolData?['K']?.toString() ?? "-"
+                  "N",
+                  _toolData?['N']?.toString() ?? "-",
+                  "P",
+                  _toolData?['P']?.toString() ?? "-",
+                  "K",
+                  _toolData?['K']?.toString() ?? "-",
                 ),
                 const SizedBox(height: 20),
 
                 _buildElementRow(
-                  "Ca", _toolData?['Ca']?.toString() ?? "-", 
-                  "Mg", _toolData?['Mg']?.toString() ?? "-", 
-                  "S", _toolData?['S']?.toString() ?? "-"
+                  "Ca",
+                  _toolData?['Ca']?.toString() ?? "-",
+                  "Mg",
+                  _toolData?['Mg']?.toString() ?? "-",
+                  "S",
+                  _toolData?['S']?.toString() ?? "-",
                 ),
                 const SizedBox(height: 40),
 
                 _buildDetailRow(
                   Icons.water_drop,
                   "ความชื้น",
-                  _toolData != null ? "${_toolData!['humid']} %" : "กำลังโหลด...",
+                  _toolData != null
+                      ? "${_toolData!['humid']} %"
+                      : "กำลังโหลด...",
                   Colors.lightBlue,
                 ),
                 const SizedBox(height: 20),
@@ -1350,23 +1520,33 @@ class _ToolPageState extends State<ToolPage> {
                 _buildDetailRow(
                   Icons.thermostat,
                   "อุณหภูมิ",
-                  _toolData != null ? "${_toolData!['temperature']} C°" : "กำลังโหลด...",
+                  _toolData != null
+                      ? "${_toolData!['temperature']} C°"
+                      : "กำลังโหลด...",
                   Colors.black54,
                 ),
                 const SizedBox(height: 20),
                 _buildDetailRow(
                   Icons.waves,
                   "ความเค็ม",
-                  _toolData != null ? "${_toolData!['salty']} us/cm" : "กำลังโหลด...",
+                  _toolData != null
+                      ? "${_toolData!['salty']} us/cm"
+                      : "กำลังโหลด...",
                   Colors.black54,
                 ),
-                
+
                 const Spacer(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildBottomButton("บันทึกข้อมูล", onTap: () => _showSaveLocationDialog(context)),
-                    _buildBottomButton("พืชปลูกที่เหมาะสม", onTap: _recommendPlantsFromToolData),
+                    _buildBottomButton(
+                      "บันทึกข้อมูล",
+                      onTap: () => _showSaveLocationDialog(context),
+                    ),
+                    _buildBottomButton(
+                      "พืชปลูกที่เหมาะสม",
+                      onTap: _recommendPlantsFromToolData,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -1529,7 +1709,9 @@ class _ToolPageState extends State<ToolPage> {
                                 }
                               },
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
                                 minimumSize: Size.zero,
                               ),
                               child: const Text(
@@ -1576,8 +1758,14 @@ class _ToolPageState extends State<ToolPage> {
                                 String currentUsername = "ไม่ระบุชื่อผู้ใช้";
                                 if (_userId != null && _authToken != null) {
                                   try {
-                                    final userData = await UserService.getUserById(_userId!, _authToken);
-                                    currentUsername = userData['username'] ?? "ไม่ระบุชื่อผู้ใช้";
+                                    final userData =
+                                        await UserService.getUserById(
+                                          _userId!,
+                                          _authToken,
+                                        );
+                                    currentUsername =
+                                        userData['username'] ??
+                                        "ไม่ระบุชื่อผู้ใช้";
                                   } catch (userError) {
                                     print("ดึงชื่อผู้ใช้ล้มเหลว: $userError");
                                   }
@@ -1589,10 +1777,11 @@ class _ToolPageState extends State<ToolPage> {
                                   'reportdetail': detailController.text.trim(),
                                 };
 
-                                final response = await ReportsService.createReport(
-                                  reportData: reportData,
-                                  imageFile: selectedImageFile,
-                                );
+                                final response =
+                                    await ReportsService.createReport(
+                                      reportData: reportData,
+                                      imageFile: selectedImageFile,
+                                    );
                                 if (context.mounted) {
                                   Navigator.of(context).pop();
                                   Navigator.of(context).pop();
@@ -1600,7 +1789,8 @@ class _ToolPageState extends State<ToolPage> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        response['message'] ?? 'ส่งรายงานสำเร็จ',
+                                        response['message'] ??
+                                            'ส่งรายงานสำเร็จ',
                                       ),
                                     ),
                                   );
@@ -1612,7 +1802,9 @@ class _ToolPageState extends State<ToolPage> {
                                   Navigator.of(context).pop();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('ส่งข้อมูลล้มเหลวเนื่องจาก: $e'),
+                                      content: Text(
+                                        'ส่งข้อมูลล้มเหลวเนื่องจาก: $e',
+                                      ),
                                     ),
                                   );
                                 }
@@ -1657,9 +1849,12 @@ class _ToolPageState extends State<ToolPage> {
   }
 
   Widget _buildElementRow(
-    String l1, String v1,
-    String l2, String v2,
-    String l3, String v3,
+    String l1,
+    String v1,
+    String l2,
+    String v2,
+    String l3,
+    String v3,
   ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

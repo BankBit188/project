@@ -1,35 +1,51 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // 📌 1. เปลี่ยนมาใช้ FlutterSecureStorage
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart'; // อย่าลืมเช็กแพ็กเกจนี้ (มาพร้อมกับ http อยู่แล้ว)
+import 'package:http_parser/http_parser.dart';
 
 class ReportsService {
-  // 🔹 ใช้ URL ของ Ngrok ตามแบบฉบับโครงสร้างเดิมที่จำไว้
+  // 🔹 ใช้ URL ของ Ngrok ตามโครงสร้างเดิม
   static const String baseUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev/api';
 
-  // ฟังก์ชันส่วนกลางสำหรับดึงหรือส่งข้อมูล API (ปรับปรุงให้รองรับ Multipart เพื่ออัปโหลดรูป R. นามสกุล)
+  // 📌 2. ประกาศใช้งาน FlutterSecureStorage
+  static const _secureStorage = FlutterSecureStorage();
+
+  // 🔒 3. ปรับฟังก์ชันดึง Token จาก Secure Storage ด้วย Key "auth_token"
+  static Future<String?> _getToken() async {
+    return await _secureStorage.read(key: 'auth_token'); 
+  }
+
+  // ฟังก์ชันส่วนกลางสำหรับดึงหรือส่งข้อมูล API
   static Future<dynamic> _fetchAPI(
     String endpoint, {
     String method = 'GET', 
-    Map<String, String>? body, // ปรับเป็น String สำหรับส่งคู่ไปกับ Form-Data
-    File? imageFile, // แนบไฟล์รูปภาพเสริมเข้าสู่ระบบ
+    Map<String, String>? body, 
+    File? imageFile, 
   }) async {
     final url = Uri.parse('$baseUrl$endpoint');
     
     try {
+      // 🔒 ตรวจสอบ Token ก่อนทำการยิง API
+      final token = await _getToken();  
+      if (token == null || token.isEmpty) {
+        throw Exception('Unauthenticated: ไม่พบ Token ในระบบ กรุณาเข้าสู่ระบบใหม่');
+      }
+
       // 🟩 กรณีที่ 1: มีการส่งไฟล์รูปภาพ หรือส่งผ่าน POST แบบอัปโหลดรูป
       if (method == 'POST' && imageFile != null) {
         final request = http.MultipartRequest('POST', url);
         
-        // ใส่ Headers ตัว Accept ไว้รับ Response สไตล์ JSON
+        // 🔒 ใส่ Headers รับ JSON และแนบ Bearer Token เข้าไปด้วย
         request.headers['Accept'] = 'application/json';
+        request.headers['Authorization'] = 'Bearer $token';
 
         // แนบข้อมูล Text ปกติ (ถ้ามี)
         if (body != null) {
           request.fields.addAll(body);
         }
 
-        // แนบไฟล์รูปภาพเข้าสู่ Key ชื่อ 'img' ให้ตรงกับ Laravel Controller
+        // แนบไฟล์รูปภาพ
         final stream = http.ByteStream(imageFile.openRead());
         final length = await imageFile.length();
         final multipartFile = http.MultipartFile(
@@ -37,7 +53,7 @@ class ReportsService {
           stream,
           length,
           filename: imageFile.path.split('/').last,
-          contentType: MediaType('image', 'jpeg'), // สามารถเปลี่ยนประเภทได้ตามนามสกุลไฟล์
+          contentType: MediaType('image', 'jpeg'),
         );
         request.files.add(multipartFile);
 
@@ -50,9 +66,11 @@ class ReportsService {
       
       // 🟩 กรณีที่ 2: เป็นการดึงข้อมูล GET หรือ POST แบบ JSON ธรรมดา
       else {
+        // 🔒 แนบ Bearer Token ลงใน Header
         final headers = {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
         };
 
         http.Response response;
@@ -69,10 +87,13 @@ class ReportsService {
     }
   }
 
-  // ฟังก์ชันแยกจัดการ Response เพื่อความเป็นระเบียบ
+  // ฟังก์ชันจัดการ Response
   static dynamic _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return jsonDecode(response.body);
+    } else if (response.statusCode == 401) {
+      // 🔒 ดักจับเมื่อ Token หมดอายุ หรือไม่ผ่านการตรวจสอบจาก Laravel Sanctum
+      throw Exception('Unauthenticated: Token ไม่ถูกต้องหรือหมดอายุ (401)');
     } else {
       final errorData = jsonDecode(response.body);
       throw Exception(errorData['message'] ?? 'HTTP error! status: ${response.statusCode}');
@@ -80,20 +101,20 @@ class ReportsService {
   }
 
   // --------------------------------------------------------------
-  // 🔹 1. ฟังก์ชันดึงข้อมูลรายงานทั้งหมด (GET /reports)
+  // 🔹 1. ฟังก์ชันดึงข้อมูลรายงานทั้งหมด (GET /report)
   static Future<dynamic> getReports() async {
     return await _fetchAPI('/report', method: 'GET');
   }
 
-  // 🔹 2. ฟังก์ชันดึงข้อมูลรายงานระบุเจาะจงราย ID (GET /reports/{id})
+  // 🔹 2. ฟังก์ชันดึงข้อมูลรายงานระบุเจาะจงราย ID (GET /report/{id})
   static Future<dynamic> getReportById(String reportId) async {
     return await _fetchAPI('/report/$reportId', method: 'GET');
   }
 
-  // 🔹 3. ฟังก์ชันเพิ่มข้อมูลรายงานใหม่พร้อมไฟล์รูปภาพ (POST /reports)
+  // 🔹 3. ฟังก์ชันเพิ่มข้อมูลรายงานใหม่พร้อมไฟล์รูปภาพ (POST /report)
   static Future<dynamic> createReport({
-    required Map<String, String> reportData, // ข้อมูล text เช่น title, description, details
-    File? imageFile, // ใส่ไฟล์รูปภาพที่ได้มาจาก ImagePicker ของ Flutter
+    required Map<String, String> reportData,
+    File? imageFile,
   }) async {
     return await _fetchAPI(
       '/report', 

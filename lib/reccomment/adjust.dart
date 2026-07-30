@@ -105,7 +105,7 @@ class _AdjustPageState extends State<AdjustPage> {
   // 🔹 หน้าจอ Popup รายละเอียดวิธีการปรับสภาพดิน
   void _showAdjustDetailDialog(Map<String, dynamic> item) {
     String title = item['adjustName'] ?? 'ไม่มีชื่อข้อมูลปรับสภาพดิน'; 
-    String imgUrl = _formatImgUrl(item['img_url'] ?? item['img'] ?? ''); 
+    String imgUrl = _formatImgUrl(item['img_cloudinary'] ?? item['img'] ?? ''); 
     String detail = item['detail'] ?? 'ไม่มีข้อมูลรายละเอียดเพิ่มเติม'; 
 
     showDialog(
@@ -259,7 +259,7 @@ class _AdjustPageState extends State<AdjustPage> {
                                   onTap: () => _showAdjustDetailDialog(item),
                                   child: _buildItemCard(
                                     item['adjustName'] ?? 'ไม่มีชื่อข้อมูลปรับสภาพดิน', 
-                                    item['img_url'] ?? item['img'] ?? 'https://via.placeholder.com/150',
+                                    item['img_cloudinary'] ?? item['img'] ?? 'https://via.placeholder.com/150',
                                   ),
                                 );
                               },

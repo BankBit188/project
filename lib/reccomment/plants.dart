@@ -148,7 +148,7 @@ class _PlantsPageState extends State<PlantsPage> {
     String normalName = item['normal_name'] ?? 'ไม่มีชื่อพืช';
     String scientificName = item['scientific_name'] ?? 'ไม่มีชื่อวิทยาศาสตร์';
     String otherName = item['other_name'] ?? 'ไม่มีชื่ออื่นๆ';
-    String imgUrl = _formatImgUrl(item['img_url'] ?? item['img'] ?? '');
+    String imgUrl = _formatImgUrl(item['img_cloudinary'] ?? item['img'] ?? '');
     String detaill = item['detaill'] ?? 'ไม่มีข้อมูลรายละเอียดพืช';
     String nature = item['nature'] ?? 'ไม่มีข้อมูลลักษณะทั่วไป';
     String plant = item['plant'] ?? 'ไม่มีข้อมูลการปลูก';
@@ -815,7 +815,7 @@ class _PlantsPageState extends State<PlantsPage> {
                                   onTap: () => _showPlantDetailDialog(item),
                                   child: _buildItemCard(
                                     item['normal_name'] ?? 'ไม่มีชื่อพืช',
-                                    item['img_url'] ??
+                                    item['img_cloudinary'] ??
                                         'https://via.placeholder.com/150',
                                   ),
                                 );
