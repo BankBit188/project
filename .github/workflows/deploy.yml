@@ -1,0 +1,37 @@
+name: Deploy Flutter Web to Vercel
+
+on:
+  push:
+    branches:
+      - main # หรือ master (เปลี่ยนตามชื่อ branch หลักของคุณ)
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. ดึงโค้ดจาก Repo
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. ติดตั้ง Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      # 3. ดึง Package และ Build เป็น Web
+      - name: Build Web
+        run: |
+          flutter pub get
+          flutter build web --release
+
+      # 4. ส่งไฟล์ใน build/web ไปขึ้น Vercel
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./build/web
