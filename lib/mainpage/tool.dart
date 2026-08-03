@@ -781,7 +781,6 @@ class _ToolPageState extends State<ToolPage> {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController detailController = TextEditingController();
     
-    // 🟢 แก้ไข: เปลี่ยนชนิดตัวแปรจาก File? เป็น XFile?
     XFile? selectedImageFile; 
     
     final ImagePicker picker = ImagePicker();
@@ -845,7 +844,7 @@ class _ToolPageState extends State<ToolPage> {
                           ),
                           Expanded(
                             child: Container(
-                              height: 35,
+                              height: 40, // 🟢 ปรับความสูงเพิ่มขึ้นเล็กน้อยให้พอดีกับ Cursor
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(10),
@@ -853,11 +852,14 @@ class _ToolPageState extends State<ToolPage> {
                               ),
                               child: TextField(
                                 controller: titleController,
+                                textAlignVertical: TextAlignVertical.center, // 🟢 จัด Cursor และข้อความให้อยู่กลางแนวตั้ง
+                                style: const TextStyle(fontSize: 14),
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
+                                  isDense: true, // 🟢 เปิดใช้งานกระชับพื้นที่
                                   contentPadding: EdgeInsets.symmetric(
                                     horizontal: 10,
-                                    vertical: 10,
+                                    vertical: 8, // 🟢 ลดระยะขอบแนวตั้งลงเพื่อไม่ให้ดัน Cursor ตกขอบ
                                   ),
                                 ),
                               ),
@@ -879,11 +881,14 @@ class _ToolPageState extends State<ToolPage> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           border: Border.all(color: Colors.black54),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: TextField(
                           controller: detailController,
                           maxLines: null,
                           expands: true,
+                          textAlignVertical: TextAlignVertical.top, // 🟢 ให้เริ่มพิมพ์จากด้านบนสุดของช่องรายละเอียด
+                          style: const TextStyle(fontSize: 14),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.all(10),
@@ -903,7 +908,7 @@ class _ToolPageState extends State<ToolPage> {
                           Expanded(
                             child: Text(
                               selectedImageFile != null
-                                  ? selectedImageFile!.name // 🟢 แก้ไข: ใช้ .name ดึงชื่อไฟล์แทน .path
+                                  ? selectedImageFile!.name
                                   : "ยังไม่เลือกรูปภาพ",
                               style: const TextStyle(fontSize: 12),
                               overflow: TextOverflow.ellipsis,
@@ -924,7 +929,6 @@ class _ToolPageState extends State<ToolPage> {
                                 );
                                 if (image != null) {
                                   setDialogState(() {
-                                    // 🟢 แก้ไข: เก็บตัวแปร image (XFile) โดยตรง
                                     selectedImageFile = image; 
                                   });
                                 }
@@ -1001,7 +1005,7 @@ class _ToolPageState extends State<ToolPage> {
                                 final response =
                                     await ReportsService.createReport(
                                   reportData: reportData,
-                                  imageFile: selectedImageFile, // 🟢 ส่ง XFile ไปใช้งาน
+                                  imageFile: selectedImageFile,
                                 );
                                 if (context.mounted) {
                                   Navigator.of(context).pop();
