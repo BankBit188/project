@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project/service/plants_service.dart';
-
-// 🟩 เพิ่ม Import สำหรับการเรนเดอร์ข้อความ HTML และการจัดการเปิดลิงก์
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:project/modal/plant_detail.dart';
 
 class EarthTypePage extends StatefulWidget {
   const EarthTypePage({super.key});
@@ -29,26 +26,10 @@ class _EarthTypePageState extends State<EarthTypePage> {
   // 🟩 ตัวแปรสำหรับเก็บข้อความค้นหา (Search Query)
   String _searchQuery = "";
 
-  // 🔹 เพิ่มตัวแปร Ngrok สำหรับแปลงที่อยู่รูปภาพ
-  static const String ngrokUrl = 'https://uselessly-disclose-stungray.ngrok-free.dev';
-
   @override
   void initState() {
     super.initState();
     _fetchDataFromAPI();
-  }
-
-  // ฟังก์ชันช่วยจัดฟอร์แมตสลับหัว IP รูปภาพเข้าสู่อุโมงค์ Ngrok ป้องกันลิงก์ตาย
-  String _formatImgUrl(String imgUrl) {
-    String cleanImgUrl = imgUrl.replaceAll(r'\/', '/');
-    if (cleanImgUrl.contains('10.0.2.2:8000')) {
-      return cleanImgUrl.replaceAll('http://10.0.2.2:8000', ngrokUrl);
-    } else if (cleanImgUrl.contains('127.0.0.1:8000')) {
-      return cleanImgUrl.replaceAll('http://127.0.0.1:8000', ngrokUrl);
-    } else if (cleanImgUrl.contains('localhost:8000')) {
-      return cleanImgUrl.replaceAll('http://localhost:8000', ngrokUrl);
-    }
-    return cleanImgUrl;
   }
 
   // 🔹 ฟังก์ชันติดต่อรับข้อมูลพืชทั้งหมดจากคลาสพืชบริการ
@@ -123,7 +104,7 @@ class _EarthTypePageState extends State<EarthTypePage> {
       }).toList();
     }
 
-    // 🟩 3. กรองตามคำค้นหา (normal_name, scientific_name, other_name)
+    // 3. กรองตามคำค้นหา (normal_name, scientific_name, other_name)
     if (_searchQuery.isNotEmpty) {
       tempFiltered = tempFiltered.where((item) {
         String normalName = (item['normal_name'] ?? '').toString().toLowerCase();
@@ -152,276 +133,6 @@ class _EarthTypePageState extends State<EarthTypePage> {
         .skip(startIndex)
         .take(_itemsPerPage)
         .toList();
-  }
-
-  // 🔹 ฟังก์ชันสำหรับจัดรูปช่วงข้อมูล (เช่น min - max)
-  String _formatRange(dynamic minVal, dynamic maxVal) {
-    if (minVal == null && maxVal == null) return '-';
-    if (minVal != null && maxVal == null) return '$minVal';
-    if (minVal == null && maxVal != null) return '$maxVal';
-    if (minVal.toString() == maxVal.toString()) return '$minVal';
-    return '$minVal - $maxVal';
-  }
-
-  // 🟩 ฟังก์ชันช่วยสำหรับเปิด URL จาก HtmlWidget
-  Future<bool> _handleUrlTap(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return true;
-    }
-    return false;
-  }
-
-  // 🔹 หน้าต่าง Dialog แสดงผลรายละเอียดคุณสมบัติพืชและการจัดเรียงตามรูปภาพ UI ล่าสุด
-  void _showPlantDetailDialog(Map<String, dynamic> item) {
-    String normalName = item['normal_name'] ?? 'ไม่มีชื่อพืช';
-    String scientificName = item['scientific_name'] ?? 'ไม่มีชื่อวิทยาศาสตร์';
-    String otherName = item['other_name'] ?? 'ไม่มีชื่ออื่นๆ';
-    String imgUrl = _formatImgUrl(item['img_cloudinary'] ?? item['img'] ?? '');
-    String detaill = item['detaill'] ?? 'ไม่มีข้อมูลรายละเอียดพืช';
-    String nature = item['nature'] ?? 'ไม่มีข้อมูลลักษณะทั่วไป';
-    String care = item['care'] ?? 'ไม่มีข้อมูลการดูแล';
-    String harvest = item['harvest'] ?? 'ไม่มีข้อมูลการเก็บเกี่ยว';
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          backgroundColor: const Color(0xFFEFE8CE),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            constraints: const BoxConstraints(maxHeight: 680), 
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        normalName,
-                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 28, color: Colors.black),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.network(
-                      imgUrl, width: 220, height: 220, fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 220, height: 220, color: Colors.grey.shade300,
-                        child: const Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("ชื่อสามัญ : $normalName", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text("ชื่อวิทยาศาสตร์ : $scientificName", style: const TextStyle(fontSize: 15, fontStyle: FontStyle.italic, color: Colors.black)),
-                        Text("ชื่ออื่นๆ : $otherName", style: const TextStyle(fontSize: 15, color: Colors.black)),
-                        const Divider(color: Colors.black26),
-                        const SizedBox(height: 5),
-
-                        // แสดงผลรายละเอียดพืชด้วย HtmlWidget
-                        HtmlWidget(
-                          detaill,
-                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
-                          onTapUrl: _handleUrlTap,
-                        ),
-                        const SizedBox(height: 12),
-
-                        const Text("ลักษณะทั่วไป", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        HtmlWidget(
-                          nature,
-                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
-                          onTapUrl: _handleUrlTap,
-                        ),
-                        const SizedBox(height: 12),
-
-                        const Text("การดูแลรักษา", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        HtmlWidget(
-                          care,
-                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
-                          onTapUrl: _handleUrlTap,
-                        ),
-                        const SizedBox(height: 12),
-
-                        const Text("การเก็บเกี่ยว", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-                        HtmlWidget(
-                          harvest,
-                          textStyle: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black),
-                          onTapUrl: _handleUrlTap,
-                        ),
-                        
-                        const Divider(color: Colors.black26, height: 25),
-                        
-                        const Center(
-                          child: Text(
-                            "สภาพดินและธาตุอาหารในดินที่เหมาะสม",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        
-                        Center(
-                          child: Wrap(
-                            spacing: 15, 
-                            runSpacing: 10, 
-                            alignment: WrapAlignment.center,
-                            children: [
-                              _buildNutrientText("N", _formatRange(item['minN'], item['maxN'])),
-                              _buildNutrientText("P", _formatRange(item['minP'], item['maxP'])),
-                              _buildNutrientText("K", _formatRange(item['minK'], item['maxK'])),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        Center(
-                          child: Wrap(
-                            spacing: 15,
-                            runSpacing: 10,
-                            alignment: WrapAlignment.center,
-                            children: [
-                              _buildNutrientText("Ca", _formatRange(item['minCa'], item['maxCa'])),
-                              _buildNutrientText("Mg", _formatRange(item['minMg'], item['maxMg'])),
-                              _buildNutrientText("S", _formatRange(item['minS'], item['maxS'])),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 25),
-                        
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Column(
-                            children: [
-                              _buildEnvGridRow(
-                                iconLeft: Icons.opacity, 
-                                colorLeft: Colors.blue, 
-                                titleLeft: "ความชื้น", 
-                                valueLeft: "${_formatRange(item['minhumid'], item['maxhumid'])} %",
-                                iconRight: Icons.grid_3x3, 
-                                colorRight: Colors.black87, 
-                                titleRight: "pH", 
-                                valueRight: _formatRange(item['minPH'], item['maxPH']),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildEnvGridRow(
-                                iconLeft: Icons.thermostat, 
-                                colorLeft: Colors.black87, 
-                                titleLeft: "อุณหภูมิ", 
-                                valueLeft: "${_formatRange(item['mintemperature'], item['maxtemperature'])} °C",
-                                iconRight: Icons.waves, 
-                                colorRight: Colors.brown, 
-                                titleRight: "ความเค็ม", 
-                                valueRight: "${_formatRange(item['minsalty'], item['maxsalty'])} mS/cm",
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildNutrientText(String label, String value) {
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(fontSize: 16, color: Colors.black),
-        children: [
-          TextSpan(text: "$label ", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          const TextSpan(text: ": ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          TextSpan(text: value, style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 16)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEnvGridRow({
-    required IconData iconLeft, required Color colorLeft, required String titleLeft, required String valueLeft,
-    required IconData iconRight, required Color colorRight, required String titleRight, required String valueRight,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 1,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(iconLeft, color: colorLeft, size: 28),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      "$titleLeft : ",
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black),
-                    ),
-                    Text(
-                      valueLeft,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.black),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8), 
-        
-        Expanded(
-          flex: 1,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(iconRight, color: colorRight, size: 28),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      "$titleRight : ",
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black),
-                    ),
-                    Text(
-                      valueRight,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.black),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
   }
 
   @override
@@ -531,10 +242,14 @@ class _EarthTypePageState extends State<EarthTypePage> {
                               itemBuilder: (context, index) {
                                 final item = _currentPageItems[index];
                                 return GestureDetector(
-                                  onTap: () => _showPlantDetailDialog(item),
+                                  // 🟢 เรียก Dialog แสดงรายละเอียดพืชจากไฟล์ plant_detail.dart
+                                  onTap: () => PlantDetailDialog.show(
+                                    context,
+                                    Map<String, dynamic>.from(item),
+                                  ),
                                   child: _buildItemCard(
                                     item['normal_name'] ?? 'ไม่มีชื่อพืช',
-                                    item['img_cloudinary'] ?? 'https://via.placeholder.com/150',
+                                    item['img_cloudinary'] ?? item['img'] ?? '',
                                   ),
                                 );
                               },
@@ -576,7 +291,8 @@ class _EarthTypePageState extends State<EarthTypePage> {
   }
 
   Widget _buildItemCard(String title, String imgUrl) {
-    String formattedImgUrl = _formatImgUrl(imgUrl);
+    // 🟢 เรียกใช้ Helper ฟอร์แมต URL รูปจาก PlantDetailDialog
+    String formattedImgUrl = PlantDetailDialog.formatImgUrl(imgUrl);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -600,14 +316,19 @@ class _EarthTypePageState extends State<EarthTypePage> {
           const SizedBox(width: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(15),
-            child: Image.network(
-              formattedImgUrl, 
-              width: 110, height: 110, fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 110, height: 110, color: Colors.grey.shade300,
-                child: const Icon(Icons.image_not_supported, color: Colors.grey),
-              ),
-            ),
+            child: formattedImgUrl.isNotEmpty
+                ? Image.network(
+                    formattedImgUrl, 
+                    width: 110, height: 110, fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 110, height: 110, color: Colors.grey.shade300,
+                      child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                    ),
+                  )
+                : Container(
+                    width: 110, height: 110, color: Colors.grey.shade300,
+                    child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                  ),
           ),
         ],
       ),
