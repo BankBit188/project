@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // 📌 1. เปลี่ยนมาใช้ FlutterSecureStorage
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart'; // 🟢 1. Import XFile เข้ามาใช้งานแทน dart:io
 
 class ReportsService {
   // 🔹 ใช้ URL ของ Ngrok ตามโครงสร้างเดิม
@@ -21,7 +21,7 @@ class ReportsService {
     String endpoint, {
     String method = 'GET', 
     Map<String, String>? body, 
-    File? imageFile, 
+    XFile? imageFile, // 🟢 2. เปลี่ยนชนิดตัวแปรจาก File? เป็น XFile?
   }) async {
     final url = Uri.parse('$baseUrl$endpoint');
     
@@ -45,14 +45,12 @@ class ReportsService {
           request.fields.addAll(body);
         }
 
-        // แนบไฟล์รูปภาพ
-        final stream = http.ByteStream(imageFile.openRead());
-        final length = await imageFile.length();
-        final multipartFile = http.MultipartFile(
-          'img',
-          stream,
-          length,
-          filename: imageFile.path.split('/').last,
+        // 🟢 3. อ่านไฟล์รูปภาพเป็น Bytes เพื่อให้รองรับ Web และ Mobile 100%
+        final bytes = await imageFile.readAsBytes();
+        final multipartFile = http.MultipartFile.fromBytes(
+          'img', // Key ชื่อเดิมของ Backend
+          bytes,
+          filename: imageFile.name, // ใช้ .name แทน .path
           contentType: MediaType('image', 'jpeg'),
         );
         request.files.add(multipartFile);
@@ -114,7 +112,7 @@ class ReportsService {
   // 🔹 3. ฟังก์ชันเพิ่มข้อมูลรายงานใหม่พร้อมไฟล์รูปภาพ (POST /report)
   static Future<dynamic> createReport({
     required Map<String, String> reportData,
-    File? imageFile,
+    XFile? imageFile, // 🟢 4. เปลี่ยนเป็น XFile? ให้ตรงกับหน้า UI
   }) async {
     return await _fetchAPI(
       '/report', 

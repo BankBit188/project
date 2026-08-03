@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
@@ -781,7 +780,10 @@ class _ToolPageState extends State<ToolPage> {
   void _showReportDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController detailController = TextEditingController();
-    File? selectedImageFile;
+    
+    // 🟢 แก้ไข: เปลี่ยนชนิดตัวแปรจาก File? เป็น XFile?
+    XFile? selectedImageFile; 
+    
     final ImagePicker picker = ImagePicker();
     showDialog(
       context: context,
@@ -901,7 +903,7 @@ class _ToolPageState extends State<ToolPage> {
                           Expanded(
                             child: Text(
                               selectedImageFile != null
-                                  ? selectedImageFile!.path.split('/').last
+                                  ? selectedImageFile!.name // 🟢 แก้ไข: ใช้ .name ดึงชื่อไฟล์แทน .path
                                   : "ยังไม่เลือกรูปภาพ",
                               style: const TextStyle(fontSize: 12),
                               overflow: TextOverflow.ellipsis,
@@ -922,7 +924,8 @@ class _ToolPageState extends State<ToolPage> {
                                 );
                                 if (image != null) {
                                   setDialogState(() {
-                                    selectedImageFile = File(image.path);
+                                    // 🟢 แก้ไข: เก็บตัวแปร image (XFile) โดยตรง
+                                    selectedImageFile = image; 
                                   });
                                 }
                               },
@@ -998,7 +1001,7 @@ class _ToolPageState extends State<ToolPage> {
                                 final response =
                                     await ReportsService.createReport(
                                   reportData: reportData,
-                                  imageFile: selectedImageFile,
+                                  imageFile: selectedImageFile, // 🟢 ส่ง XFile ไปใช้งาน
                                 );
                                 if (context.mounted) {
                                   Navigator.of(context).pop();
