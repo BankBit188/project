@@ -4,6 +4,23 @@ import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PlantDetailDialog {
+  /// 🟢 Helper สำหรับแปลง CSS Class เป็นสไตล์ของ Flutter
+  static Map<String, String>? _customStylesBuilder(dynamic element) {
+    // 1. ดักจับขนาดตัวอักษร (Font Size)
+    if (element.classes.contains('text-tiny')) return {'font-size': '10px'};
+    if (element.classes.contains('text-small')) return {'font-size': '12px'};
+    if (element.classes.contains('text-big')) return {'font-size': '20px'};
+    if (element.classes.contains('text-huge')) return {'font-size': '28px'};
+
+    // 2. ดักจับการจัดตำแหน่งข้อความ (Text Alignment)
+    if (element.classes.contains('text-align-center')) return {'text-align': 'center'};
+    if (element.classes.contains('text-align-right')) return {'text-align': 'right'};
+    if (element.classes.contains('text-align-justify')) return {'text-align': 'justify'};
+    if (element.classes.contains('text-align-left')) return {'text-align': 'left'};
+
+    return null;
+  }
+
   /// 🟢 Dialog แสดงรายละเอียดพืช
   static void show(BuildContext context, Map<String, dynamic> item) {
     String normalName = item['normal_name'] ?? 'ไม่มีชื่อพืช';
@@ -94,55 +111,69 @@ class PlantDetailDialog {
                         const Divider(color: Colors.black26),
                         const SizedBox(height: 5),
 
-                        HtmlWidget(detaill,
-                            textStyle: const TextStyle(
-                                fontSize: 14,
-                                height: 1.4,
-                                color: Colors.black)),
+                        HtmlWidget(
+                          detaill,
+                          textStyle: const TextStyle(
+                              height: 1.4,
+                              color: Colors.black),
+                          customStylesBuilder: _customStylesBuilder,
+                        ),
                         const SizedBox(height: 12),
                         const Text("ลักษณะทั่วไป",
                             style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black)),
-                        HtmlWidget(nature,
-                            textStyle: const TextStyle(
-                                fontSize: 14,
-                                height: 1.4,
-                                color: Colors.black)),
+                        HtmlWidget(
+                          nature,
+                          textStyle: const TextStyle(
+                              fontSize: 14,
+                              height: 1.4,
+                              color: Colors.black),
+                          customStylesBuilder: _customStylesBuilder,
+                        ),
                         const SizedBox(height: 12),
                         const Text("ข้อมูลการปลูก",
                             style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black)),
-                        HtmlWidget(plant,
-                            textStyle: const TextStyle(
-                                fontSize: 14,
-                                height: 1.4,
-                                color: Colors.black)),
+                        HtmlWidget(
+                          plant,
+                          textStyle: const TextStyle(
+                              fontSize: 14,
+                              height: 1.4,
+                              color: Colors.black),
+                          customStylesBuilder: _customStylesBuilder,
+                        ),
                         const SizedBox(height: 12),
                         const Text("การดูแลรักษา",
                             style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black)),
-                        HtmlWidget(care,
-                            textStyle: const TextStyle(
-                                fontSize: 14,
-                                height: 1.4,
-                                color: Colors.black)),
+                        HtmlWidget(
+                          care,
+                          textStyle: const TextStyle(
+                              fontSize: 14,
+                              height: 1.4,
+                              color: Colors.black),
+                          customStylesBuilder: _customStylesBuilder,
+                        ),
                         const SizedBox(height: 12),
                         const Text("การเก็บเกี่ยว",
                             style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black)),
-                        HtmlWidget(harvest,
-                            textStyle: const TextStyle(
-                                fontSize: 14,
-                                height: 1.4,
-                                color: Colors.black)),
+                        HtmlWidget(
+                          harvest,
+                          textStyle: const TextStyle(
+                              fontSize: 14,
+                              height: 1.4,
+                              color: Colors.black),
+                          customStylesBuilder: _customStylesBuilder,
+                        ),
 
                         const Divider(color: Colors.black26, height: 25),
                         const Center(
@@ -309,7 +340,7 @@ class PlantDetailDialog {
     );
   }
 
-  // 🛠️ Helper จัดการ URL ภาพ (ลบ ngrok ออกแล้ว)
+  // 🛠️ Helper จัดการ URL ภาพ
   static String formatImgUrl(String imgUrl) {
     return imgUrl.replaceAll(r'\/', '/');
   }

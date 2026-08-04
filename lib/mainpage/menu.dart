@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
 import 'package:project/navbar/navbars.dart'; 
 import 'package:project/mainpage/datawarehouse.dart'; 
 import 'package:project/mainpage/recommentplants.dart'; 
@@ -23,27 +26,32 @@ class MenuPage extends StatefulWidget {
 
 class _MenuPageState extends State<MenuPage> {
   int _selectedIndex = 0;
-  // 🛠️ เพิ่ม ScrollController และตัวแปรเก็บตำแหน่ง Dot ปัจจุบัน
   final ScrollController _cardScrollController = ScrollController();
   int _currentCardIndex = 0;
 
-  // 🟢 แก้ไขจุดที่ 1: เพิ่มตัวแปรสำหรับเก็บจำนวนสมาชิกที่ดึงมาจาก API
+  // ตัวแปรเก็บจำนวนสมาชิก
   int _userCount = 0;
+
+  // 🌤️ ตัวแปรเก็บข้อมูลสภาพอากาศจาก Open-Meteo API
+  bool _isLoadingWeather = true;
+  int _currentTemp = 0;
+  int _todayMaxTemp = 0;
+  int _todayMinTemp = 0;
+  int _humidity = 0;
+  double _windSpeed = 0.0;
+  List<Map<String, dynamic>> _dailyForecast = [];
 
   @override
   void initState() {
     super.initState();
     
-    // 🟢 แก้ไขจุดที่ 3: เรียกใช้งานฟังก์ชันดึงจำนวนสมาชิกทันทีเมื่อเปิดหน้าจอ
     _fetchUserCount();
+    _fetchWeatherData(); // 🌤️ ดึงข้อมูลสภาพอากาศทันทีเมื่อเปิดหน้า
 
-    // 🛠️ ตรวจจับการเลื่อนของการ์ดเพื่อเปลี่ยนจุด Dot ด้านล่างตามจริง
     _cardScrollController.addListener(() {
-      // คำนวณจากความกว้างของการ์ด (280) + ระยะห่าง (15) = 295
       double itemWidth = 280.0 + 15.0;
       int newIndex = (_cardScrollController.offset / itemWidth).round();
       
-      // ควบคุมไม่ให้อินเด็กซ์หลุดขอบ (มีทั้งหมด 5 การ์ด คือ index 0 ถึง 4)
       if (newIndex < 0) newIndex = 0;
       if (newIndex > 4) newIndex = 4;
 
@@ -55,12 +63,10 @@ class _MenuPageState extends State<MenuPage> {
     });
   }
 
-  // 🟢 แก้ไขจุดที่ 2: สร้างฟังก์ชันสำหรับติดต่อกับ UserService เพื่อดึงยอดสมาชิก
+  // ฟังก์ชันสำหรับติดต่อกับ UserService เพื่อดึงยอดสมาชิก
   Future<void> _fetchUserCount() async {
     try {
-      // 🟢 แก้ไขตรงนี้: เปลี่ยนจาก UserService().getUserCount() เป็น UserService.getUserCount()
       final response = await UserService.getUserCount(); 
-      print("จำนวนสมาชิกที่ดึงมาจาก API: $response");
       if (response != null && response['userCount'] != null) {
         setState(() {
           _userCount = int.parse(response['userCount'].toString());
@@ -71,32 +77,80 @@ class _MenuPageState extends State<MenuPage> {
     }
   }
 
+  // 🌤️ ฟังก์ชันดึงข้อมูลสภาพอากาศ อ.บ้านดู่ จาก open-meteo.com
+  Future<void> _fetchWeatherData() async {
+    // พิกัด อ.บ้านดู่ จ.เชียงราย: Lat 19.9880, Long 99.8580
+    final url = Uri.parse(
+      'https://api.open-meteo.com/v1/forecast?latitude=19.9880&longitude=99.8580&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FBangkok',
+    );
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final current = data['current'];
+        final daily = data['daily'];
+
+        // แปลงชื่อวันเป็นภาษาไทย
+        final dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+        List<Map<String, dynamic>> forecast = [];
+
+        List<dynamic> times = daily['time'];
+        List<dynamic> maxs = daily['temperature_2m_max'];
+        List<dynamic> mins = daily['temperature_2m_min'];
+
+        // ดึงพยากรณ์ล่วงหน้า 4 วันถัดไป
+        for (int i = 1; i < times.length && i <= 4; i++) {
+          DateTime date = DateTime.parse(times[i]);
+          String dayName = dayNames[date.weekday % 7];
+          forecast.add({
+            'day': dayName,
+            'high': '${(maxs[i] as num).round()}°',
+            'low': '${(mins[i] as num).round()}°',
+          });
+        }
+
+        setState(() {
+          _currentTemp = (current['temperature_2m'] as num).round();
+          _humidity = (current['relative_humidity_2m'] as num).toInt();
+          _windSpeed = (current['wind_speed_10m'] as num).toDouble();
+          _todayMaxTemp = (daily['temperature_2m_max'][0] as num).round();
+          _todayMinTemp = (daily['temperature_2m_min'][0] as num).round();
+          _dailyForecast = forecast;
+          _isLoadingWeather = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("เกิดข้อผิดพลาดในการดึงข้อมูลสภาพอากาศ: $e");
+      setState(() {
+        _isLoadingWeather = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
-    // 🛠️ คืนหน่วยความจำคืนเมื่อไม่ได้ใช้งานหน้าเพจนี้แล้ว
     _cardScrollController.dispose();
     super.dispose();
   }
 
-  // 💡 ฟังก์ชันเปิด Dialog แสดงสิทธิของสมาชิก (ถอดแบบโครงสร้างและสไตล์จากรูปภาพ)
   void _showMembershipRightsDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFF4EFC9), // สีพื้นหลังเหลืองครีมตามรูปภาพ
+          backgroundColor: const Color(0xFFF4EFC9),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30.0), // มุมโค้งมนเด่นชัด
-            side: const BorderSide(color: Colors.black87, width: 1.2), // ขอบเส้นบางรอบกล่อง
+            borderRadius: BorderRadius.circular(30.0),
+            side: const BorderSide(color: Colors.black87, width: 1.2),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
           content: SizedBox(
             width: double.maxFinite,
             child: Column(
-              mainAxisSize: MainAxisSize.min, // ให้กล่องขยายตามความยาวข้อความจริง
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ❌ แถวบนสุด: ปุ่มปิดกากบาทชิดขวา
                 Align(
                   alignment: Alignment.topRight,
                   child: IconButton(
@@ -106,7 +160,6 @@ class _MenuPageState extends State<MenuPage> {
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
-                // 🏷️ หัวข้อเรื่อง
                 const Text(
                   "สิทธิของสมาชิก",
                   style: TextStyle(
@@ -116,19 +169,16 @@ class _MenuPageState extends State<MenuPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // 📝 รายละเอียดข้อที่ 1
                 _buildRightItem(
                   "1.",
                   "สามารถใช้ฟังก์ชันแนะนำพืชที่เหมาะสมได้ โดยไม่ต้องกรอกค่าลงไป โดยจะนำค่าจากอุปกรณ์ไปประมวลผลและแนะนำให้",
                 ),
                 const SizedBox(height: 10),
-                // 📝 รายละเอียดข้อที่ 2
                 _buildRightItem(
                   "2. ",
                   "สามารถบันทึกข้อมูลค่าในดินแต่ละพื้นที่ได้",
                 ),
                 const SizedBox(height: 10),
-                // 📝 รายละเอียดข้อที่ 3
                 _buildRightItem(
                   "3. ",
                   "สามารถใช้แชตบอทได้",
@@ -142,7 +192,6 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  // คอมโพเนนต์จัดระเบียบตัวเลขและข้อความอธิบายให้เยื้องสวยงาม
   Widget _buildRightItem(String number, String text) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,10 +246,12 @@ class _MenuPageState extends State<MenuPage> {
                   const SizedBox(height: 15),
                   _buildDotsIndicator(), 
                   const SizedBox(height: 25),
+                  
+                  // 📍 แสดงข้อความหัวข้อสภาพอากาศพร้อมระบุสถานที่กำกับในวงเล็บ
                   const Text(
-                    "สภาพอากาศ",
+                    "สภาพอากาศ (ตำบลบ้านดู่ อำเภอเมืองเชียงราย จังหวัดเชียงราย)",
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
                     ),
@@ -208,7 +259,7 @@ class _MenuPageState extends State<MenuPage> {
                   const SizedBox(height: 10),
                   _buildWeatherCard(),
                   const SizedBox(height: 25),
-                  _buildMembershipSection(), // เรียกใช้ส่วนแสดงผลด้านล่าง
+                  _buildMembershipSection(),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -222,7 +273,6 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  // 1. ส่วนหัว (โลโก้ + ข้อความ)
   Widget _buildHeader() {
     return Row(
       children: [
@@ -258,7 +308,6 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  // 2. ส่วนการ์ดเลื่อนแนวนอน
   Widget _buildHorizontalCards() {
     return SizedBox(
       height: 140,
@@ -347,7 +396,6 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  // 3. ส่วนจุดไข่ปลาบอกตำแหน่งหน้า
   Widget _buildDotsIndicator() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -367,7 +415,7 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  // 4. การ์ดสภาพอากาศ
+  // 🌤️ ปรับปรุงการ์ดแสดงผลสภาพอากาศด้วยข้อมูล Dynamic จาก API
   Widget _buildWeatherCard() {
     return GestureDetector(
       onTap: () {
@@ -386,62 +434,71 @@ class _MenuPageState extends State<MenuPage> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 1,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: _isLoadingWeather
+            ? const SizedBox(
+                height: 120,
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+              )
+            : Row(
                 children: [
-                  const Text(
-                    "วันนี้",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    flex: 1,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "วันนี้",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          "$_currentTemp°",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 50,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            const Icon(Icons.arrow_upward, color: Colors.white, size: 16),
+                            Text(" $_todayMaxTemp° / ", style: const TextStyle(color: Colors.white, fontSize: 16)),
+                            const Icon(Icons.arrow_downward, color: Colors.white, size: 16),
+                            Text(" $_todayMinTemp°", style: const TextStyle(color: Colors.white, fontSize: 16)),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        Row(
+                          children: [
+                            const Icon(Icons.water_drop, color: Colors.white, size: 16),
+                            Text(" $_humidity%   ", style: const TextStyle(color: Colors.white, fontSize: 14)),
+                            const Icon(Icons.air, color: Colors.white, size: 16),
+                            Text(" ${_windSpeed.toStringAsFixed(1)} กม/ชม", style: const TextStyle(color: Colors.white, fontSize: 14)),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const Text(
-                    "24°",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 50,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    flex: 1,
+                    child: Column(
+                      children: _dailyForecast.map((item) {
+                        return _buildWeatherDayRow(
+                          item['day'],
+                          item['high'],
+                          item['low'],
+                          Icons.cloud,
+                        );
+                      }).toList(),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      const Icon(Icons.arrow_upward, color: Colors.white, size: 16),
-                      const Text(" 28° / ", style: TextStyle(color: Colors.white, fontSize: 16)),
-                      const Icon(Icons.arrow_downward, color: Colors.white, size: 16),
-                      const Text(" 13°", style: TextStyle(color: Colors.white, fontSize: 16)),
-                    ],
-                  ),
-                  const SizedBox(height: 15),
-                  Row(
-                    children: [
-                      const Icon(Icons.water_drop, color: Colors.white, size: 16),
-                      const Text(" 87%   ", style: TextStyle(color: Colors.white, fontSize: 14)),
-                      const Icon(Icons.air, color: Colors.white, size: 16),
-                      const Text(" 4 กม/ชม", style: TextStyle(color: Colors.white, fontSize: 14)),
-                    ],
                   ),
                 ],
               ),
-            ),
-            Expanded(
-              flex: 1,
-              child: Column(
-                children: [
-                  _buildWeatherDayRow("อ.", "28°", "13°", Icons.cloud),
-                  _buildWeatherDayRow("พ.", "28°", "13°", Icons.cloud),
-                  _buildWeatherDayRow("พฤ", "28°", "13°", Icons.cloud),
-                  _buildWeatherDayRow("ศ.", "28°", "13°", Icons.cloud),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -472,15 +529,13 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  // 5. ส่วนสมาชิกและแบนเนอร์ของขวัญ (ปรับปรุงให้กดแสดงหน้าต่าง Pop-up ได้ทั้งหมด)
   Widget _buildMembershipSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 🛠️ ห่อหุ้มแถวหัวข้อสมาชิกด้วย GestureDetector เพื่อรองรับการคลิก
         GestureDetector(
-          onTap: _showMembershipRightsDialog, // เมื่อคลิกจะเรียกฟังก์ชันเปิดหน้าต่างสิทธิ
-          behavior: HitTestBehavior.opaque, // ช่วยให้กดติดง่ายขึ้นแม้จะกดโดนช่องว่างระหว่างข้อความ
+          onTap: _showMembershipRightsDialog,
+          behavior: HitTestBehavior.opaque,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -499,8 +554,6 @@ class _MenuPageState extends State<MenuPage> {
                   color: const Color(0xFF91CF9D), 
                   borderRadius: BorderRadius.circular(10),
                 ),
-                // 🟢 แก้ไขจุดที่ 4: เปลี่ยนจากตัวเลขฟิก "32" เป็นแสดงผลตัวแปร _userCount แบบ Dynamic 
-                // (และเอาคีย์เวิร์ด const ด้านหน้าออก เพื่อให้ข้อมูลอัปเดตใหม่ได้)
                 child: Text(
                   "$_userCount",
                   style: const TextStyle(
@@ -514,7 +567,6 @@ class _MenuPageState extends State<MenuPage> {
           ),
         ),
         const SizedBox(height: 15),
-        // 🛠️ ส่วนของแบนเนอร์สิทธิของสมาชิกด้านล่าง ก็รองรับการคลิกเปิดป๊อปอัปเช่นกันเพื่อ UX ที่ดี
         GestureDetector(
           onTap: _showMembershipRightsDialog,
           child: Container(
