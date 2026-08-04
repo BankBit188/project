@@ -15,8 +15,8 @@ class PlantDetailDialog {
     String plant = item['plant'] ?? 'ไม่มีข้อมูลการปลูก';
     String care = item['care'] ?? 'ไม่มีข้อมูลการดูแล';
     String harvest = item['harvest'] ?? 'ไม่มีข้อมูลการเก็บเกี่ยว';
-    String? supplyLink = item['supplyLink'] ?? item['link'];
-    String? demandLink = item['demandLink'] ?? item['link'];
+    String? supplyLink = item['link_supply'] ?? item['link'];
+    String? demandLink = item['link_demand'] ?? item['link'];
 
     showDialog(
       context: context,
