@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart'; // import เพิ่มเข้ามา
 
 import 'package:project/navbar/navbars.dart'; 
 import 'package:project/mainpage/datawarehouse.dart'; 
 import 'package:project/mainpage/recommentplants.dart'; 
 
-// ไฟล์ปลายทางที่ต้องการให้เปลี่ยนหน้าไป
 import 'package:project/reccomment/adjust.dart';
 import 'package:project/reccomment/earth.dart';
 import 'package:project/reccomment/earthtype.dart';
@@ -14,7 +14,7 @@ import 'package:project/reccomment/plants.dart';
 import 'package:project/reccomment/soil.dart';
 import 'package:project/mainpage/weather.dart';
 
-import 'package:project/service/user_service.dart'; // นำเข้า UserService เพื่อเรียก API
+import 'package:project/service/user_service.dart';
 
 class MenuPage extends StatefulWidget {
   final bool isLoggedIn;
@@ -29,10 +29,12 @@ class _MenuPageState extends State<MenuPage> {
   final ScrollController _cardScrollController = ScrollController();
   int _currentCardIndex = 0;
 
-  // ตัวแปรเก็บจำนวนสมาชิก
   int _userCount = 0;
 
-  // 🌤️ ตัวแปรเก็บข้อมูลสภาพอากาศจาก Open-Meteo API
+  // 📍 ตัวแปรเกี่ยวกับตำแหน่ง
+  bool _isFixedLocation = true; 
+  String _locationName = "ตำบลบ้านดู่ อำเภอเมืองเชียงราย จังหวัดเชียงราย";
+
   bool _isLoadingWeather = true;
   int _currentTemp = 0;
   int _todayMaxTemp = 0;
@@ -44,9 +46,8 @@ class _MenuPageState extends State<MenuPage> {
   @override
   void initState() {
     super.initState();
-    
     _fetchUserCount();
-    _fetchWeatherData(); // 🌤️ ดึงข้อมูลสภาพอากาศทันทีเมื่อเปิดหน้า
+    _initWeatherAndLocation(); // เรียกฟังก์ชันดึงตำแหน่งและสภาพอากาศ
 
     _cardScrollController.addListener(() {
       double itemWidth = 280.0 + 15.0;
@@ -63,7 +64,6 @@ class _MenuPageState extends State<MenuPage> {
     });
   }
 
-  // ฟังก์ชันสำหรับติดต่อกับ UserService เพื่อดึงยอดสมาชิก
   Future<void> _fetchUserCount() async {
     try {
       final response = await UserService.getUserCount(); 
@@ -77,11 +77,74 @@ class _MenuPageState extends State<MenuPage> {
     }
   }
 
-  // 🌤️ ฟังก์ชันดึงข้อมูลสภาพอากาศ อ.บ้านดู่ จาก open-meteo.com
-  Future<void> _fetchWeatherData() async {
-    // พิกัด อ.บ้านดู่ จ.เชียงราย: Lat 19.9880, Long 99.8580
+  // 📍 ฟังก์ชันขอสิทธิ์ และดึงพิกัด GPS จริงจากตัวเครื่อง
+  Future<void> _initWeatherAndLocation() async {
+    double lat = 19.9880; // พิกัดสำรอง: บ้านดู่
+    double lng = 99.8580;
+    bool isGpsSuccess = false;
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (serviceEnabled) {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+
+        if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+          Position position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+          );
+          lat = position.latitude;
+          lng = position.longitude;
+          isGpsSuccess = true;
+
+          // แปลงพิกัด lat, lng เป็นชื่อสถานที่ผ่าน API
+          String name = await _getLocationNameFromCoordinates(lat, lng);
+          setState(() {
+            _isFixedLocation = false;
+            _locationName = name;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("ไม่สามารถดึงตำแหน่ง GPS ได้: $e");
+    }
+
+    // หากใช้ GPS ไม่สำเร็จ ให้สลับกลับมาใช้ค่าเริ่มต้น (บ้านดู่)
+    if (!isGpsSuccess) {
+      setState(() {
+        _isFixedLocation = true;
+        _locationName = "ตำบลบ้านดู่ อำเภอเมืองเชียงราย จังหวัดเชียงราย";
+      });
+    }
+
+    _fetchWeatherData(lat, lng);
+  }
+
+  // 🗺️ ฟังก์ชันค้นหาชื่ออำเภอ/จังหวัดจาก Lat, Lng
+  Future<String> _getLocationNameFromCoordinates(double lat, double lng) async {
+    try {
+      final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json&accept-language=th');
+      final response = await http.get(url, headers: {'User-Agent': 'FlutterApp'});
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final address = data['address'];
+        String district = address['district'] ?? address['city_district'] ?? address['county'] ?? '';
+        String state = address['state'] ?? address['province'] ?? '';
+        
+        if (district.isNotEmpty || state.isNotEmpty) {
+          return "$district $state".trim();
+        }
+      }
+    } catch (_) {}
+    return "พิกัดปัจจุบัน (${lat.toStringAsFixed(2)}, ${lng.toStringAsFixed(2)})";
+  }
+
+  // 🌤️ ฟังก์ชันดึงสภาพอากาศจากพิกัดที่ส่งมา
+  Future<void> _fetchWeatherData(double lat, double lng) async {
     final url = Uri.parse(
-      'https://api.open-meteo.com/v1/forecast?latitude=19.9880&longitude=99.8580&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FBangkok',
+      'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lng&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FBangkok',
     );
 
     try {
@@ -91,7 +154,6 @@ class _MenuPageState extends State<MenuPage> {
         final current = data['current'];
         final daily = data['daily'];
 
-        // แปลงชื่อวันเป็นภาษาไทย
         final dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
         List<Map<String, dynamic>> forecast = [];
 
@@ -99,7 +161,6 @@ class _MenuPageState extends State<MenuPage> {
         List<dynamic> maxs = daily['temperature_2m_max'];
         List<dynamic> mins = daily['temperature_2m_min'];
 
-        // ดึงพยากรณ์ล่วงหน้า 4 วันถัดไป
         for (int i = 1; i < times.length && i <= 4; i++) {
           DateTime date = DateTime.parse(times[i]);
           String dayName = dayNames[date.weekday % 7];
@@ -247,15 +308,7 @@ class _MenuPageState extends State<MenuPage> {
                   _buildDotsIndicator(), 
                   const SizedBox(height: 25),
                   
-                  // 📍 แสดงข้อความหัวข้อสภาพอากาศพร้อมระบุสถานที่กำกับในวงเล็บ
-                  const Text(
-                    "สภาพอากาศ (ตำบลบ้านดู่ อำเภอเมืองเชียงราย จังหวัดเชียงราย)",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
+                  _buildLocationHeader(),
                   const SizedBox(height: 10),
                   _buildWeatherCard(),
                   const SizedBox(height: 25),
@@ -270,6 +323,30 @@ class _MenuPageState extends State<MenuPage> {
       bottomNavigationBar: widget.isLoggedIn 
           ? const AuthNavBar(currentIndex: 0) 
           : const GuestNavBar(currentIndex: 0),
+    );
+  }
+
+  Widget _buildLocationHeader() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(
+          _isFixedLocation ? Icons.location_off : Icons.location_on,
+          color: _isFixedLocation ? Colors.redAccent : Colors.green,
+          size: 22,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            "สภาพอากาศ ($_locationName)",
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -415,7 +492,6 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  // 🌤️ ปรับปรุงการ์ดแสดงผลสภาพอากาศด้วยข้อมูล Dynamic จาก API
   Widget _buildWeatherCard() {
     return GestureDetector(
       onTap: () {
@@ -425,7 +501,7 @@ class _MenuPageState extends State<MenuPage> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: const LinearGradient(
@@ -442,9 +518,10 @@ class _MenuPageState extends State<MenuPage> {
                 ),
               )
             : Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
-                    flex: 1,
+                    flex: 5,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -452,40 +529,52 @@ class _MenuPageState extends State<MenuPage> {
                           "วันนี้",
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        Text(
-                          "$_currentTemp°",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 50,
-                            fontWeight: FontWeight.bold,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            "$_currentTemp°",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        Row(
-                          children: [
-                            const Icon(Icons.arrow_upward, color: Colors.white, size: 16),
-                            Text(" $_todayMaxTemp° / ", style: const TextStyle(color: Colors.white, fontSize: 16)),
-                            const Icon(Icons.arrow_downward, color: Colors.white, size: 16),
-                            Text(" $_todayMinTemp°", style: const TextStyle(color: Colors.white, fontSize: 16)),
-                          ],
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.arrow_upward, color: Colors.white, size: 14),
+                              Text(" $_todayMaxTemp° / ", style: const TextStyle(color: Colors.white, fontSize: 14)),
+                              const Icon(Icons.arrow_downward, color: Colors.white, size: 14),
+                              Text(" $_todayMinTemp°", style: const TextStyle(color: Colors.white, fontSize: 14)),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 15),
-                        Row(
-                          children: [
-                            const Icon(Icons.water_drop, color: Colors.white, size: 16),
-                            Text(" $_humidity%   ", style: const TextStyle(color: Colors.white, fontSize: 14)),
-                            const Icon(Icons.air, color: Colors.white, size: 16),
-                            Text(" ${_windSpeed.toStringAsFixed(1)} กม/ชม", style: const TextStyle(color: Colors.white, fontSize: 14)),
-                          ],
+                        const SizedBox(height: 12),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.water_drop, color: Colors.white, size: 14),
+                              Text(" $_humidity%  ", style: const TextStyle(color: Colors.white, fontSize: 13)),
+                              const Icon(Icons.air, color: Colors.white, size: 14),
+                              Text(" ${_windSpeed.toStringAsFixed(1)} กม/ชม", style: const TextStyle(color: Colors.white, fontSize: 13)),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
+
+                  const SizedBox(width: 8),
+
                   Expanded(
-                    flex: 1,
+                    flex: 6,
                     child: Column(
                       children: _dailyForecast.map((item) {
                         return _buildWeatherDayRow(
@@ -507,20 +596,32 @@ class _MenuPageState extends State<MenuPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          padding: const EdgeInsets.symmetric(vertical: 3.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(day, style: const TextStyle(color: Colors.white, fontSize: 16)),
-              Row(
-                children: [
-                  const Icon(Icons.arrow_upward, color: Colors.white, size: 12),
-                  Text(" $high ", style: const TextStyle(color: Colors.white, fontSize: 14)),
-                  const Icon(Icons.arrow_downward, color: Colors.white, size: 12),
-                  Text(" $low", style: const TextStyle(color: Colors.white, fontSize: 14)),
-                ],
+              SizedBox(
+                width: 26,
+                child: Text(
+                  day, 
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
               ),
-              Icon(icon, color: Colors.white54, size: 20),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.arrow_upward, color: Colors.white, size: 11),
+                      Text(" $high ", style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      const Icon(Icons.arrow_downward, color: Colors.white, size: 11),
+                      Text(" $low", style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+              Icon(icon, color: Colors.white54, size: 18),
             ],
           ),
         ),
@@ -539,12 +640,14 @@ class _MenuPageState extends State<MenuPage> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                "จำนวนผู้ที่เป็นสมาชิก",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+              Flexible(
+                child: const Text(
+                  "จำนวนผู้ที่เป็นสมาชิก",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
