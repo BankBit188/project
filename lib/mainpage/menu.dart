@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart'; // import เพิ่มเข้ามา
 
-import 'package:project/navbar/navbars.dart'; 
-import 'package:project/mainpage/datawarehouse.dart'; 
-import 'package:project/mainpage/recommentplants.dart'; 
+import 'package:project/navbar/navbars.dart';
+import 'package:project/mainpage/datawarehouse.dart';
+import 'package:project/mainpage/recommentplants.dart';
 
 import 'package:project/reccomment/adjust.dart';
 import 'package:project/reccomment/earth.dart';
@@ -32,7 +32,7 @@ class _MenuPageState extends State<MenuPage> {
   int _userCount = 0;
 
   // 📍 ตัวแปรเกี่ยวกับตำแหน่ง
-  bool _isFixedLocation = true; 
+  bool _isFixedLocation = true;
   String _locationName = "ตำบลบ้านดู่ อำเภอเมืองเชียงราย จังหวัดเชียงราย";
 
   bool _isLoadingWeather = true;
@@ -52,7 +52,7 @@ class _MenuPageState extends State<MenuPage> {
     _cardScrollController.addListener(() {
       double itemWidth = 280.0 + 15.0;
       int newIndex = (_cardScrollController.offset / itemWidth).round();
-      
+
       if (newIndex < 0) newIndex = 0;
       if (newIndex > 4) newIndex = 4;
 
@@ -66,7 +66,7 @@ class _MenuPageState extends State<MenuPage> {
 
   Future<void> _fetchUserCount() async {
     try {
-      final response = await UserService.getUserCount(); 
+      final response = await UserService.getUserCount();
       if (response != null && response['userCount'] != null) {
         setState(() {
           _userCount = int.parse(response['userCount'].toString());
@@ -91,9 +91,12 @@ class _MenuPageState extends State<MenuPage> {
           permission = await Geolocator.requestPermission();
         }
 
-        if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        if (permission == LocationPermission.whileInUse ||
+            permission == LocationPermission.always) {
           Position position = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.low,
+            ),
           );
           lat = position.latitude;
           lng = position.longitude;
@@ -125,14 +128,23 @@ class _MenuPageState extends State<MenuPage> {
   // 🗺️ ฟังก์ชันค้นหาชื่ออำเภอ/จังหวัดจาก Lat, Lng
   Future<String> _getLocationNameFromCoordinates(double lat, double lng) async {
     try {
-      final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json&accept-language=th');
-      final response = await http.get(url, headers: {'User-Agent': 'FlutterApp'});
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json&accept-language=th',
+      );
+      final response = await http.get(
+        url,
+        headers: {'User-Agent': 'FlutterApp'},
+      );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final address = data['address'];
-        String district = address['district'] ?? address['city_district'] ?? address['county'] ?? '';
+        String district =
+            address['district'] ??
+            address['city_district'] ??
+            address['county'] ??
+            '';
         String state = address['state'] ?? address['province'] ?? '';
-        
+
         if (district.isNotEmpty || state.isNotEmpty) {
           return "$district $state".trim();
         }
@@ -205,7 +217,10 @@ class _MenuPageState extends State<MenuPage> {
             borderRadius: BorderRadius.circular(30.0),
             side: const BorderSide(color: Colors.black87, width: 1.2),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20.0,
+            vertical: 15.0,
+          ),
           content: SizedBox(
             width: double.maxFinite,
             child: Column(
@@ -217,7 +232,11 @@ class _MenuPageState extends State<MenuPage> {
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.close, color: Colors.black, size: 24),
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.black,
+                      size: 24,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
@@ -240,10 +259,7 @@ class _MenuPageState extends State<MenuPage> {
                   "สามารถบันทึกข้อมูลค่าในดินแต่ละพื้นที่ได้",
                 ),
                 const SizedBox(height: 10),
-                _buildRightItem(
-                  "3. ",
-                  "สามารถใช้แชตบอทได้",
-                ),
+                _buildRightItem("3. ", "สามารถใช้แชตบอทได้"),
                 const SizedBox(height: 15),
               ],
             ),
@@ -259,14 +275,18 @@ class _MenuPageState extends State<MenuPage> {
       children: [
         Text(
           number,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
         Expanded(
           child: Text(
             text,
             style: const TextStyle(
-              fontSize: 16, 
-              color: Colors.black87, 
+              fontSize: 16,
+              color: Colors.black87,
               height: 1.3,
             ),
           ),
@@ -285,10 +305,7 @@ class _MenuPageState extends State<MenuPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFDCEAF1), 
-              Color(0xFFD2E0C4), 
-            ],
+            colors: [Color(0xFFDCEAF1), Color(0xFFD2E0C4)],
           ),
         ),
         child: SafeArea(
@@ -305,9 +322,9 @@ class _MenuPageState extends State<MenuPage> {
                   const SizedBox(height: 25),
                   _buildHorizontalCards(),
                   const SizedBox(height: 15),
-                  _buildDotsIndicator(), 
+                  _buildDotsIndicator(),
                   const SizedBox(height: 25),
-                  
+
                   _buildLocationHeader(),
                   const SizedBox(height: 10),
                   _buildWeatherCard(),
@@ -320,8 +337,8 @@ class _MenuPageState extends State<MenuPage> {
           ),
         ),
       ),
-      bottomNavigationBar: widget.isLoggedIn 
-          ? const AuthNavBar(currentIndex: 0) 
+      bottomNavigationBar: widget.isLoggedIn
+          ? const AuthNavBar(currentIndex: 0)
           : const GuestNavBar(currentIndex: 0),
     );
   }
@@ -358,15 +375,11 @@ class _MenuPageState extends State<MenuPage> {
           height: 70,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFF6B9077), 
+            color: const Color(0xFF6B9077),
             border: Border.all(color: Colors.white54, width: 2),
           ),
           child: const Center(
-            child: Icon(
-              Icons.eco,
-              color: Colors.white,
-              size: 35,
-            ), 
+            child: Icon(Icons.eco, color: Colors.white, size: 35),
           ),
         ),
         const SizedBox(width: 15),
@@ -387,91 +400,134 @@ class _MenuPageState extends State<MenuPage> {
 
   Widget _buildHorizontalCards() {
     return SizedBox(
-      height: 140,
+      height: 160,
       child: ListView(
-        controller: _cardScrollController, 
+        controller: _cardScrollController,
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,
         children: [
-          _buildSingleCard("พืชปลูก", () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const PlantsPage()));
-          }),
+          // การ์ดที่ 1: รูปแบนเนอร์เต็มความกว้างชิดขอบล่าง
+          _buildSingleCard(
+            title: "พืชปลูก",
+            imagePath: "assets/images/1.png",
+            isFullWidth: true,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PlantsPage()),
+              );
+            },
+          ),
           const SizedBox(width: 15),
-          _buildSingleCard("ดิน", () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const EarthPage()));
-          }),
+
+          // การ์ดที่ 2-5: รูปไอคอนกำหนดความสูง (ปรับ imageHeight เพิ่ม-ลดได้ตามต้องการ)
+          _buildSingleCard(
+            title: "ดิน",
+            imagePath: "assets/images/2.png",
+            imageHeight: 75,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EarthPage()),
+              );
+            },
+          ),
           const SizedBox(width: 15),
-          _buildSingleCard("การปรับสภาพดิน", () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const AdjustPage()));
-          }),
+          _buildSingleCard(
+            title: "การปรับสภาพดิน",
+            imagePath: "assets/images/3.png",
+            imageHeight: 70,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AdjustPage()),
+              );
+            },
+          ),
           const SizedBox(width: 15),
-          _buildSingleCard("แนะนำพืชปลูกตามประเภทของดิน", () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const EarthTypePage()));
-          }),
+          _buildSingleCard(
+            title: "แนะนำพืชปลูกตามประเภทของดิน",
+            imagePath: "assets/images/4.png",
+            imageHeight: 75,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EarthTypePage()),
+              );
+            },
+          ),
           const SizedBox(width: 15),
-          _buildSingleCard("แนะนำพืชปลูกตามปริมาณธาตุอาหารในดิน", () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const SoilPage()));
-          }),
+          _buildSingleCard(
+            title: "แนะนำพืชปลูกตามปริมาณธาตุอาหารในดิน",
+            imagePath: "assets/images/5.png",
+            imageHeight: 75,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SoilPage()),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSingleCard(String title, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap, 
-      child: Container(
-        width: 280,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF2EDB4), 
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.black87, width: 1.5), 
-        ),
+  Widget _buildSingleCard({
+  required String title,
+  required String imagePath,
+  required VoidCallback onTap,
+  bool isFullWidth = false,
+  double imageHeight = 75,
+}) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: 280,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2EDB4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black87, width: 1.5),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14.5),
         child: Stack(
           children: [
+            // 📌 1. ข้อความชื่อเรื่อง
             Positioned(
-              top: 15,
+              top: 18,
               left: 20,
-              right: 20, 
+              right: 20,
               child: Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
-                maxLines: 2, 
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            // 📌 2. จัดวางรูปภาพตรงกลางขอบล่าง
             Positioned(
-              bottom: 0,
-              left: 0,
+              bottom: isFullWidth ? 0 : 10,
+              left: 0,  // ขยายเต็มความกว้างซ้าย-ขวา
               right: 0,
-              child: Container(
-                height: 45,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF8B5E34), 
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(13),
-                    bottomRight: Radius.circular(13),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Icon(Icons.energy_savings_leaf, color: Color(0xFF8CC152), size: 20),
-                    Icon(Icons.energy_savings_leaf, color: Color(0xFF8CC152), size: 28),
-                    Icon(Icons.energy_savings_leaf, color: Color(0xFF8CC152), size: 20),
-                  ],
-                ),
+              child: Image.asset(
+                imagePath,
+                height: isFullWidth ? null : imageHeight,
+                fit: isFullWidth ? BoxFit.fitWidth : BoxFit.contain,
+                alignment: Alignment.bottomCenter, // จัดตำแหน่งรูปให้อยู่ตรงกลาง
+                errorBuilder: (context, error, stackTrace) => const SizedBox(),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDotsIndicator() {
     return Row(
@@ -479,9 +535,9 @@ class _MenuPageState extends State<MenuPage> {
       children: List.generate(5, (index) {
         bool isActive = index == _currentCardIndex;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 250), 
+          duration: const Duration(milliseconds: 250),
           margin: const EdgeInsets.symmetric(horizontal: 2.5),
-          width: isActive ? 24 : 6, 
+          width: isActive ? 24 : 6,
           height: 6,
           decoration: BoxDecoration(
             color: Colors.black87,
@@ -505,7 +561,7 @@ class _MenuPageState extends State<MenuPage> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: const LinearGradient(
-            colors: [Color(0xFF88C0FA), Color(0xFF5A94ED)], 
+            colors: [Color(0xFF88C0FA), Color(0xFF5A94ED)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -548,10 +604,30 @@ class _MenuPageState extends State<MenuPage> {
                           fit: BoxFit.scaleDown,
                           child: Row(
                             children: [
-                              const Icon(Icons.arrow_upward, color: Colors.white, size: 14),
-                              Text(" $_todayMaxTemp° / ", style: const TextStyle(color: Colors.white, fontSize: 14)),
-                              const Icon(Icons.arrow_downward, color: Colors.white, size: 14),
-                              Text(" $_todayMinTemp°", style: const TextStyle(color: Colors.white, fontSize: 14)),
+                              const Icon(
+                                Icons.arrow_upward,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              Text(
+                                " $_todayMaxTemp° / ",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_downward,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              Text(
+                                " $_todayMinTemp°",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -560,10 +636,30 @@ class _MenuPageState extends State<MenuPage> {
                           fit: BoxFit.scaleDown,
                           child: Row(
                             children: [
-                              const Icon(Icons.water_drop, color: Colors.white, size: 14),
-                              Text(" $_humidity%  ", style: const TextStyle(color: Colors.white, fontSize: 13)),
-                              const Icon(Icons.air, color: Colors.white, size: 14),
-                              Text(" ${_windSpeed.toStringAsFixed(1)} กม/ชม", style: const TextStyle(color: Colors.white, fontSize: 13)),
+                              const Icon(
+                                Icons.water_drop,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              Text(
+                                " $_humidity%  ",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const Icon(
+                                Icons.air,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              Text(
+                                " ${_windSpeed.toStringAsFixed(1)} กม/ชม",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -592,7 +688,12 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  Widget _buildWeatherDayRow(String day, String high, String low, IconData icon) {
+  Widget _buildWeatherDayRow(
+    String day,
+    String high,
+    String low,
+    IconData icon,
+  ) {
     return Column(
       children: [
         Padding(
@@ -603,8 +704,12 @@ class _MenuPageState extends State<MenuPage> {
               SizedBox(
                 width: 26,
                 child: Text(
-                  day, 
-                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                  day,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               Expanded(
@@ -613,10 +718,30 @@ class _MenuPageState extends State<MenuPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.arrow_upward, color: Colors.white, size: 11),
-                      Text(" $high ", style: const TextStyle(color: Colors.white, fontSize: 12)),
-                      const Icon(Icons.arrow_downward, color: Colors.white, size: 11),
-                      Text(" $low", style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      const Icon(
+                        Icons.arrow_upward,
+                        color: Colors.white,
+                        size: 11,
+                      ),
+                      Text(
+                        " $high ",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_downward,
+                        color: Colors.white,
+                        size: 11,
+                      ),
+                      Text(
+                        " $low",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -652,9 +777,12 @@ class _MenuPageState extends State<MenuPage> {
               ),
               const SizedBox(width: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF91CF9D), 
+                  color: const Color(0xFF91CF9D),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -677,15 +805,19 @@ class _MenuPageState extends State<MenuPage> {
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(15),
-              color: const Color(0xFF5A9031), 
+              color: const Color(0xFF5A9031),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.card_giftcard, color: Color(0xFFFFD700), size: 50), 
+                const Icon(
+                  Icons.card_giftcard,
+                  color: Color(0xFFFFD700),
+                  size: 50,
+                ),
                 const SizedBox(height: 5),
                 Transform.rotate(
-                  angle: -0.05, 
+                  angle: -0.05,
                   child: const Text(
                     "สิทธิของสมาชิก",
                     style: TextStyle(
@@ -698,7 +830,7 @@ class _MenuPageState extends State<MenuPage> {
                           blurRadius: 4,
                           offset: Offset(1, 1),
                         ),
-                      ], 
+                      ],
                     ),
                   ),
                 ),

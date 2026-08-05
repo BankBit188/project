@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:project/navbar/navbars.dart'; // นำเข้าไฟล์ navbars.dart ที่เราสร้างไว้
-import 'package:project/mainpage/menu.dart'; // นำเข้าหน้า Menu เพื่อให้กดกลับไปได้
+import 'package:project/navbar/navbars.dart';
+import 'package:project/mainpage/menu.dart';
 import 'package:project/mainpage/recommentplants.dart';
 
 import 'package:project/reccomment/plants.dart';
@@ -57,41 +57,63 @@ class _DataWarehousePageState extends State<DataWarehousePage> {
                   padding: const EdgeInsets.symmetric(horizontal: 25),
                   physics: const BouncingScrollPhysics(),
                   children: [
-                    // 🔹 พืชปลูก -> ไปหน้า PlantsPage
-                    _buildPlantCard(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PlantsPage())),
+                    // 🔹 พืชปลูก (รูปแบนเนอร์แนวยาว 1.png)
+                    _buildDataCard(
+                      title: "พืชปลูก",
+                      imagePath: "assets/images/1.png",
+                      isFullWidth: true,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PlantsPage()),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     
-                    // 🔹 ดิน -> ไปหน้า EarthPage
-                    _buildStandardCard(
+                    // 🔹 ดิน (2.png)
+                    _buildDataCard(
                       title: "ดิน",
-                      illustration: const Icon(Icons.pie_chart_outline, size: 60, color: Color(0xFF6B9077)),
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EarthPage())),
+                      imagePath: "assets/images/2.png",
+                      imageHeight: 75,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EarthPage()),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     
-                    // 🔹 การปรับสภาพดิน -> ไปหน้า AdjustPage
-                    _buildStandardCard(
+                    // 🔹 การปรับสภาพดิน (3.png)
+                    _buildDataCard(
                       title: "การปรับสภาพดิน",
-                      illustration: const Icon(Icons.hardware, size: 60, color: Color(0xFF8B5E34)),
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdjustPage())),
+                      imagePath: "assets/images/3.png",
+                      imageHeight: 70,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AdjustPage()),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     
-                    // 🔹 แนะนำพืชปลูกตามประเภทของดิน -> ไปหน้า EarthTypePage
-                    _buildStandardCard(
+                    // 🔹 แนะนำพืชปลูกตามประเภทของดิน (4.png)
+                    _buildDataCard(
                       title: "แนะนำพืชปลูกตามประเภทของดิน",
-                      illustration: const Icon(Icons.recycling, size: 60, color: Color(0xFF45911B)),
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EarthTypePage())),
+                      imagePath: "assets/images/4.png",
+                      imageHeight: 75,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EarthTypePage()),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     
-                    // 🔹 แนะนำพืชปลูกตามปริมาณธาตุอาหาร -> ไปหน้า SoilPage
-                    _buildStandardCard(
+                    // 🔹 แนะนำพืชปลูกตามปริมาณธาตุอาหาร (5.png)
+                    _buildDataCard(
                       title: "แนะนำพืชปลูกตามปริมาณธาตุอาหาร",
-                      illustration: const Icon(Icons.science, size: 60, color: Color(0xFF6B9077)),
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SoilPage())),
+                      imagePath: "assets/images/5.png",
+                      imageHeight: 75,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SoilPage()),
+                      ),
                     ),
                     const SizedBox(height: 30), 
                   ],
@@ -107,72 +129,13 @@ class _DataWarehousePageState extends State<DataWarehousePage> {
     );
   }
 
-  // 🔹 เพิ่มพารามิเตอร์ onTap
-  Widget _buildPlantCard({required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 140,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF2EDB4), 
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.black87, width: 1.5), 
-        ),
-        child: Stack(
-          children: [
-            const Positioned(
-              top: 15,
-              left: 20,
-              child: Text(
-                "พืชปลูก",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 45,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF8B5E34), 
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(13),
-                    bottomRight: Radius.circular(13),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 10),
-                      child: Icon(Icons.energy_savings_leaf, color: Color(0xFF8CC152), size: 20),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 5),
-                      child: Icon(Icons.energy_savings_leaf, color: Color(0xFF8CC152), size: 30),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 15),
-                      child: Icon(Icons.energy_savings_leaf, color: Color(0xFF8CC152), size: 20),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 🔹 เพิ่มพารามิเตอร์ onTap
-  Widget _buildStandardCard({
+  // 🔹 ฟังก์ชันสร้างการ์ดคลังข้อมูล (รูปแบบเดียวกับหน้า MenuPage)
+  Widget _buildDataCard({
     required String title,
-    required Widget illustration,
+    required String imagePath,
     required VoidCallback onTap,
+    bool isFullWidth = false,
+    double imageHeight = 75,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -180,31 +143,45 @@ class _DataWarehousePageState extends State<DataWarehousePage> {
         height: 140,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFFF2EDB4), 
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.black87, width: 1.5), 
+          color: const Color(0xFFF2EDB4),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black87, width: 1.5),
         ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: 15,
-              left: 20,
-              right: 20,
-              child: Text(
-                title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14.5),
+          child: Stack(
+            children: [
+              // 📌 1. ข้อความหัวเรื่อง
+              Positioned(
+                top: 18,
+                left: 20,
+                right: 20,
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            Align(
-              alignment: Alignment.center,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: illustration,
+              // 📌 2. รูปภาพประกอบตรงกลางขอบล่าง
+              Positioned(
+                bottom: isFullWidth ? 0 : 10,
+                left: 0,
+                right: 0,
+                child: Image.asset(
+                  imagePath,
+                  height: isFullWidth ? null : imageHeight,
+                  fit: isFullWidth ? BoxFit.fitWidth : BoxFit.contain,
+                  alignment: Alignment.bottomCenter,
+                  errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
