@@ -55,10 +55,15 @@ class _WeatherPageState extends State<WeatherPage> {
   String locationName = "ตำบลบ้านดู่ อำเภอเมืองเชียงราย จังหวัดเชียงราย";
   bool isGpsLocation = false; 
 
+  // 🗓️ คำนวณเดือนย้อนหลัง 1 เดือนของปีปัจจุบันให้อัตโนมัติเป็นค่าเริ่มต้น
+  static MonthYear _getPreviousMonthInitial() {
+    final now = DateTime.now();
+    final prevDate = DateTime(now.year, now.month - 1);
+    return MonthYear(prevDate.year, prevDate.month);
+  }
+
   // 🗓️ รายการเดือน/ปีที่เลือกคำนวณค่าเฉลี่ย
-  List<MonthYear> selectedMonths = [
-    MonthYear(DateTime.now().year - 1, DateTime.now().month)
-  ];
+  List<MonthYear> selectedMonths = [_getPreviousMonthInitial()];
   double? monthAvgTemp;
   double? monthAvgHumidity;
   bool isLoadingMonthAvg = false;
@@ -313,14 +318,13 @@ class _WeatherPageState extends State<WeatherPage> {
     });
   }
 
-  // 🗓️ ป๊อบอัพเลือกปีและหลายเดือนพร้อม Checkbox + ปุ่มยืนยัน/ยกเลิก
-  // 🗓️ ป๊อบอัพเลือกปีและหลายเดือนพร้อมเงื่อนไขปิดเดือนอนาคตของปีปัจจุบัน
+  // 🗓️ ป๊อบอัพเลือกปีและหลายเดือน
   void _showMonthSelectionDialog() {
     DateTime now = DateTime.now();
     int currentYear = now.year;
     int currentMonth = now.month;
 
-    int selectedYearInDialog = selectedMonths.isNotEmpty ? selectedMonths.first.year : currentYear - 1;
+    int selectedYearInDialog = selectedMonths.isNotEmpty ? selectedMonths.first.year : currentYear;
     List<MonthYear> tempSelected = List.from(selectedMonths);
 
     showDialog(
@@ -351,7 +355,6 @@ class _WeatherPageState extends State<WeatherPage> {
                           if (val != null) {
                             setDialogState(() {
                               selectedYearInDialog = val;
-                              // 📍 เคลียร์เดือนที่ไม่ถูกต้องออก หากสลับมาปีปัจจุบันแล้วเคยติ๊กเดือนปัจจุบัน/อนาคตไว้
                               if (selectedYearInDialog == currentYear) {
                                 tempSelected.removeWhere((item) => item.year == currentYear && item.month >= currentMonth);
                               }
@@ -389,13 +392,12 @@ class _WeatherPageState extends State<WeatherPage> {
                           int monthNum = index + 1;
                           MonthYear currentItem = MonthYear(selectedYearInDialog, monthNum);
                           
-                          // 📍 เช็กว่าเดือนนี้ต้องถูกปิดใช้งานหรือไม่ (ถ้าเป็นปีปัจจุบัน และเป็นเดือน >= เดือนปัจจุบัน)
                           bool isDisabled = (selectedYearInDialog == currentYear) && (monthNum >= currentMonth);
                           bool isChecked = tempSelected.contains(currentItem);
 
                           return InkWell(
                             onTap: isDisabled
-                                ? null // กดเลือกไม่ได้หากเป็นเดือนที่โดนปิด
+                                ? null
                                 : () {
                                     setDialogState(() {
                                       if (isChecked) {
@@ -409,7 +411,7 @@ class _WeatherPageState extends State<WeatherPage> {
                             child: Container(
                               decoration: BoxDecoration(
                                 color: isDisabled
-                                    ? Colors.grey[300] // สีเทาสำหรับเดือนที่เลือกไม่ได้
+                                    ? Colors.grey[300]
                                     : (isChecked ? const Color(0xFF2E5A36) : Colors.grey[200]),
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
@@ -511,7 +513,8 @@ class _WeatherPageState extends State<WeatherPage> {
     if (selectedMonths.isEmpty) return "ยังไม่ได้เลือกเดือน";
     if (selectedMonths.length == 1) {
       var item = selectedMonths.first;
-      return "เดือน ${thaiMonth(item.month)} พ.ศ. ${item.year + 543}";
+      int yearShort = (item.year + 543) % 100;
+      return "เดือน${thaiMonth(item.month)} $yearShort";
     }
     return "เฉลี่ยรวม ${selectedMonths.length} เดือนที่เลือก";
   }
