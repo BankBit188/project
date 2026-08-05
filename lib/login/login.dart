@@ -145,9 +145,9 @@ class _LoginPageState extends State<LoginPage> {
                                   );
                                 }),
                                 const SizedBox(height: 20),
-                                const Center(
-                                  child: Text("ลืมรหัสผ่าน?", style: TextStyle(color: Colors.black54, fontSize: 16)),
-                                ),
+                                // const Center(
+                                //   child: Text("ลืมรหัสผ่าน?", style: TextStyle(color: Colors.black54, fontSize: 16)),
+                                // ),
                               ],
                             ),
                           ),
