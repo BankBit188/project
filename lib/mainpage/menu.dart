@@ -259,7 +259,7 @@ class _MenuPageState extends State<MenuPage> {
                   "สามารถบันทึกข้อมูลค่าในดินแต่ละพื้นที่ได้",
                 ),
                 const SizedBox(height: 10),
-                _buildRightItem("3. ", "สามารถใช้แชตบอทได้"),
+                _buildRightItem("3. ", "สามารถใช้แชตบอตได้"),
                 const SizedBox(height: 15),
               ],
             ),
@@ -378,8 +378,15 @@ class _MenuPageState extends State<MenuPage> {
             color: const Color(0xFF6B9077),
             border: Border.all(color: Colors.white54, width: 2),
           ),
-          child: const Center(
-            child: Icon(Icons.eco, color: Colors.white, size: 35),
+          child: ClipOval(
+            child: Image.asset(
+              "assets/images/logo.png", // เปลี่ยนพาธตามตำแหน่งไฟล์จริง
+              fit: BoxFit
+                  .cover, // ปรับ BoxFit.contain หากต้องการให้เห็นโลโก้เต็มรูปโดยไม่ถูกครอบตัด
+              errorBuilder: (context, error, stackTrace) => const Center(
+                child: Icon(Icons.eco, color: Colors.white, size: 35),
+              ),
+            ),
           ),
         ),
         const SizedBox(width: 15),
