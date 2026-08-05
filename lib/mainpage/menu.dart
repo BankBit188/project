@@ -406,11 +406,9 @@ class _MenuPageState extends State<MenuPage> {
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,
         children: [
-          // การ์ดที่ 1: รูปแบนเนอร์เต็มความกว้างชิดขอบล่าง
           _buildSingleCard(
             title: "พืชปลูก",
             imagePath: "assets/images/1.png",
-            isFullWidth: true,
             onTap: () {
               Navigator.push(
                 context,
@@ -419,12 +417,9 @@ class _MenuPageState extends State<MenuPage> {
             },
           ),
           const SizedBox(width: 15),
-
-          // การ์ดที่ 2-5: รูปไอคอนกำหนดความสูง (ปรับ imageHeight เพิ่ม-ลดได้ตามต้องการ)
           _buildSingleCard(
             title: "ดิน",
             imagePath: "assets/images/2.png",
-            imageHeight: 75,
             onTap: () {
               Navigator.push(
                 context,
@@ -436,7 +431,6 @@ class _MenuPageState extends State<MenuPage> {
           _buildSingleCard(
             title: "การปรับสภาพดิน",
             imagePath: "assets/images/3.png",
-            imageHeight: 70,
             onTap: () {
               Navigator.push(
                 context,
@@ -448,7 +442,6 @@ class _MenuPageState extends State<MenuPage> {
           _buildSingleCard(
             title: "แนะนำพืชปลูกตามประเภทของดิน",
             imagePath: "assets/images/4.png",
-            imageHeight: 75,
             onTap: () {
               Navigator.push(
                 context,
@@ -460,7 +453,6 @@ class _MenuPageState extends State<MenuPage> {
           _buildSingleCard(
             title: "แนะนำพืชปลูกตามปริมาณธาตุอาหารในดิน",
             imagePath: "assets/images/5.png",
-            imageHeight: 75,
             onTap: () {
               Navigator.push(
                 context,
@@ -474,60 +466,72 @@ class _MenuPageState extends State<MenuPage> {
   }
 
   Widget _buildSingleCard({
-  required String title,
-  required String imagePath,
-  required VoidCallback onTap,
-  bool isFullWidth = false,
-  double imageHeight = 75,
-}) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: 280,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2EDB4),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black87, width: 1.5),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14.5),
-        child: Stack(
-          children: [
-            // 📌 1. ข้อความชื่อเรื่อง
-            Positioned(
-              top: 18,
-              left: 20,
-              right: 20,
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // 📌 2. จัดวางรูปภาพตรงกลางขอบล่าง
-            Positioned(
-              bottom: isFullWidth ? 0 : 10,
-              left: 0,  // ขยายเต็มความกว้างซ้าย-ขวา
-              right: 0,
-              child: Image.asset(
-                imagePath,
-                height: isFullWidth ? null : imageHeight,
-                fit: isFullWidth ? BoxFit.fitWidth : BoxFit.contain,
-                alignment: Alignment.bottomCenter, // จัดตำแหน่งรูปให้อยู่ตรงกลาง
-                errorBuilder: (context, error, stackTrace) => const SizedBox(),
-              ),
-            ),
-          ],
+    required String title,
+    required String imagePath,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 280,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF2EDB4),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black87, width: 1.5),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14.5),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // คำนวณความสูงรูปภาพให้อยู่ในสัดส่วนประมาณ 52% ของการ์ด
+              final double responsiveImgHeight = constraints.maxHeight * 0.52;
+
+              return Stack(
+                children: [
+                  // 📌 1. ข้อความชื่อเรื่อง
+                  Positioned(
+                    top: constraints.maxHeight * 0.12,
+                    left: 20,
+                    right: 20,
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: (constraints.maxHeight * 0.13).clamp(
+                          16.0,
+                          20.0,
+                        ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // 📌 2. จัดวางรูปภาพตรงกลางขอบล่างทุกรูป
+                  Positioned(
+                    bottom: 6,
+                    left: 12,
+                    right: 12,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Image.asset(
+                        imagePath,
+                        height: responsiveImgHeight,
+                        fit: BoxFit.contain,
+                        alignment: Alignment.bottomCenter,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const SizedBox(),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildDotsIndicator() {
     return Row(

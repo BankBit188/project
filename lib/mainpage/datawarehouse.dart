@@ -22,6 +22,10 @@ class _DataWarehousePageState extends State<DataWarehousePage> {
   
   @override
   Widget build(BuildContext context) {
+    // 📌 คำนวณความสูงการ์ดให้ Responsive ตามขนาดหน้าจอ
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double cardHeight = (screenHeight * 0.16).clamp(130.0, 160.0);
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -41,7 +45,7 @@ class _DataWarehousePageState extends State<DataWarehousePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Padding(
-                padding: EdgeInsets.fromLTRB(25, 30, 25, 20),
+                padding: EdgeInsets.fromLTRB(25, 25, 25, 15),
                 child: Text(
                   "คลังข้อมูล",
                   style: TextStyle(
@@ -57,65 +61,65 @@ class _DataWarehousePageState extends State<DataWarehousePage> {
                   padding: const EdgeInsets.symmetric(horizontal: 25),
                   physics: const BouncingScrollPhysics(),
                   children: [
-                    // 🔹 พืชปลูก (รูปแบนเนอร์แนวยาว 1.png)
+                    // 🔹 พืชปลูก (1.png - จัดอยู่ตรงกลาง)
                     _buildDataCard(
                       title: "พืชปลูก",
                       imagePath: "assets/images/1.png",
-                      isFullWidth: true,
+                      cardHeight: cardHeight,
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const PlantsPage()),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     
                     // 🔹 ดิน (2.png)
                     _buildDataCard(
                       title: "ดิน",
                       imagePath: "assets/images/2.png",
-                      imageHeight: 75,
+                      cardHeight: cardHeight,
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const EarthPage()),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     
                     // 🔹 การปรับสภาพดิน (3.png)
                     _buildDataCard(
                       title: "การปรับสภาพดิน",
                       imagePath: "assets/images/3.png",
-                      imageHeight: 70,
+                      cardHeight: cardHeight,
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const AdjustPage()),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     
                     // 🔹 แนะนำพืชปลูกตามประเภทของดิน (4.png)
                     _buildDataCard(
                       title: "แนะนำพืชปลูกตามประเภทของดิน",
                       imagePath: "assets/images/4.png",
-                      imageHeight: 75,
+                      cardHeight: cardHeight,
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const EarthTypePage()),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     
                     // 🔹 แนะนำพืชปลูกตามปริมาณธาตุอาหาร (5.png)
                     _buildDataCard(
                       title: "แนะนำพืชปลูกตามปริมาณธาตุอาหาร",
                       imagePath: "assets/images/5.png",
-                      imageHeight: 75,
+                      cardHeight: cardHeight,
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const SoilPage()),
                       ),
                     ),
-                    const SizedBox(height: 30), 
+                    const SizedBox(height: 25), 
                   ],
                 ),
               ),
@@ -129,18 +133,17 @@ class _DataWarehousePageState extends State<DataWarehousePage> {
     );
   }
 
-  // 🔹 ฟังก์ชันสร้างการ์ดคลังข้อมูล (รูปแบบเดียวกับหน้า MenuPage)
+  // 🔹 ฟังก์ชันสร้างการ์ดคลังข้อมูลแบบ Responsive และรูปอยู่ตรงกลางทุกรูป
   Widget _buildDataCard({
     required String title,
     required String imagePath,
     required VoidCallback onTap,
-    bool isFullWidth = false,
-    double imageHeight = 75,
+    required double cardHeight,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 140,
+        height: cardHeight,
         width: double.infinity,
         decoration: BoxDecoration(
           color: const Color(0xFFF2EDB4),
@@ -149,38 +152,49 @@ class _DataWarehousePageState extends State<DataWarehousePage> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(14.5),
-          child: Stack(
-            children: [
-              // 📌 1. ข้อความหัวเรื่อง
-              Positioned(
-                top: 18,
-                left: 20,
-                right: 20,
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // คำนวณความสูงรูปให้อยู่ในสัดส่วน 50% ของตัวการ์ดเสมอ
+              final double responsiveImgHeight = constraints.maxHeight * 0.52;
+
+              return Stack(
+                children: [
+                  // 📌 1. ข้อความชื่อเรื่อง
+                  Positioned(
+                    top: constraints.maxHeight * 0.12,
+                    left: 20,
+                    right: 20,
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: (constraints.maxHeight * 0.14).clamp(16.0, 20.0),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              // 📌 2. รูปภาพประกอบตรงกลางขอบล่าง
-              Positioned(
-                bottom: isFullWidth ? 0 : 10,
-                left: 0,
-                right: 0,
-                child: Image.asset(
-                  imagePath,
-                  height: isFullWidth ? null : imageHeight,
-                  fit: isFullWidth ? BoxFit.fitWidth : BoxFit.contain,
-                  alignment: Alignment.bottomCenter,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox(),
-                ),
-              ),
-            ],
+
+                  // 📌 2. รูปภาพประกอบแนบขอบล่างและจัดอยู่ตรงกลางแนวนอนทุกรูป
+                  Positioned(
+                    bottom: 6,
+                    left: 12,
+                    right: 12,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Image.asset(
+                        imagePath,
+                        height: responsiveImgHeight,
+                        fit: BoxFit.contain, // รักษาสัดส่วนภาพไม่ให้เบี้ยว
+                        alignment: Alignment.bottomCenter,
+                        errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
