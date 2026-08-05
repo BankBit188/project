@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // 📍 เพิ่มเพื่อใช้ kIsWeb ตรวจสอบการรันบน Web
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
@@ -44,7 +45,7 @@ class _WeatherPageState extends State<WeatherPage> {
   String weatherCondition = "";
   String currentDate = "";
   List<Map<String, dynamic>> hourlyForecast = [];
-  List<Map<String, dynamic>> dailyForecast = []; // พยากรณ์ 5 วัน
+  List<Map<String, dynamic>> dailyForecast = [];
   
   bool isLoading = true;
   bool isRecommending = false;
@@ -55,14 +56,12 @@ class _WeatherPageState extends State<WeatherPage> {
   String locationName = "ตำบลบ้านดู่ อำเภอเมืองเชียงราย จังหวัดเชียงราย";
   bool isGpsLocation = false; 
 
-  // 🗓️ คำนวณเดือนย้อนหลัง 1 เดือนของปีปัจจุบันให้อัตโนมัติเป็นค่าเริ่มต้น
   static MonthYear _getPreviousMonthInitial() {
     final now = DateTime.now();
     final prevDate = DateTime(now.year, now.month - 1);
     return MonthYear(prevDate.year, prevDate.month);
   }
 
-  // 🗓️ รายการเดือน/ปีที่เลือกคำนวณค่าเฉลี่ย
   List<MonthYear> selectedMonths = [_getPreviousMonthInitial()];
   double? monthAvgTemp;
   double? monthAvgHumidity;
@@ -85,6 +84,7 @@ class _WeatherPageState extends State<WeatherPage> {
     }
   }
 
+  // 📍 ปรับปรุงการดึง GPS ให้รองรับทั้ง Mobile และ Web
   Future<void> _determinePositionAndFetchWeather() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -102,10 +102,17 @@ class _WeatherPageState extends State<WeatherPage> {
 
         if (permission == LocationPermission.whileInUse ||
             permission == LocationPermission.always) {
-          Position? position = await Geolocator.getLastKnownPosition();
+          Position? position;
+
+          // 🌐 ข้ามการดึง LastKnownPosition บน Web เพราะไม่รองรับ
+          if (!kIsWeb) {
+            position = await Geolocator.getLastKnownPosition();
+          }
+
+          // ดึงตำแหน่งปัจจุบัน และขยาย Timeout เป็น 15 วินาทีสำหรับ Web
           position ??= await Geolocator.getCurrentPosition(
             desiredAccuracy: LocationAccuracy.medium,
-          ).timeout(const Duration(seconds: 8));
+          ).timeout(const Duration(seconds: 15));
 
           lat = position.latitude;
           lon = position.longitude;
@@ -128,6 +135,7 @@ class _WeatherPageState extends State<WeatherPage> {
     await fetchMultiMonthAverage(lat, lon, selectedMonths);
   }
 
+  // 📍 ปรับแก้ Header ไม่ให้บล็อกการทำงานบน Web
   Future<void> _fetchLocationName(double lat, double lon, bool isGps) async {
     if (!isGps) {
       setState(() {
@@ -140,7 +148,10 @@ class _WeatherPageState extends State<WeatherPage> {
       final url = Uri.parse(
         'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json&accept-language=th',
       );
-      final response = await http.get(url, headers: {'User-Agent': 'FlutterWeatherApp'});
+      
+      // Web Browser ไม่อนุญาตให้กำหนด User-Agent Custom Header
+      final headers = kIsWeb ? <String, String>{} : {'User-Agent': 'FlutterWeatherApp'};
+      final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -256,7 +267,6 @@ class _WeatherPageState extends State<WeatherPage> {
     }
   }
 
-  // 📊 คำนวณค่าเฉลี่ยรวมจากหลายเดือนที่เลือก
   Future<void> fetchMultiMonthAverage(double lat, double lon, List<MonthYear> items) async {
     if (items.isEmpty) return;
 
@@ -318,7 +328,6 @@ class _WeatherPageState extends State<WeatherPage> {
     });
   }
 
-  // 🗓️ ป๊อบอัพเลือกปีและหลายเดือน
   void _showMonthSelectionDialog() {
     DateTime now = DateTime.now();
     int currentYear = now.year;
@@ -578,7 +587,6 @@ class _WeatherPageState extends State<WeatherPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -620,7 +628,6 @@ class _WeatherPageState extends State<WeatherPage> {
                         ),
                         const SizedBox(height: 20),
 
-                        // วันนี้
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -645,7 +652,6 @@ class _WeatherPageState extends State<WeatherPage> {
                         ),
                         const SizedBox(height: 25),
 
-                        // Hourly
                         SizedBox(
                           height: 120,
                           child: ListView.builder(
@@ -677,7 +683,6 @@ class _WeatherPageState extends State<WeatherPage> {
                         ),
                         const SizedBox(height: 25),
 
-                        // Cards
                         Row(
                           children: [
                             Expanded(child: _buildDetailCard(icon: Icons.water_drop, title: "ความชื้น", value: "$currentHumidity%")),
@@ -687,7 +692,6 @@ class _WeatherPageState extends State<WeatherPage> {
                         ),
                         const SizedBox(height: 20),
 
-                        // ปุ่มแนะนำพืชตามเวลาปัจจุบัน
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -709,7 +713,6 @@ class _WeatherPageState extends State<WeatherPage> {
                         ),
                         const SizedBox(height: 30),
 
-                        // พยากรณ์ 5 วัน
                         const Text("พยากรณ์อากาศ 5 วันข้างหน้า", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                         const SizedBox(height: 12),
                         Container(
@@ -759,7 +762,6 @@ class _WeatherPageState extends State<WeatherPage> {
                         ),
                         const SizedBox(height: 30),
 
-                        // 🗓️ การ์ดแสดงค่าเฉลี่ยตามเดือน/ปีที่เลือก
                         Container(
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
@@ -830,7 +832,6 @@ class _WeatherPageState extends State<WeatherPage> {
                                     ),
                               const SizedBox(height: 15),
 
-                              // ปุ่มแนะนำพืชตามค่าเฉลี่ย
                               SizedBox(
                                 width: double.infinity,
                                 height: 45,
