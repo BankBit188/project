@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:project/login/login.dart';
-// 🟩 1. Import UserService เข้ามาใช้งาน
 import 'package:project/service/user_service.dart'; 
 
 class RegisterPage extends StatefulWidget {
@@ -17,20 +16,16 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
-  // 🟩 2. เพิ่ม Controllers สำหรับดึงข้อมูลจากช่องกรอก
   final TextEditingController _toolNumberController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
-  // ตัวแปรเช็กสถานะว่าตรวจสอบหมายเลขอุปกรณ์ผ่านหรือยัง
   bool _isToolVerified = false;
 
-  // ---------- ตัวแปรสำหรับจัดการข้อมูลที่อยู่ ----------
-  List<dynamic> _allProvinces = []; // เก็บข้อมูล JSON ทั้งหมด
+  List<dynamic> _allProvinces = [];
   
-  // ลิสต์ตัวเลือกที่ผ่านการกรองแล้ว
   List<Map<String, dynamic>> _regions = [
     {'id': 1, 'name': 'ภาคเหนือ'},
     {'id': 2, 'name': 'ภาคกลาง'},
@@ -51,10 +46,9 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
-    _loadAddressData(); // โหลดข้อมูลตอนเปิดหน้า
+    _loadAddressData();
   }
 
-  // 🟩 ปิดการทำงานของ Controllers เมื่อย้ายหน้าเพื่อประหยัด RAM
   @override
   void dispose() {
     _toolNumberController.dispose();
@@ -65,7 +59,6 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  // ฟังก์ชันโหลดและแปลงไฟล์ JSON
   Future<void> _loadAddressData() async {
     try {
       String jsonString = await rootBundle.loadString('assets/data/thailand_data.json');
@@ -77,7 +70,6 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // 🟩 3. ฟังก์ชันตรวจสอบหมายเลขอุปกรณ์ (ปรับปรุงเพื่อแสดง Alert และเปลี่ยนไอคอนปุ่ม)
   void _checkToolNumber() async {
     String inputToolNumber = _toolNumberController.text.trim();
 
@@ -87,12 +79,10 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     try {
-      // เรียกใช้ฟังก์ชันดึงข้อมูลรหัสเครื่องมือจากระบบหลังบ้าน
       final response = await UserService.gettoolnumber();
 
       bool isExist = false;
       if (response is List) {
-        // วนลูปเช็กว่าข้อมูลที่กรอก ตรงกับค่าในคีย์ใดคีย์หนึ่งของฐานข้อมูลไหม
         isExist = response.any((item) =>
             item['Toolnumber_id']?.toString() == inputToolNumber);
       }
@@ -111,7 +101,6 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // ฟังก์ชันหน้าต่างแจ้งเตือน Alert Dialog
   void _showAlertDialog(String title, String message, {bool isWarning = true}) {
     showDialog(
       context: context,
@@ -141,9 +130,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // 🟩 4. ฟังก์ชันส่งข้อมูลสมัครสมาชิก (ปุ่ม ลงทะเบียนอุปกรณ์)
   void _handleRegister() async {
-    // 1. ตรวจสอบว่ากรอกข้อความครบทุกช่องหรือยัง (หากว่างอยู่ให้เปิด Alert ทันที)
     if (_toolNumberController.text.trim().isEmpty) {
       _showAlertDialog("กรอกข้อมูลไม่ครบ", "กรุณากรอก หมายเลขอุปกรณ์");
       return;
@@ -181,56 +168,47 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    // 2. เช็กระบบความปลอดภัยว่าผ่านการตรวจสอบหมายเลขอุปกรณ์หรือยัง
     if (!_isToolVerified) {
       _showAlertDialog("ยังไม่ได้ตรวจสอบอุปกรณ์", "กรุณากดปุ่มตรวจสอบหมายเลขอุปกรณ์ให้ถูกต้องก่อนลงทะเบียน");
       return;
     }
 
-    // 3. เช็กว่ารหัสผ่านและยืนยันรหัสผ่านกรอกตรงกันไหม
     if (_passwordController.text != _confirmPasswordController.text) {
       _showAlertDialog("รหัสผ่านไม่ตรงกัน", "รหัสผ่าน และ ยืนยันรหัสผ่าน ของคุณไม่ตรงกัน กรุณาตรวจสอบอีกครั้ง");
       return;
     }
 
-    // 4. เมื่อผ่านเงื่อนไขครบหมดแล้ว ทำการยิง API สมัครสมาชิก
     try {
-      // ตัดคำว่า "ภาค" ออกให้เหลือแต่ชื่อ เช่น "เหนือ", "กลาง"
       String? formattedRegion = _selectedRegionName?.replaceAll('ภาค', '');
 
-      // เรียกใช้งาน UserService ส่งข้อมูลไปบันทึก
       final result = await UserService.createUser(
         username: _usernameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
         region: formattedRegion,
         province: _selectedProvinceName,
-        district: _selectedAmphureName, // อำเภอ
-        amphur: _selectedTambonName,    // ตำบล
+        district: _selectedAmphureName,
+        amphur: _selectedTambonName,
         toolNumberId: _toolNumberController.text.trim(),
       );
 
       _showSnackBar(result['message'] ?? 'สมัครสมาชิกสำเร็จ!', Colors.green);
 
-      // ย้ายหน้ากลับไปที่หน้าล็อกอิน
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const LoginPage()),
       );
     } catch (e) {
-      // ดักจับ Error จาก Laravel หรือ Error Network แล้วโชว์ผ่าน SnackBar สีแดง
       _showSnackBar(e.toString().replaceAll('Exception: ', ''), Colors.red);
     }
   }
 
-  // ฟังก์ชันทางลัดสำหรับเรียกเปิด SnackBar แจ้งเตือน
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: color),
     );
   }
 
-  // ---------- Logic การเลือก Dropdown ----------
   void _onRegionChanged(String? regionName) {
     setState(() {
       _selectedRegionName = regionName;
@@ -326,11 +304,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   children: [
                     Expanded(child: _buildTextField("หมายเลขอุปกรณ์", _toolNumberController)),
                     const SizedBox(width: 10),
-                    // 🟩 ปรับเปลี่ยนดีไซน์ปุ่มตรวจสอบตรงนี้ตามสถานะ _isToolVerified
                     GestureDetector(
                       onTap: _checkToolNumber, 
                       child: Container(
-                        height: 50,
+                        height: 55,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         decoration: BoxDecoration(
                           color: _isToolVerified ? Colors.green : const Color(0xFFF3ECE1),
@@ -338,7 +315,6 @@ class _RegisterPageState extends State<RegisterPage> {
                           border: Border.all(color: _isToolVerified ? Colors.green : Colors.black54),
                         ),
                         child: Center(
-                          // เปลี่ยนข้อความเป็นเครื่องหมายเช็คถูกเมื่อผ่านการตรวจ
                           child: _isToolVerified 
                               ? const Icon(Icons.check, color: Colors.white, size: 24)
                               : const Text("ตรวจสอบ", style: TextStyle(fontSize: 14)),
@@ -441,24 +417,27 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // 📍 เพิ่ม labelText ในช่องกรอกทั่วไป
   Widget _buildTextField(String hint, TextEditingController controller) {
     return Container(
-      height: 50,
+      height: 55,
       decoration: BoxDecoration(
         color: const Color(0xFFF3ECE1),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: TextField(
         controller: controller, 
         decoration: InputDecoration(
+          labelText: hint, // 👈 แสดง label เดียวกันกับ hint
           hintText: hint,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
         ),
       ),
     );
   }
 
+  // 📍 ปรับเปลี่ยน Dropdown เป็น DropdownButtonFormField เพื่อใส่ labelText ได้
   Widget _buildDynamicDropdown({
     required String hint,
     required String? value, 
@@ -468,30 +447,34 @@ class _RegisterPageState extends State<RegisterPage> {
     String valueKey = 'name_th', 
   }) {
     return Container(
-      height: 50,
+      height: 55,
       decoration: BoxDecoration(
         color: const Color(0xFFF3ECE1),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(20),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>( 
-          isExpanded: true,
-          hint: Text(hint),
-          value: value,
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-          items: items.map<DropdownMenuItem<String>>((dynamic item) {
-            return DropdownMenuItem<String>(
-              value: item[valueKey]?.toString(), 
-              child: Text(item[displayKey]?.toString() ?? ''),
-            );
-          }).toList(),
-          onChanged: onChanged,
+      child: DropdownButtonFormField<String>( 
+        isExpanded: true,
+        value: value,
+        decoration: InputDecoration(
+          labelText: hint, // 👈 แสดง label เดียวกันกับ hint
+          hintText: hint,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 4),
         ),
+        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+        items: items.map<DropdownMenuItem<String>>((dynamic item) {
+          return DropdownMenuItem<String>(
+            value: item[valueKey]?.toString(), 
+            child: Text(item[displayKey]?.toString() ?? ''),
+          );
+        }).toList(),
+        onChanged: onChanged,
       ),
     );
   }
 
+  // 📍 เพิ่ม labelText ในช่องรหัสผ่าน
   Widget _buildPasswordField({
     required String hint,
     required TextEditingController controller, 
@@ -499,18 +482,19 @@ class _RegisterPageState extends State<RegisterPage> {
     required VoidCallback onToggle,
   }) {
     return Container(
-      height: 50,
+      height: 55,
       decoration: BoxDecoration(
         color: const Color(0xFFF3ECE1),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: TextField(
         controller: controller,
         obscureText: isObscure,
         decoration: InputDecoration(
+          labelText: hint, // 👈 แสดง label เดียวกันกับ hint
           hintText: hint,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
           suffixIcon: IconButton(
             icon: Icon(
               isObscure ? Icons.visibility_off : Icons.visibility,
