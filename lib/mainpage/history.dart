@@ -81,21 +81,50 @@ class _HistoryPageState extends State<HistoryPage> {
           final province = (item['province'] ?? '').toString().toLowerCase();
           final amphur = (item['Amphur'] ?? '').toString().toLowerCase();
           final district = (item['district'] ?? '').toString().toLowerCase();
+          final region = (item['Region'] ?? '').toString().toLowerCase();
 
           return title.contains(searchLower) ||
               province.contains(searchLower) ||
               amphur.contains(searchLower) ||
-              district.contains(searchLower);
+              district.contains(searchLower) ||
+              region.contains(searchLower);
         }).toList();
       });
     }
   }
 
-  // 🔹 3. แปลงวันที่ (ปรับให้เป็นชื่อเดือนเต็มแบบรูปที่ 1 และ 2 เช่น 15มกราคม)
-  String _formatDate(String? dateTimeStr) {
-    if (dateTimeStr == null || dateTimeStr.isEmpty) return "-";
+  // 🔹 3. แปลงวันที่และเวลาเป็น Timezone ไทย (UTC+7) และจัดฟอร์แมต: "วัน เดือน ปี(พ.ศ.) เวลา"
+  String _formatDateTime(dynamic dateTimeVal) {
+    if (dateTimeVal == null || dateTimeVal.toString().isEmpty) return "-";
+
     try {
-      DateTime dt = DateTime.parse(dateTimeStr);
+      DateTime dt;
+      String valStr = dateTimeVal.toString().trim();
+
+      // เช็กว่าเป็น Unix Timestamp (ตัวเลขล้วน) หรือไม่
+      if (RegExp(r'^\d+$').hasMatch(valStr)) {
+        int timestamp = int.parse(valStr);
+        // หากเป็น timestamp วินาที (10 หลัก) ให้คูณ 1000 เป็นมิลลิวินาที
+        if (valStr.length == 10) {
+          timestamp *= 1000;
+        }
+        // สร้าง DateTime จาก UTC แล้วบวก 7 ชั่วโมงเพื่อแปลงเป็นเวลาประเทศไทย (UTC+7)
+        dt = DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true)
+            .add(const Duration(hours: 7));
+      } else {
+        // กรณีเป็น String (ISO Date / SQL Timestamp)
+        DateTime parsed = DateTime.parse(valStr);
+        if (!parsed.isUtc && !valStr.contains('Z') && !valStr.contains('+')) {
+          // หาก Server ส่ง String เวลา UTC แบบไม่มีตัวอักษร Z ให้ระบุ Z ต่อท้ายก่อนแปลง
+          dt = DateTime.parse("${valStr.replaceAll(' ', 'T')}Z")
+              .toUtc()
+              .add(const Duration(hours: 7));
+        } else {
+          // หากมี Zone ติดมาแล้ว ให้แปลงเป็น UTC และปรับเป็นเวลาไทย +7 ชั่วโมง
+          dt = parsed.toUtc().add(const Duration(hours: 7));
+        }
+      }
+
       List<String> thaiMonths = [
         "มกราคม",
         "กุมภาพันธ์",
@@ -110,32 +139,21 @@ class _HistoryPageState extends State<HistoryPage> {
         "พฤศจิกายน",
         "ธันวาคม",
       ];
-      return "${dt.day}${thaiMonths[dt.month - 1]}";
-    } catch (_) {
-      return dateTimeStr;
-    }
-  }
 
-  // 🔹 4. แปลงเวลา (เช่น 12.00)
-  String _formatTime(String? dateTimeStr) {
-    if (dateTimeStr == null || dateTimeStr.isEmpty) return "-";
-    try {
-      DateTime dt = DateTime.parse(dateTimeStr);
+      int thaiYear = dt.year + 543; // แปลง ค.ศ. เป็น พ.ศ.
       String hour = dt.hour.toString().padLeft(2, '0');
       String minute = dt.minute.toString().padLeft(2, '0');
-      return "$hour.$minute";
+
+      return "${dt.day} ${thaiMonths[dt.month - 1]} $thaiYear $hour.$minute";
     } catch (_) {
-      return dateTimeStr;
+      return dateTimeVal.toString();
     }
   }
 
-  // 🔹 5. ฟังก์ชันเปิด Modal แสดงข้อมูลแบบเต็ม (ตามรูปที่ 2)
-  // 🔹 5. ฟังก์ชันเปิด Modal แสดงข้อมูลแบบเต็ม (ปรับแก้ล้นขอบเรียบร้อย)
+  // 🔹 4. ฟังก์ชันเปิด Modal แสดงข้อมูลแบบเต็ม
   void _showDetailModal(Map<String, dynamic> item) {
     final String gardenName = item['title'] ?? 'ไม่ระบุชื่อ';
-    final String createdAt = item['created_at'] ?? '';
-    final String dateStr = _formatDate(createdAt);
-    final String timeStr = _formatTime(createdAt);
+    final String dateTimeStr = _formatDateTime(item['created_at']);
 
     final n = item['N'] ?? 0;
     final p = item['P'] ?? 0;
@@ -151,12 +169,12 @@ class _HistoryPageState extends State<HistoryPage> {
     final province = item['province'] ?? '-';
     final amphur = item['Amphur'] ?? '-';
     final district = item['district'] ?? '-';
+    final region = item['Region'] ?? '-';
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          // 🟢 1. ขยายขนาด Modal ให้กว้างขึ้นชิดขอบซ้าย-ขวามากขึ้น
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 18,
             vertical: 24,
@@ -206,17 +224,20 @@ class _HistoryPageState extends State<HistoryPage> {
                   ),
                   const SizedBox(height: 10),
 
-                  // วันที่ และ เวลา
+                  // วันที่ และ เวลา แบบ "วัน เดือน ปี เวลา"
                   Row(
                     children: [
                       const Icon(Icons.history, size: 24, color: Colors.black),
                       const SizedBox(width: 8),
-                      Text(
-                        "$dateStr    $timeStr",
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                      Expanded(
+                        child: Text(
+                          dateTimeStr,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -311,7 +332,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 🟢 2. แยก "ความชื้น" และ "pH" ออกจากกันคนละแถว
+                  // แยก "ความชื้น" และ "pH" ออกจากกันคนละแถว
                   Row(
                     children: [
                       const Icon(
@@ -407,6 +428,11 @@ class _HistoryPageState extends State<HistoryPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(
+                          "ภาค: $region",
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 4),
                         Text(
                           "ตำบล: $district",
                           style: const TextStyle(fontSize: 16),
@@ -560,25 +586,23 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  // 🔹 6. ฟังก์ชันสร้างการ์ดพรีวิวแบบย่อ (ตามรูปที่ 1)
+  // 🔹 5. ฟังก์ชันสร้างการ์ดพรีวิวแบบย่อ
   Widget _buildHistoryCard(Map<String, dynamic> item) {
     final String gardenName = item['title'] ?? 'ไม่ระบุชื่อ';
-    final String createdAt = item['created_at'] ?? '';
-    final String dateStr = _formatDate(createdAt);
-    final String timeStr = _formatTime(createdAt);
+    final String dateTimeStr = _formatDateTime(item['created_at']);
 
     final n = item['N'] ?? 0;
     final p = item['P'] ?? 0;
     final k = item['K'] ?? 0;
 
     return InkWell(
-      onTap: () => _showDetailModal(item), // กดเพื่อเปิด Modal รูปที่ 2
+      onTap: () => _showDetailModal(item),
       borderRadius: BorderRadius.circular(20),
       child: Container(
         margin: const EdgeInsets.only(bottom: 18),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF5D6), // สีครีมสว่างตามรูปที่ 1
+          color: const Color(0xFFFFF5D6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.black87, width: 1),
         ),
@@ -600,8 +624,8 @@ class _HistoryPageState extends State<HistoryPage> {
                   ),
                 ),
                 Text(
-                  "$dateStr   $timeStr",
-                  style: const TextStyle(fontSize: 16, color: Colors.black87),
+                  dateTimeStr,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
                 ),
               ],
             ),

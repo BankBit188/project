@@ -77,15 +77,19 @@ class ToolService {
     required String province,
     required String district,
     required String Amphur,
+    required String region,
+
     Map<String, dynamic>? toolData,
     String? token, // สามารถส่ง token มาเพิ่ม หรือปล่อยว่างให้ดึงจาก Storage เองได้
   }) async {
     final Map<String, dynamic> requestBody = {
       'Userid': userId,
       'title': title,
+      'Region': region,
       'province': province,
       'Amphur': Amphur,
       'district': district,
+      
       if (toolData != null) ...toolData,
     };
 

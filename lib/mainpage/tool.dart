@@ -148,7 +148,6 @@ class _ToolPageState extends State<ToolPage> {
     return [];
   }
 
-  // 🟩 ฟังก์ชันเรียกใช้งาน PlantRecommendationHelper
   // 🟩 ฟังก์ชันเรียกใช้งาน PlantRecommendationHelper พร้อมแสดงสถานะกำลังประมวลผล
   Future<void> _recommendPlants() async {
     if (_toolData == null) {
@@ -160,7 +159,6 @@ class _ToolPageState extends State<ToolPage> {
       return;
     }
 
-    // 1. แสดง Dialog หมุนๆ โหลดข้อมูลทันทีที่ผู้ใช้กดปุ่ม
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -169,15 +167,12 @@ class _ToolPageState extends State<ToolPage> {
       ),
     );
 
-    // 2. หน่วงเวลาเล็กน้อย (100ms) ให้ UI วาดตัวหมุนๆ ขึ้นจอก่อนเริ่มคำนวณ
     await Future.delayed(const Duration(milliseconds: 100));
 
     if (!mounted) return;
 
-    // 3. ปิด Dialog หมุนๆ ออกเมื่อเตรียมพร้อมเปิด BottomSheet
     Navigator.pop(context);
 
-    // 4. คำนวณและแสดงผลพืชที่เหมาะสม
     PlantRecommendationHelper.showRecommendations(
       context: context,
       customTitle: "พืชปลูกที่เหมาะสมกับสภาพดินปัจจุบัน",
@@ -198,10 +193,21 @@ class _ToolPageState extends State<ToolPage> {
   void _showSaveLocationDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
 
+    final List<Map<String, dynamic>> regions = [
+      {'id': 1, 'name': 'ภาคเหนือ'},
+      {'id': 2, 'name': 'ภาคกลาง'},
+      {'id': 3, 'name': 'ภาคตะวันออกเฉียงเหนือ'},
+      {'id': 4, 'name': 'ภาคตะวันตก'},
+      {'id': 5, 'name': 'ภาคตะวันออก'},
+      {'id': 6, 'name': 'ภาคใต้'},
+    ];
+
+    String? selectedRegion;
     String? selectedProvince;
     String? selectedAmphur;
     String? selectedDistrict;
 
+    List<dynamic> provinceList = [];
     List<dynamic> amphurList = [];
     List<dynamic> districtList = [];
 
@@ -252,6 +258,59 @@ class _ToolPageState extends State<ToolPage> {
                     ),
                     const SizedBox(height: 12),
 
+                    // 🟢 เพิ่ม Dropdown เลือกภาค
+                    _buildLocationInputRow(
+                      label: "ภาค :",
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedRegion,
+                          hint: const Text(
+                            "เลือกภาค",
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          isExpanded: true,
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down,
+                            color: Colors.black,
+                          ),
+                          items: regions.map<DropdownMenuItem<String>>((
+                            reg,
+                          ) {
+                            return DropdownMenuItem<String>(
+                              value: reg['name'].toString(),
+                              child: Text(
+                                reg['name'].toString(),
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setDialogState(() {
+                              selectedRegion = val;
+                              selectedProvince = null;
+                              selectedAmphur = null;
+                              selectedDistrict = null;
+                              amphurList = [];
+                              districtList = [];
+
+                              var regObj = regions.firstWhere(
+                                (r) => r['name'] == val,
+                                orElse: () => {},
+                              );
+                              if (regObj.isNotEmpty) {
+                                provinceList = _thailandData
+                                    .where((p) => p['geography_id'] == regObj['id'])
+                                    .toList();
+                              } else {
+                                provinceList = [];
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
                     _buildLocationInputRow(
                       label: "จังหวัด :",
                       child: DropdownButtonHideUnderline(
@@ -266,7 +325,7 @@ class _ToolPageState extends State<ToolPage> {
                             Icons.keyboard_arrow_down,
                             color: Colors.black,
                           ),
-                          items: _thailandData.map<DropdownMenuItem<String>>((
+                          items: provinceList.map<DropdownMenuItem<String>>((
                             prov,
                           ) {
                             String name = _getName(prov);
@@ -285,7 +344,7 @@ class _ToolPageState extends State<ToolPage> {
                               selectedDistrict = null;
                               districtList = [];
 
-                              var provObj = _thailandData.firstWhere(
+                              var provObj = provinceList.firstWhere(
                                 (element) => _getName(element) == val,
                                 orElse: () => null,
                               );
@@ -399,6 +458,7 @@ class _ToolPageState extends State<ToolPage> {
                             }
 
                             if (titleController.text.trim().isEmpty ||
+                                selectedRegion == null ||
                                 selectedProvince == null ||
                                 selectedAmphur == null ||
                                 selectedDistrict == null) {
@@ -421,10 +481,14 @@ class _ToolPageState extends State<ToolPage> {
                             );
 
                             try {
+                              // 🟢 ตัดคำว่า "ภาค" ออกก่อนส่ง
+                              String formattedRegion = selectedRegion!.replaceAll('ภาค', '');
+
                               await ToolService.createhistory(
                                 userId: _userId!,
                                 token: _authToken!,
                                 title: titleController.text.trim(),
+                                region: formattedRegion,
                                 province: selectedProvince!,
                                 Amphur: selectedAmphur!,
                                 district: selectedDistrict!,
@@ -844,7 +908,7 @@ class _ToolPageState extends State<ToolPage> {
                           ),
                           Expanded(
                             child: Container(
-                              height: 40, // 🟢 ปรับความสูงเพิ่มขึ้นเล็กน้อยให้พอดีกับ Cursor
+                              height: 40,
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(10),
@@ -852,14 +916,14 @@ class _ToolPageState extends State<ToolPage> {
                               ),
                               child: TextField(
                                 controller: titleController,
-                                textAlignVertical: TextAlignVertical.center, // 🟢 จัด Cursor และข้อความให้อยู่กลางแนวตั้ง
+                                textAlignVertical: TextAlignVertical.center,
                                 style: const TextStyle(fontSize: 14),
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
-                                  isDense: true, // 🟢 เปิดใช้งานกระชับพื้นที่
+                                  isDense: true,
                                   contentPadding: EdgeInsets.symmetric(
                                     horizontal: 10,
-                                    vertical: 8, // 🟢 ลดระยะขอบแนวตั้งลงเพื่อไม่ให้ดัน Cursor ตกขอบ
+                                    vertical: 8,
                                   ),
                                 ),
                               ),
@@ -887,7 +951,7 @@ class _ToolPageState extends State<ToolPage> {
                           controller: detailController,
                           maxLines: null,
                           expands: true,
-                          textAlignVertical: TextAlignVertical.top, // 🟢 ให้เริ่มพิมพ์จากด้านบนสุดของช่องรายละเอียด
+                          textAlignVertical: TextAlignVertical.top,
                           style: const TextStyle(fontSize: 14),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
