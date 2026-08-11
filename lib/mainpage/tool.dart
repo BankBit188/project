@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io'; // 🔹 เพิ่ม import สำหรับจัดการไฟล์รูปภาพ
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
@@ -8,7 +9,7 @@ import 'package:project/navbar/navbars.dart';
 import 'package:project/mainpage/history.dart';
 import 'package:project/mainpage/menu.dart';
 import 'package:project/mainpage/profile.dart';
-import 'package:project/mainpage/followreport.dart'; // 🔹 Import หน้าติดตามปัญหา
+import 'package:project/mainpage/followreport.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,8 +20,6 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
 import 'package:project/service/tool_service.dart';
-
-// 🟢 Import PlantRecommendationHelper ที่สร้างไว้
 import 'package:project/modal/plant_recommendation_helper.dart';
 
 class ToolPage extends StatefulWidget {
@@ -41,7 +40,6 @@ class _ToolPageState extends State<ToolPage> {
 
   String _currentDateTimeString = "";
 
-  // ตัวแปรสำหรับเก็บข้อมูลจังหวัด อำเภอ ตำบล ที่โหลดจาก JSON
   List<dynamic> _thailandData = [];
 
   @override
@@ -149,7 +147,6 @@ class _ToolPageState extends State<ToolPage> {
     return [];
   }
 
-  // 🟩 ฟังก์ชันเรียกใช้งาน PlantRecommendationHelper พร้อมแสดงสถานะกำลังประมวลผล
   Future<void> _recommendPlants() async {
     if (_toolData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -190,7 +187,6 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  // บันทึกข้อมูลสถานที่และที่ตั้ง
   void _showSaveLocationDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
 
@@ -273,9 +269,7 @@ class _ToolPageState extends State<ToolPage> {
                             Icons.keyboard_arrow_down,
                             color: Colors.black,
                           ),
-                          items: regions.map<DropdownMenuItem<String>>((
-                            reg,
-                          ) {
+                          items: regions.map<DropdownMenuItem<String>>((reg) {
                             return DropdownMenuItem<String>(
                               value: reg['name'].toString(),
                               child: Text(
@@ -325,9 +319,7 @@ class _ToolPageState extends State<ToolPage> {
                             Icons.keyboard_arrow_down,
                             color: Colors.black,
                           ),
-                          items: provinceList.map<DropdownMenuItem<String>>((
-                            prov,
-                          ) {
+                          items: provinceList.map<DropdownMenuItem<String>>((prov) {
                             String name = _getName(prov);
                             return DropdownMenuItem<String>(
                               value: name,
@@ -372,9 +364,7 @@ class _ToolPageState extends State<ToolPage> {
                             Icons.keyboard_arrow_down,
                             color: Colors.black,
                           ),
-                          items: amphurList.map<DropdownMenuItem<String>>((
-                            amp,
-                          ) {
+                          items: amphurList.map<DropdownMenuItem<String>>((amp) {
                             String name = _getName(amp);
                             return DropdownMenuItem<String>(
                               value: name,
@@ -417,9 +407,7 @@ class _ToolPageState extends State<ToolPage> {
                             Icons.keyboard_arrow_down,
                             color: Colors.black,
                           ),
-                          items: districtList.map<DropdownMenuItem<String>>((
-                            dt,
-                          ) {
+                          items: districtList.map<DropdownMenuItem<String>>((dt) {
                             String name = _getName(dt);
                             return DropdownMenuItem<String>(
                               value: name,
@@ -712,7 +700,7 @@ class _ToolPageState extends State<ToolPage> {
                             );
                           } else if (value == 'report') {
                             _showReportDialog(context);
-                          } else if (value == 'follow_report') { // 🔹 นำทางไปหน้าติดตามปัญหา
+                          } else if (value == 'follow_report') {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -752,7 +740,6 @@ class _ToolPageState extends State<ToolPage> {
                               const PopupMenuDivider(height: 1),
                               _buildPopupMenuItem('report', 'รายงานปัญหา'),
                               const PopupMenuDivider(height: 1),
-                              // 🔹 เพิ่มรายการเมนูต่อจาก รายงานปัญหา
                               _buildPopupMenuItem('follow_report', 'ติดตามปัญหา'),
                               const PopupMenuDivider(height: 1),
                               _buildPopupMenuItem('logout', 'ออกจากระบบ'),
@@ -849,7 +836,7 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  // แจ้งปัญหา
+  // 🔹 แจ้งปัญหา (เพิ่มระบบ Preview แสดงรูปภาพ)
   void _showReportDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController detailController = TextEditingController();
@@ -950,7 +937,7 @@ class _ToolPageState extends State<ToolPage> {
                       ),
                       const SizedBox(height: 5),
                       Container(
-                        height: 120,
+                        height: 100,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           border: Border.all(color: Colors.black54),
@@ -969,7 +956,10 @@ class _ToolPageState extends State<ToolPage> {
                         ),
                       ),
                       const SizedBox(height: 15),
+                      
+                      // 🔹 ส่วนการเลือกและ Preview รูปภาพ
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
                             "รูปภาพ : ",
@@ -978,18 +968,8 @@ class _ToolPageState extends State<ToolPage> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Expanded(
-                            child: Text(
-                              selectedImageFile != null
-                                  ? selectedImageFile!.name
-                                  : "ยังไม่เลือกรูปภาพ",
-                              style: const TextStyle(fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 5),
                           Container(
-                            height: 30,
+                            height: 32,
                             decoration: BoxDecoration(
                               color: const Color(0xFFE0E0E0),
                               borderRadius: BorderRadius.circular(15),
@@ -1007,22 +987,76 @@ class _ToolPageState extends State<ToolPage> {
                                 }
                               },
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
                                 minimumSize: Size.zero,
                               ),
-                              child: const Text(
-                                "เลือกรูปภาพ",
-                                style: TextStyle(
+                              child: Text(
+                                selectedImageFile == null ? "เลือกรูปภาพ" : "เปลี่ยนรูปภาพ",
+                                style: const TextStyle(
                                   color: Colors.black,
                                   fontSize: 12,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+
+                      // 🔹 กล่อง Preview แสดงรูปภาพที่เลือก
+                      if (selectedImageFile != null)
+                        Stack(
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              height: 160,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.black38),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.file(
+                                  File(selectedImageFile!.path),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 6,
+                              right: 6,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setDialogState(() {
+                                    selectedImageFile = null;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4.0),
+                          child: Text(
+                            "ยังไม่ได้เลือกรูปภาพ",
+                            style: TextStyle(fontSize: 12, color: Colors.black54),
+                          ),
+                        ),
+
                       const SizedBox(height: 25),
                       Align(
                         alignment: Alignment.centerRight,
@@ -1053,7 +1087,6 @@ class _ToolPageState extends State<ToolPage> {
                                 ),
                               );
                               try {
-                                // 🔹 เปลี่ยนการส่งข้อมูลเป็น Userid แทน username
                                 Map<String, String> reportData = {
                                   'Userid': _userId ?? '',
                                   'reporttitle': titleController.text.trim(),
