@@ -133,4 +133,8 @@ class UserService {
     // ส่งแก้ไขข้อมูลไปที่ Endpoint /user/$id ด้วย method PUT
     return await _fetchAPI('/user/$id', method: 'PUT', body: bodyData, token: token);
   }
+
+  static Future<dynamic> getreportbyuser(String id, String? token) async {
+    return await _fetchAPI('/report/byuser/$id', method: 'GET', token: token);
+  }
 }

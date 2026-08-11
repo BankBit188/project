@@ -8,6 +8,7 @@ import 'package:project/navbar/navbars.dart';
 import 'package:project/mainpage/history.dart';
 import 'package:project/mainpage/menu.dart';
 import 'package:project/mainpage/profile.dart';
+import 'package:project/mainpage/followreport.dart'; // 🔹 Import หน้าติดตามปัญหา
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
@@ -258,7 +259,6 @@ class _ToolPageState extends State<ToolPage> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 🟢 เพิ่ม Dropdown เลือกภาค
                     _buildLocationInputRow(
                       label: "ภาค :",
                       child: DropdownButtonHideUnderline(
@@ -481,7 +481,6 @@ class _ToolPageState extends State<ToolPage> {
                             );
 
                             try {
-                              // 🟢 ตัดคำว่า "ภาค" ออกก่อนส่ง
                               String formattedRegion = selectedRegion!.replaceAll('ภาค', '');
 
                               await ToolService.createhistory(
@@ -713,6 +712,13 @@ class _ToolPageState extends State<ToolPage> {
                             );
                           } else if (value == 'report') {
                             _showReportDialog(context);
+                          } else if (value == 'follow_report') { // 🔹 นำทางไปหน้าติดตามปัญหา
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const FollowReportPage(),
+                              ),
+                            );
                           } else if (value == 'history') {
                             Navigator.push(
                               context,
@@ -745,6 +751,9 @@ class _ToolPageState extends State<ToolPage> {
                               ),
                               const PopupMenuDivider(height: 1),
                               _buildPopupMenuItem('report', 'รายงานปัญหา'),
+                              const PopupMenuDivider(height: 1),
+                              // 🔹 เพิ่มรายการเมนูต่อจาก รายงานปัญหา
+                              _buildPopupMenuItem('follow_report', 'ติดตามปัญหา'),
                               const PopupMenuDivider(height: 1),
                               _buildPopupMenuItem('logout', 'ออกจากระบบ'),
                             ],
@@ -1044,24 +1053,9 @@ class _ToolPageState extends State<ToolPage> {
                                 ),
                               );
                               try {
-                                String currentUsername = "ไม่ระบุชื่อผู้ใช้";
-                                if (_userId != null && _authToken != null) {
-                                  try {
-                                    final userData =
-                                        await UserService.getUserById(
-                                      _userId!,
-                                      _authToken,
-                                    );
-                                    currentUsername =
-                                        userData['username'] ??
-                                            "ไม่ระบุชื่อผู้ใช้";
-                                  } catch (userError) {
-                                    print("ดึงชื่อผู้ใช้ล้มเหลว: $userError");
-                                  }
-                                }
-
+                                // 🔹 เปลี่ยนการส่งข้อมูลเป็น Userid แทน username
                                 Map<String, String> reportData = {
-                                  'username': currentUsername,
+                                  'Userid': _userId ?? '',
                                   'reporttitle': titleController.text.trim(),
                                   'reportdetail': detailController.text.trim(),
                                 };
