@@ -770,82 +770,154 @@ class _MenuPageState extends State<MenuPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 1. ส่วนแสดงจำนวนสมาชิก (ปรับ Badge ให้ดูละมุน สะอาดตา)
         GestureDetector(
           onTap: _showMembershipRightsDialog,
           behavior: HitTestBehavior.opaque,
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(
-                child: const Text(
-                  "จำนวนผู้ที่เป็นสมาชิก",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+              Row(
+                children: const [
+                  Icon(
+                    Icons.people_alt_rounded,
+                    color: Color(0xFF2E7D32),
+                    size: 22,
                   ),
-                ),
+                  SizedBox(width: 8),
+                  Text(
+                    "จำนวนผู้ที่เป็นสมาชิก",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
+                  horizontal: 14,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF91CF9D),
-                  borderRadius: BorderRadius.circular(10),
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFA5D6A7), width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Text(
-                  "$_userCount",
+                  "$_userCount คน",
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: Color(0xFF2E7D32),
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 15),
-        GestureDetector(
-          onTap: _showMembershipRightsDialog,
+
+        const SizedBox(height: 14),
+
+        // 2. การ์ดสิทธิสมาชิกแบบใหม่ (Gradient + Ripple Effect + ข้อความตั้งตรง + ลูกศร)
+        Material(
+          color: Colors.transparent,
           child: Container(
-            height: 120,
-            width: double.infinity,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(15),
-              color: const Color(0xFF5A9031),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.card_giftcard,
-                  color: Color(0xFFFFD700),
-                  size: 50,
-                ),
-                const SizedBox(height: 5),
-                Transform.rotate(
-                  angle: -0.05,
-                  child: const Text(
-                    "สิทธิของสมาชิก",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black45,
-                          blurRadius: 4,
-                          offset: Offset(1, 1),
-                        ),
-                      ],
-                    ),
-                  ),
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF5A9031), Color(0xFF386619)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF386619).withOpacity(0.35),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
                 ),
               ],
+            ),
+            child: InkWell(
+              onTap: _showMembershipRightsDialog,
+              borderRadius: BorderRadius.circular(20),
+              splashColor: Colors.white.withOpacity(0.2),
+              highlightColor: Colors.white.withOpacity(0.1),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 16,
+                ),
+                child: Row(
+                  children: [
+                    // ไอคอนของขวัญในวงกลมเรืองแสง
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.18),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.card_giftcard_rounded,
+                        color: Color(0xFFFFD700),
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+
+                    // ข้อความหลัก + คำอธิบายย่อ (เอา Transform.rotate ออกแล้ว)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            "สิทธิของสมาชิก",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            "แตะเพื่อดูสิทธิประโยชน์ทั้งหมด",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ไอคอนลูกศรชี้ให้รู้ว่ากดได้
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.15),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

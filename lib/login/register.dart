@@ -16,6 +16,9 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  bool _isLoading = false;
+  bool _isCheckingTool = false;
+
   final TextEditingController _toolNumberController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -26,7 +29,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   List<dynamic> _allProvinces = [];
   
-  List<Map<String, dynamic>> _regions = [
+  final List<Map<String, dynamic>> _regions = [
     {'id': 1, 'name': 'ภาคเหนือ'},
     {'id': 2, 'name': 'ภาคกลาง'},
     {'id': 3, 'name': 'ภาคตะวันออกเฉียงเหนือ'},
@@ -47,6 +50,14 @@ class _RegisterPageState extends State<RegisterPage> {
   void initState() {
     super.initState();
     _loadAddressData();
+
+    _toolNumberController.addListener(() {
+      if (_isToolVerified) {
+        setState(() {
+          _isToolVerified = false;
+        });
+      }
+    });
   }
 
   @override
@@ -71,12 +82,18 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _checkToolNumber() async {
+    if (_isCheckingTool) return;
+
     String inputToolNumber = _toolNumberController.text.trim();
 
     if (inputToolNumber.isEmpty) {
       _showAlertDialog("กรอกข้อมูลไม่ครบ", "กรุณากรอกหมายเลขอุปกรณ์ก่อนทำการตรวจสอบ", isWarning: true);
       return;
     }
+
+    setState(() {
+      _isCheckingTool = true;
+    });
 
     try {
       final response = await UserService.gettoolnumber();
@@ -98,6 +115,10 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     } catch (e) {
       _showAlertDialog("เกิดข้อผิดพลาด", "เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: $e", isWarning: true);
+    } finally {
+      setState(() {
+        _isCheckingTool = false;
+      });
     }
   }
 
@@ -131,6 +152,8 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _handleRegister() async {
+    if (_isLoading) return;
+
     if (_toolNumberController.text.trim().isEmpty) {
       _showAlertDialog("กรอกข้อมูลไม่ครบ", "กรุณากรอก หมายเลขอุปกรณ์");
       return;
@@ -155,14 +178,27 @@ class _RegisterPageState extends State<RegisterPage> {
       _showAlertDialog("กรอกข้อมูลไม่ครบ", "กรุณากรอก ชื่อผู้ใช้");
       return;
     }
-    if (_emailController.text.trim().isEmpty) {
+    
+    String emailText = _emailController.text.trim();
+    if (emailText.isEmpty) {
       _showAlertDialog("กรอกข้อมูลไม่ครบ", "กรุณากรอก อีเมล");
       return;
     }
+    final emailRegExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegExp.hasMatch(emailText)) {
+      _showAlertDialog("รูปแบบอีเมลไม่ถูกต้อง", "กรุณากรอกอีเมลให้ถูกต้องตามรูปแบบ เช่น example@email.com");
+      return;
+    }
+
     if (_passwordController.text.isEmpty) {
       _showAlertDialog("กรอกข้อมูลไม่ครบ", "กรุณากรอก รหัสผ่าน");
       return;
     }
+    if (_passwordController.text.length < 6) {
+      _showAlertDialog("รหัสผ่านสั้นเกินไป", "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
+
     if (_confirmPasswordController.text.isEmpty) {
       _showAlertDialog("กรอกข้อมูลไม่ครบ", "กรุณากรอก ยืนยันรหัสผ่าน");
       return;
@@ -178,12 +214,16 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       String? formattedRegion = _selectedRegionName?.replaceAll('ภาค', '');
 
       final result = await UserService.createUser(
         username: _usernameController.text.trim(),
-        email: _emailController.text.trim(),
+        email: emailText,
         password: _passwordController.text,
         region: formattedRegion,
         province: _selectedProvinceName,
@@ -194,12 +234,20 @@ class _RegisterPageState extends State<RegisterPage> {
 
       _showSnackBar(result['message'] ?? 'สมัครสมาชิกสำเร็จ!', Colors.green);
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-      );
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
+      }
     } catch (e) {
       _showSnackBar(e.toString().replaceAll('Exception: ', ''), Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -277,139 +325,166 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(30.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(  
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LoginPage()), 
-                    );
-                  },
-                  child: const Icon(Icons.reply, size: 40, color: Colors.black),
-                ),
-                const SizedBox(height: 20),
-                const Center(
-                  child: Text(
-                    "ลงทะเบียนอุปกรณ์",
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+          child: GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(30.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 🔹 เปลี่ยนปุ่มย้อนกลับเป็น Image.asset
+                  GestureDetector(  
+                    onTap: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginPage()), 
+                      );
+                    },
+                    child: Image.asset(
+                      'assets/images/backpage.png',
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.contain,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 30),
-                
-                Row(
-                  children: [
-                    Expanded(child: _buildTextField("หมายเลขอุปกรณ์", _toolNumberController)),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: _checkToolNumber, 
-                      child: Container(
-                        height: 55,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        decoration: BoxDecoration(
-                          color: _isToolVerified ? Colors.green : const Color(0xFFF3ECE1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _isToolVerified ? Colors.green : Colors.black54),
-                        ),
-                        child: Center(
-                          child: _isToolVerified 
-                              ? const Icon(Icons.check, color: Colors.white, size: 24)
-                              : const Text("ตรวจสอบ", style: TextStyle(fontSize: 14)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                
-                _buildDynamicDropdown(
-                  hint: "ภาค",
-                  value: _selectedRegionName,
-                  items: _regions,
-                  onChanged: _onRegionChanged,
-                  displayKey: 'name',
-                  valueKey: 'name',   
-                ),
-                const SizedBox(height: 15),
-                _buildDynamicDropdown(
-                  hint: "จังหวัด",
-                  value: _selectedProvinceName,
-                  items: _filteredProvinces,
-                  onChanged: _onProvinceChanged,
-                  displayKey: 'name_th',
-                  valueKey: 'name_th',
-                ),
-                const SizedBox(height: 15),
-                _buildDynamicDropdown(
-                  hint: "อำเภอ",
-                  value: _selectedAmphureName,
-                  items: _filteredAmphures,
-                  onChanged: _onAmphureChanged,
-                  displayKey: 'name_th',
-                  valueKey: 'name_th',
-                ),
-                const SizedBox(height: 15),
-                _buildDynamicDropdown(
-                  hint: "ตำบล",
-                  value: _selectedTambonName,
-                  items: _filteredTambons,
-                  onChanged: _onTambonChanged,
-                  displayKey: 'name_th',
-                  valueKey: 'name_th',
-                ),
-
-                const SizedBox(height: 15),
-                _buildTextField("ชื่อผู้ใช้", _usernameController),
-                const SizedBox(height: 15),
-                _buildTextField("อีเมล", _emailController),
-                const SizedBox(height: 15),
-                
-                _buildPasswordField(
-                  hint: "รหัสผ่าน",
-                  controller: _passwordController,
-                  isObscure: _obscurePassword,
-                  onToggle: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                ),
-                const SizedBox(height: 15),
-                
-                _buildPasswordField(
-                  hint: "ยืนยันรหัสผ่าน",
-                  controller: _confirmPasswordController,
-                  isObscure: _obscureConfirmPassword,
-                  onToggle: () {
-                    setState(() {
-                      _obscureConfirmPassword = !_obscureConfirmPassword;
-                    });
-                  },
-                ),
-                const SizedBox(height: 30),
-                
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: _handleRegister, 
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1D460B),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Text(
+                  const SizedBox(height: 20),
+                  const Center(
+                    child: Text(
                       "ลงทะเบียนอุปกรณ์",
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                     ),
                   ),
-                ),
-                const SizedBox(height: 30),
-              ],
+                  const SizedBox(height: 30),
+                  
+                  Row(
+                    children: [
+                      Expanded(child: _buildTextField("หมายเลขอุปกรณ์", _toolNumberController)),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: _isCheckingTool ? null : _checkToolNumber, 
+                        child: Container(
+                          height: 55,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: _isToolVerified ? Colors.green : const Color(0xFFF3ECE1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: _isToolVerified ? Colors.green : Colors.black54),
+                          ),
+                          child: Center(
+                            child: _isCheckingTool
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
+                                  )
+                                : _isToolVerified 
+                                    ? const Icon(Icons.check, color: Colors.white, size: 24)
+                                    : const Text("ตรวจสอบ", style: TextStyle(fontSize: 14)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  _buildDynamicDropdown(
+                    hint: "ภาค",
+                    value: _selectedRegionName,
+                    items: _regions,
+                    onChanged: _onRegionChanged,
+                    displayKey: 'name',
+                    valueKey: 'name',   
+                  ),
+                  const SizedBox(height: 15),
+                  _buildDynamicDropdown(
+                    hint: "จังหวัด",
+                    value: _selectedProvinceName,
+                    items: _filteredProvinces,
+                    onChanged: _selectedRegionName == null ? null : _onProvinceChanged,
+                    displayKey: 'name_th',
+                    valueKey: 'name_th',
+                  ),
+                  const SizedBox(height: 15),
+                  _buildDynamicDropdown(
+                    hint: "อำเภอ",
+                    value: _selectedAmphureName,
+                    items: _filteredAmphures,
+                    onChanged: _selectedProvinceName == null ? null : _onAmphureChanged,
+                    displayKey: 'name_th',
+                    valueKey: 'name_th',
+                  ),
+                  const SizedBox(height: 15),
+                  _buildDynamicDropdown(
+                    hint: "ตำบล",
+                    value: _selectedTambonName,
+                    items: _filteredTambons,
+                    onChanged: _selectedAmphureName == null ? null : _onTambonChanged,
+                    displayKey: 'name_th',
+                    valueKey: 'name_th',
+                  ),
+
+                  const SizedBox(height: 15),
+                  _buildTextField("ชื่อผู้ใช้", _usernameController),
+                  const SizedBox(height: 15),
+                  
+                  _buildTextField(
+                    "อีเมล", 
+                    _emailController, 
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  _buildPasswordField(
+                    hint: "รหัสผ่าน",
+                    controller: _passwordController,
+                    isObscure: _obscurePassword,
+                    onToggle: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  _buildPasswordField(
+                    hint: "ยืนยันรหัสผ่าน",
+                    controller: _confirmPasswordController,
+                    isObscure: _obscureConfirmPassword,
+                    onToggle: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 30),
+                  
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleRegister, 
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1D460B),
+                        disabledBackgroundColor: const Color(0xFF1D460B).withOpacity(0.6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                            )
+                          : const Text(
+                              "ลงทะเบียนอุปกรณ์",
+                              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                ],
+              ),
             ),
           ),
         ),
@@ -417,8 +492,11 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // 📍 เพิ่ม labelText ในช่องกรอกทั่วไป
-  Widget _buildTextField(String hint, TextEditingController controller) {
+  Widget _buildTextField(
+    String hint, 
+    TextEditingController controller, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return Container(
       height: 55,
       decoration: BoxDecoration(
@@ -427,8 +505,9 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
       child: TextField(
         controller: controller, 
+        keyboardType: keyboardType,
         decoration: InputDecoration(
-          labelText: hint, // 👈 แสดง label เดียวกันกับ hint
+          labelText: hint,
           hintText: hint,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -437,19 +516,18 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // 📍 ปรับเปลี่ยน Dropdown เป็น DropdownButtonFormField เพื่อใส่ labelText ได้
   Widget _buildDynamicDropdown({
     required String hint,
     required String? value, 
     required List<dynamic> items,
-    required void Function(String?) onChanged, 
+    required void Function(String?)? onChanged, 
     String displayKey = 'name_th',
     String valueKey = 'name_th', 
   }) {
     return Container(
       height: 55,
       decoration: BoxDecoration(
-        color: const Color(0xFFF3ECE1),
+        color: onChanged == null ? const Color(0xFFE8E2D8) : const Color(0xFFF3ECE1),
         borderRadius: BorderRadius.circular(20),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -457,7 +535,7 @@ class _RegisterPageState extends State<RegisterPage> {
         isExpanded: true,
         value: value,
         decoration: InputDecoration(
-          labelText: hint, // 👈 แสดง label เดียวกันกับ hint
+          labelText: hint,
           hintText: hint,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 4),
@@ -474,7 +552,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // 📍 เพิ่ม labelText ในช่องรหัสผ่าน
   Widget _buildPasswordField({
     required String hint,
     required TextEditingController controller, 
@@ -491,7 +568,7 @@ class _RegisterPageState extends State<RegisterPage> {
         controller: controller,
         obscureText: isObscure,
         decoration: InputDecoration(
-          labelText: hint, // 👈 แสดง label เดียวกันกับ hint
+          labelText: hint,
           hintText: hint,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),

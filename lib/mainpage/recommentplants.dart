@@ -92,30 +92,152 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
     );
   }
 
+  // 🛠️ Pop-up Dialog ปรับแต่งดีไซน์สวยงาม โมเดิร์น
+  void _showWarningDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAF8F5), // สีครีมอ่อนมินิมอล
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+              border: Border.all(color: const Color(0xFFE5DECF), width: 1.2),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. ไอคอนแจ้งเตือนพร้อมวงกลมแบบมีมิติ/Glow Effect
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFDE8E8),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFE53935).withOpacity(0.18),
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Color(0xFFE53935),
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // 2. หัวข้อแจ้งเตือน
+                const Text(
+                  "ข้อมูลไม่ถูกต้อง",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2C3E50),
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // 3. รายละเอียดข้อความ
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF5A626A),
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // 4. ปุ่มตกลง/รับทราบ แบบ Gradient สวยงาม
+                Container(
+                  width: double.infinity,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF424242), Color(0xFF212121)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      "เข้าใจแล้ว",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // 🛠️ ฟังก์ชันตรวจเช็กเงื่อนไขและส่งค่าให้ Helper คำนวณ
   void _searchSuitablePlants() async {
     // 1. ตรวจสอบความถูกต้องและขอบเขตตัวเลข (Value Range Guard)
     double? ph = double.tryParse(_phController.text.trim());
     if (_phController.text.isNotEmpty && (ph == null || ph < 0 || ph > 14)) {
-      _showWarningSnackBar("ค่า pH ต้องอยู่ระหว่าง 0.0 ถึง 14.0");
+      _showWarningDialog("ค่า pH ต้องอยู่ระหว่าง 0.0 ถึง 14.0");
       return;
     }
 
     double? humid = double.tryParse(_humidController.text.trim());
     if (_humidController.text.isNotEmpty && (humid == null || humid < 0 || humid > 100)) {
-      _showWarningSnackBar("ค่าความชื้นต้องอยู่ระหว่าง 0% ถึง 100%");
+      _showWarningDialog("ค่าความชื้นต้องอยู่ระหว่าง 0% ถึง 100%");
       return;
     }
 
     double? temp = double.tryParse(_tempController.text.trim());
     if (_tempController.text.isNotEmpty && (temp == null || temp < -10 || temp > 60)) {
-      _showWarningSnackBar("ค่าอุณหภูมิต้องอยู่ระหว่าง -10°C ถึง 60°C");
+      _showWarningDialog("ค่าอุณหภูมิต้องอยู่ระหว่าง -10°C ถึง 60°C");
       return;
     }
 
     double? salty = double.tryParse(_saltyController.text.trim());
     if (_saltyController.text.isNotEmpty && (salty == null || salty < 0)) {
-      _showWarningSnackBar("ค่าความเค็มต้องมากกว่าหรือเท่ากับ 0");
+      _showWarningDialog("ค่าความเค็มต้องมากกว่าหรือเท่ากับ 0");
       return;
     }
 
@@ -124,7 +246,7 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
       if (_nController.text.trim().isEmpty ||
           _pController.text.trim().isEmpty ||
           _kController.text.trim().isEmpty) {
-        _showWarningSnackBar("กรุณากรอกค่าธาตุอาหารหลัก (N, P, K) ให้ครบ หรือปิด Checkbox");
+        _showWarningDialog("กรุณากรอกค่าธาตุอาหารหลัก (N, P, K) ให้ครบ หรือปิด Checkbox");
         return;
       }
     }
@@ -133,7 +255,7 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
       if (_caController.text.trim().isEmpty ||
           _mgController.text.trim().isEmpty ||
           _sController.text.trim().isEmpty) {
-        _showWarningSnackBar("กรุณากรอกค่าธาตุอาหารรอง (Ca, Mg, S) ให้ครบ หรือปิด Checkbox");
+        _showWarningDialog("กรุณากรอกค่าธาตุอาหารรอง (Ca, Mg, S) ให้ครบ หรือปิด Checkbox");
         return;
       }
     }
@@ -148,7 +270,7 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
     if (_isSecondaryNutrientEnabled) activeCriteriaCount += 3;
 
     if (activeCriteriaCount == 0) {
-      _showWarningSnackBar("กรุณากรอกข้อมูลสภาพดินอย่างน้อย 1 รายการเพื่อค้นหา");
+      _showWarningDialog("กรุณากรอกข้อมูลสภาพดินอย่างน้อย 1 รายการเพื่อค้นหา");
       return;
     }
 
@@ -178,15 +300,6 @@ class _RecommendPlantsPageState extends State<RecommendPlantsPage> {
         _isLoading = false;
       });
     }
-  }
-
-  void _showWarningSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.redAccent,
-      ),
-    );
   }
 
   @override
