@@ -168,7 +168,7 @@ class _PlantsPageState extends State<PlantsPage> {
                       });
                     },
                     decoration: InputDecoration(
-                      hintText: 'ค้นหา เช่น ชื่อพืช',
+                      hintText: 'ค้นหาขื่อพืช เช่น ข้าวหรือข้าวเจ้า',
                       border: InputBorder.none,
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
@@ -253,6 +253,7 @@ class _PlantsPageState extends State<PlantsPage> {
                                   ),
                                   child: _buildItemCard(
                                     item['normal_name'] ?? 'ไม่มีชื่อพืช',
+                                    item['other_name']?.toString(),
                                     item['img_cloudinary'] ??
                                         item['img'] ??
                                         '',
@@ -271,48 +272,36 @@ class _PlantsPageState extends State<PlantsPage> {
     );
   }
 
-  Widget _buildItemCard(String title, String imgUrl) {
+  Widget _buildItemCard(String title, String? otherName, String imgUrl) {
     // 🟢 เรียกใช้ Helper ฟอร์แมต URL รูปจาก PlantDetailDialog
     String formattedImgUrl = PlantDetailDialog.formatImgUrl(imgUrl);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF2EDB4),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.black, width: 1.2),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 10),
+          // 🟢 1. รูปภาพอยู่ฝั่งซ้าย
           ClipRRect(
             borderRadius: BorderRadius.circular(15),
             child: formattedImgUrl.isNotEmpty
                 ? Image.network(
                     formattedImgUrl,
-                    width: 110,
-                    height: 110,
+                    width: 100,
+                    height: 100,
                     fit: BoxFit.cover,
                     cacheWidth: 300,
                     cacheHeight: 300,
                     loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
                       return Container(
-                        width: 110,
-                        height: 110,
+                        width: 100,
+                        height: 100,
                         color: Colors.grey.shade200,
                         child: const Center(
                           child: SizedBox(
@@ -325,8 +314,8 @@ class _PlantsPageState extends State<PlantsPage> {
                     },
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        width: 110,
-                        height: 110,
+                        width: 100,
+                        height: 100,
                         color: Colors.grey.shade300,
                         child: const Icon(
                           Icons.image_not_supported,
@@ -336,14 +325,48 @@ class _PlantsPageState extends State<PlantsPage> {
                     },
                   )
                 : Container(
-                    width: 110,
-                    height: 110,
+                    width: 100,
+                    height: 100,
                     color: Colors.grey.shade300,
                     child: const Icon(
                       Icons.image_not_supported,
                       color: Colors.grey,
                     ),
                   ),
+          ),
+          const SizedBox(width: 15),
+
+          // 🟢 2. ข้อความอยู่ฝั่งขวา ( แสดง "ชื่อพืช : " และ "ชื่ออื่นๆ : " )
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'ชื่อพืช : $title',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (otherName != null && otherName.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'ชื่ออื่นๆ : $otherName',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade800,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),

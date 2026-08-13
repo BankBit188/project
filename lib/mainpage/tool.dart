@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io'; // 🔹 เพิ่ม import สำหรับจัดการไฟล์รูปภาพ
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
@@ -623,7 +623,7 @@ class _ToolPageState extends State<ToolPage> {
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: 25.0,
+              horizontal: 20.0,
               vertical: 20.0,
             ),
             child: Column(
@@ -756,8 +756,23 @@ class _ToolPageState extends State<ToolPage> {
                       : "กำลังโหลดเวลา...",
                   style: const TextStyle(fontSize: 15, color: Colors.black54),
                 ),
-                const SizedBox(height: 35),
+                const SizedBox(height: 15),
 
+                // 🔹 ย้ายระบุหน่วยมาไว้ทางขวาสุด
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    "(หน่วย: mg/kg)",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // 🔹 แถวแสดง N, P, K
                 _buildElementRow(
                   "N",
                   _toolData?['N']?.toString() ?? "-",
@@ -766,8 +781,9 @@ class _ToolPageState extends State<ToolPage> {
                   "K",
                   _toolData?['K']?.toString() ?? "-",
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 15),
 
+                // 🔹 แถวแสดง Ca, Mg, S
                 _buildElementRow(
                   "Ca",
                   _toolData?['Ca']?.toString() ?? "-",
@@ -776,7 +792,7 @@ class _ToolPageState extends State<ToolPage> {
                   "S",
                   _toolData?['S']?.toString() ?? "-",
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 35),
 
                 _buildDetailRow(
                   Icons.water_drop,
@@ -814,12 +830,13 @@ class _ToolPageState extends State<ToolPage> {
 
                 const Spacer(),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildBottomButton(
                       "บันทึกข้อมูล",
                       onTap: () => _showSaveLocationDialog(context),
                     ),
+                    const SizedBox(width: 12),
                     _buildBottomButton(
                       "พืชปลูกที่เหมาะสม",
                       onTap: _recommendPlants,
@@ -836,7 +853,7 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  // 🔹 แจ้งปัญหา (เพิ่มระบบ Preview แสดงรูปภาพ)
+  // 🔹 แจ้งปัญหา
   void _showReportDialog(BuildContext context) {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController detailController = TextEditingController();
@@ -957,7 +974,6 @@ class _ToolPageState extends State<ToolPage> {
                       ),
                       const SizedBox(height: 15),
                       
-                      // 🔹 ส่วนการเลือกและ Preview รูปภาพ
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -1004,7 +1020,6 @@ class _ToolPageState extends State<ToolPage> {
                       ),
                       const SizedBox(height: 8),
 
-                      // 🔹 กล่อง Preview แสดงรูปภาพที่เลือก
                       if (selectedImageFile != null)
                         Stack(
                           children: [
@@ -1173,26 +1188,38 @@ class _ToolPageState extends State<ToolPage> {
     String v3,
   ) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _elementText(l1, v1),
-        _elementText(l2, v2),
-        _elementText(l3, v3),
+        Expanded(child: _elementText(l1, v1)),
+        const SizedBox(width: 8),
+        Expanded(child: _elementText(l2, v2)),
+        const SizedBox(width: 8),
+        Expanded(child: _elementText(l3, v3)),
       ],
     );
   }
 
+  // 🟢 ขยายขนาดตัวอักษรของชื่อธาตุและค่าตัวเลขกลับมาให้ใหญ่เด่นชัด
   Widget _elementText(String label, String value) {
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(color: Colors.black, fontSize: 20),
-        children: [
-          TextSpan(
-            text: "$label ",
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 28),
-          ),
-          TextSpan(text: ": $value"),
-        ],
+    final String displayValue =
+        (value == "-" || value.trim().isEmpty) ? "-" : value;
+
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(color: Colors.black),
+          children: [
+            TextSpan(
+              text: "$label ",
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+            ),
+            TextSpan(
+              text: ": $displayValue",
+              style: const TextStyle(fontSize: 20),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1207,25 +1234,40 @@ class _ToolPageState extends State<ToolPage> {
       children: [
         Icon(icon, size: 35, color: iconColor),
         const SizedBox(width: 15),
-        Text("$label   : $value", style: const TextStyle(fontSize: 20)),
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "$label   : $value",
+              style: const TextStyle(fontSize: 20, color: Colors.black),
+            ),
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildBottomButton(String text, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFCF4D9),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.black87),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    return Flexible(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFCF4D9),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black87),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
         ),
       ),
     );
