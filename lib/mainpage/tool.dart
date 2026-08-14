@@ -42,6 +42,27 @@ class _ToolPageState extends State<ToolPage> {
 
   List<dynamic> _thailandData = [];
 
+  // 🔴🟢 ตรวจสอบสถานะว่าอุปกรณ์ Offline หรือไม่ (เกิน 2 นาทีถือว่า Offline)
+  bool get _isOffline {
+    if (_toolData == null) return true;
+    
+    final createdAtStr = _toolData!['created_at']?.toString() ?? 
+                         _toolData!['createdAt']?.toString();
+                         
+    if (createdAtStr == null || createdAtStr.isEmpty) return true;
+
+    try {
+      final createdAt = DateTime.parse(createdAtStr).toLocal();
+      final now = DateTime.now();
+      final difference = now.difference(createdAt);
+
+      // ถ้าเวลาต่างกันตั้งแต่ 2 นาที (120 วินาที) ขึ้นไป ถือว่า Offline
+      return difference.inSeconds >= 120;
+    } catch (e) {
+      return true;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -148,6 +169,16 @@ class _ToolPageState extends State<ToolPage> {
   }
 
   Future<void> _recommendPlants() async {
+    // Check if offline
+    if (_isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("อุปกรณ์ออฟไลน์อยู่"),
+        ),
+      );
+      return;
+    }
+
     if (_toolData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -644,6 +675,46 @@ class _ToolPageState extends State<ToolPage> {
                           ),
                         ),
                         const SizedBox(width: 8),
+
+                        // 🔴🟢 ป้ายแสดงสถานะ ออนไลน์/ออฟไลน์
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _isOffline
+                                ? Colors.red.shade100
+                                : Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _isOffline ? Colors.red : Colors.green,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircleAvatar(
+                                radius: 4,
+                                backgroundColor:
+                                    _isOffline ? Colors.red : Colors.green,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _isOffline ? "ออฟไลน์" : "ออนไลน์",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _isOffline
+                                      ? Colors.red.shade900
+                                      : Colors.green.shade900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
                         _isLoadingTool
                             ? const SizedBox(
                                 width: 22,
@@ -772,59 +843,69 @@ class _ToolPageState extends State<ToolPage> {
                 ),
                 const SizedBox(height: 8),
 
-                // 🔹 แถวแสดง N, P, K
+                // 🔹 แถวแสดง N, P, K (ถ้า Offline ให้แสดง "-")
                 _buildElementRow(
                   "N",
-                  _toolData?['N']?.toString() ?? "-",
+                  _isOffline ? "-" : (_toolData?['N']?.toString() ?? "-"),
                   "P",
-                  _toolData?['P']?.toString() ?? "-",
+                  _isOffline ? "-" : (_toolData?['P']?.toString() ?? "-"),
                   "K",
-                  _toolData?['K']?.toString() ?? "-",
+                  _isOffline ? "-" : (_toolData?['K']?.toString() ?? "-"),
                 ),
                 const SizedBox(height: 15),
 
-                // 🔹 แถวแสดง Ca, Mg, S
+                // 🔹 แถวแสดง Ca, Mg, S (ถ้า Offline ให้แสดง "-")
                 _buildElementRow(
                   "Ca",
-                  _toolData?['Ca']?.toString() ?? "-",
+                  _isOffline ? "-" : (_toolData?['Ca']?.toString() ?? "-"),
                   "Mg",
-                  _toolData?['Mg']?.toString() ?? "-",
+                  _isOffline ? "-" : (_toolData?['Mg']?.toString() ?? "-"),
                   "S",
-                  _toolData?['S']?.toString() ?? "-",
+                  _isOffline ? "-" : (_toolData?['S']?.toString() ?? "-"),
                 ),
                 const SizedBox(height: 35),
 
                 _buildDetailRow(
                   Icons.water_drop,
                   "ความชื้น",
-                  _toolData != null
-                      ? "${_toolData!['humid']} %"
-                      : "กำลังโหลด...",
+                  _isOffline
+                      ? "-"
+                      : (_toolData?['humid'] != null
+                          ? "${_toolData!['humid']} %"
+                          : "-"),
                   Colors.lightBlue,
                 ),
                 const SizedBox(height: 20),
                 _buildDetailRow(
                   Icons.science,
                   "ค่า pH",
-                  _toolData != null ? "${_toolData!['PH'] ?? _toolData!['ph']}" : "กำลังโหลด...",
+                  _isOffline
+                      ? "-"
+                      : (_toolData != null
+                          ? "${_toolData!['PH'] ?? _toolData!['ph'] ?? '-'}"
+                          : "-"),
                   Colors.purple,
                 ),
                 const SizedBox(height: 20),
                 _buildDetailRow(
                   Icons.thermostat,
                   "อุณหภูมิ",
-                  _toolData != null
-                      ? "${_toolData!['temperature']} C°"
-                      : "กำลังโหลด...",
+                  _isOffline
+                      ? "-"
+                      : (_toolData?['temperature'] != null
+                          ? "${_toolData!['temperature']} C°"
+                          : "-"),
                   Colors.black54,
                 ),
                 const SizedBox(height: 20),
                 _buildDetailRow(
                   Icons.waves,
                   "ความเค็ม",
-                  _toolData != null
-                      ? "${_toolData!['salty']} us/cm"
-                      : "กำลังโหลด...",
+                  _isOffline
+                      ? "-"
+                      : (_toolData?['salty'] != null
+                          ? "${_toolData!['salty']} us/cm"
+                          : "-"),
                   Colors.black54,
                 ),
 
@@ -834,7 +915,17 @@ class _ToolPageState extends State<ToolPage> {
                   children: [
                     _buildBottomButton(
                       "บันทึกข้อมูล",
-                      onTap: () => _showSaveLocationDialog(context),
+                      onTap: () {
+                        if (_isOffline) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("อุปกรณ์ออฟไลน์อยู่"),
+                            ),
+                          );
+                          return;
+                        }
+                        _showSaveLocationDialog(context);
+                      },
                     ),
                     const SizedBox(width: 12),
                     _buildBottomButton(
@@ -1198,7 +1289,6 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  // 🟢 ขยายขนาดตัวอักษรของชื่อธาตุและค่าตัวเลขกลับมาให้ใหญ่เด่นชัด
   Widget _elementText(String label, String value) {
     final String displayValue =
         (value == "-" || value.trim().isEmpty) ? "-" : value;
