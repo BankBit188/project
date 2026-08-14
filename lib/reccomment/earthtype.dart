@@ -290,6 +290,7 @@ class _EarthTypePageState extends State<EarthTypePage> {
     );
   }
 
+  // 🔹 สลับตำแหน่ง: รูปภาพอยู่ซ้าย / ข้อความอยู่ขวา
   Widget _buildItemCard(String title, String imgUrl) {
     // 🟢 เรียกใช้ Helper ฟอร์แมต URL รูปจาก PlantDetailDialog
     String formattedImgUrl = PlantDetailDialog.formatImgUrl(imgUrl);
@@ -304,16 +305,8 @@ class _EarthTypePageState extends State<EarthTypePage> {
         border: Border.all(color: Colors.black, width: 1.2),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Text(
-              title, 
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 10),
+          // 🖼️ รูปภาพอยู่ฝั่งซ้าย
           ClipRRect(
             borderRadius: BorderRadius.circular(15),
             child: formattedImgUrl.isNotEmpty
@@ -329,6 +322,15 @@ class _EarthTypePageState extends State<EarthTypePage> {
                     width: 110, height: 110, color: Colors.grey.shade300,
                     child: const Icon(Icons.image_not_supported, color: Colors.grey),
                   ),
+          ),
+          const SizedBox(width: 15),
+          // 📝 ข้อความอยู่ฝั่งขวา
+          Expanded(
+            child: Text(
+              title, 
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

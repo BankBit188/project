@@ -276,6 +276,7 @@ class _EarthPageState extends State<EarthPage> {
     );
   }
 
+  // 🔹 สลับตำแหน่ง: รูปภาพอยู่ซ้าย / ข้อความอยู่ขวา
   Widget _buildItemCard(String title, String imgUrl) {
     String formattedImgUrl = _formatImgUrl(imgUrl);
 
@@ -288,16 +289,8 @@ class _EarthPageState extends State<EarthPage> {
         border: Border.all(color: Colors.black, width: 1.2),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Text(
-              title, 
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 10),
+          // 🖼️ รูปภาพอยู่ฝั่งซ้าย
           ClipRRect(
             borderRadius: BorderRadius.circular(15),
             child: Image.network(
@@ -322,6 +315,15 @@ class _EarthPageState extends State<EarthPage> {
                   child: const Icon(Icons.image_not_supported, color: Colors.grey),
                 );
               },
+            ),
+          ),
+          const SizedBox(width: 15),
+          // 📝 ข้อความอยู่ฝั่งขวา
+          Expanded(
+            child: Text(
+              title, 
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

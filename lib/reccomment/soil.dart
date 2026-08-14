@@ -83,6 +83,16 @@ class _SoilPageState extends State<SoilPage> {
     }
   }
 
+  // 🔹 ฟังก์ชันคำนวณและจัดรูปแบบช่วงค่าธาตุอาหาร (Min - Max)
+  String _formatVal(dynamic minV, dynamic maxV) {
+    if (minV == null && maxV == null) return "-";
+    if (minV != null && maxV != null) {
+      if (minV.toString() == maxV.toString()) return "$minV";
+      return "$minV-$maxV";
+    }
+    return "${minV ?? maxV}";
+  }
+
   // 🔹 ฟังก์ชันคัดกรองข้อมูลตามธาตุอาหาร + ประเภทพืช + คำค้นหา และหั่นชิ้นข้อมูลแบ่งหน้า (Pagination)
   void _applyFilterAndPagination() {
     String targetKey = _getNutrientKey(_selectedNutrient);
@@ -265,10 +275,7 @@ class _SoilPageState extends State<SoilPage> {
                                     context,
                                     Map<String, dynamic>.from(item),
                                   ),
-                                  child: _buildItemCard(
-                                    item['normal_name'] ?? 'ไม่มีชื่อพืช',
-                                    item['img_cloudinary'] ?? item['img'] ?? '',
-                                  ),
+                                  child: _buildItemCard(item),
                                 );
                               },
                             ),
@@ -312,13 +319,23 @@ class _SoilPageState extends State<SoilPage> {
     );
   }
 
-  Widget _buildItemCard(String title, String imgUrl) {
-    // 🟢 เรียกใช้ Helper ฟอร์แมต URL รูปจาก PlantDetailDialog
+  // 🔹 สลับตำแหน่ง: รูปภาพอยู่ซ้าย / ข้อความชื่อพืช + ค่าธาตุอาหารแบ่งเป็น 3 แถวทางขวา
+  Widget _buildItemCard(Map<String, dynamic> item) {
+    String title = item['normal_name'] ?? 'ไม่มีชื่อพืช';
+    String imgUrl = item['img_cloudinary'] ?? item['img'] ?? '';
     String formattedImgUrl = PlantDetailDialog.formatImgUrl(imgUrl);
+
+    // ดึงค่าธาตุอาหารต่างๆ
+    String nVal = _formatVal(item['minN'], item['maxN']);
+    String pVal = _formatVal(item['minP'], item['maxP']);
+    String kVal = _formatVal(item['minK'], item['maxK']);
+    String caVal = _formatVal(item['minCa'], item['maxCa']);
+    String mgVal = _formatVal(item['minMg'], item['maxMg']);
+    String sVal = _formatVal(item['minS'], item['maxS']);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       height: 140,
       decoration: BoxDecoration(
         color: const Color(0xFFF2EDB4),
@@ -326,16 +343,8 @@ class _SoilPageState extends State<SoilPage> {
         border: Border.all(color: Colors.black, width: 1.2),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Text(
-              title, 
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 10),
+          // 🖼️ รูปภาพอยู่ฝั่งซ้าย
           ClipRRect(
             borderRadius: BorderRadius.circular(15),
             child: formattedImgUrl.isNotEmpty
@@ -351,6 +360,47 @@ class _SoilPageState extends State<SoilPage> {
                     width: 110, height: 110, color: Colors.grey.shade300,
                     child: const Icon(Icons.image_not_supported, color: Colors.grey),
                   ),
+          ),
+          const SizedBox(width: 15),
+          
+          // 📝 ข้อความอยู่ฝั่งขวา (ชื่อพืช + ค่าธาตุอาหาร 3 แถว)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title, 
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                // 🔹 แถวที่ 1: N, P
+                Text(
+                  "N: $nVal  |  P: $pVal",
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                // 🔹 แถวที่ 2: K, Ca
+                Text(
+                  "K: $kVal  |  Ca: $caVal",
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                // 🔹 แถวที่ 3: Mg, S
+                Text(
+                  "Mg: $mgVal  |  S: $sVal",
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ],
       ),
