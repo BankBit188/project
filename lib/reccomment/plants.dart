@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project/service/plants_service.dart';
-import 'package:project/modal/plant_detail.dart'; // 🟢 Import ไฟล์รายละเอียดพืชมาใช้งาน
+import 'package:project/modal/plant_detail.dart';
+import 'package:project/style/reccomment/style_plants.dart'; // 🟢 Import ไฟล์สไตล์แยกมาใช้งาน
 
 class PlantsPage extends StatefulWidget {
   const PlantsPage({super.key});
@@ -37,7 +38,7 @@ class _PlantsPageState extends State<PlantsPage> {
     super.dispose();
   }
 
-  // ฟังก์ชันดึงข้อมูลจาก API รอบเดียว
+  // ฟังก์ชันดึงข้อมูลจาก API
   Future<void> _loadDataFromAPI() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -62,13 +63,12 @@ class _PlantsPageState extends State<PlantsPage> {
     }
   }
 
-  // ฟังก์ชันสำหรับกรองข้อมูลและตัดแบ่งข้อมูล
+  // ฟังก์ชันกรองและแบ่งหน้าข้อมูล
   void _updateDisplayedItems() {
     setState(() {
-      // 1. กำหนดให้ข้อมูลตั้งต้นเป็นข้อมูลทั้งหมดจาก API เสมอ
       List<dynamic> filteredItems = _allRawItems;
 
-      // 2. กรองตามประเภทพืช (ถ้าไม่ใช่ 'all')
+      // 1. กรองประเภทพืช
       if (_selectedFilter != 'all') {
         filteredItems = filteredItems.where((item) {
           final typeCode = item['plantsTypeCode'].toString();
@@ -76,7 +76,7 @@ class _PlantsPageState extends State<PlantsPage> {
         }).toList();
       }
 
-      // 3. กรองตามคำค้นหา (normal_name, scientific_name, other_name)
+      // 2. กรองตามคำค้นหา
       if (_searchQuery.trim().isNotEmpty) {
         final query = _searchQuery.trim().toLowerCase();
         filteredItems = filteredItems.where((item) {
@@ -93,7 +93,7 @@ class _PlantsPageState extends State<PlantsPage> {
         }).toList();
       }
 
-      // 4. คำนวณจำนวนหน้าใหม่ตามจำนวนข้อมูลที่ผ่านการกรอง
+      // 3. คำนวณการแบ่งหน้า
       _lastPage = (filteredItems.length / _itemsPerPage).ceil();
       if (_lastPage < 1) _lastPage = 1;
 
@@ -102,8 +102,6 @@ class _PlantsPageState extends State<PlantsPage> {
       }
 
       int startIndex = (_currentPage - 1) * _itemsPerPage;
-
-      // 5. ตัดแบ่งข้อมูลมาแสดงแค่ 3 ชิ้นตามหน้าปัจจุบัน
       _currentPageItems =
           filteredItems.skip(startIndex).take(_itemsPerPage).toList();
     });
@@ -129,115 +127,73 @@ class _PlantsPageState extends State<PlantsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 15),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new,
-                        size: 28,
-                        color: Colors.black,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const Text(
-                      "พืชปลูก",
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 15),
 
-                // ช่องค้นหา
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0EAE1),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                        _currentPage = 1;
-                        _updateDisplayedItems();
-                      });
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'ค้นหาขื่อพืช เช่น ข้าวหรือข้าวเจ้า',
-                      border: InputBorder.none,
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon:
-                                  const Icon(Icons.clear, color: Colors.black),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {
-                                  _searchQuery = '';
-                                  _currentPage = 1;
-                                  _updateDisplayedItems();
-                                });
-                              },
-                            )
-                          : const Icon(Icons.search, color: Colors.black),
-                    ),
-                  ),
+                // 🟢 1. ส่วนหัว (Header)
+                PlantHeaderWidget(
+                  onBackPressed: () => Navigator.pop(context),
                 ),
 
-                const SizedBox(height: 5),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: PopupMenuButton<String>(
-                    icon: Icon(
-                      _selectedFilter == 'all'
-                          ? Icons.filter_alt_outlined
-                          : Icons.filter_alt,
-                      size: 28,
-                      color: _selectedFilter == 'all'
-                          ? Colors.black
-                          : const Color(0xFF5A45FF),
-                    ),
-                    tooltip: 'กรองประเภทพืช',
-                    onSelected: (String value) {
-                      setState(() {
-                        _selectedFilter = value;
-                        _currentPage = 1;
-                        _updateDisplayedItems();
-                      });
-                    },
-                    itemBuilder: (BuildContext context) => [
-                      const PopupMenuItem<String>(
-                        value: 'all',
-                        child: Text('พืชทั้งหมด'),
-                      ),
-                      const PopupMenuItem<String>(
-                        value: '1',
-                        child: Text('พืชไร่'),
-                      ),
-                      const PopupMenuItem<String>(
-                        value: '2',
-                        child: Text('พืชสวน'),
-                      ),
-                      const PopupMenuItem<String>(
-                        value: '3',
-                        child: Text('พืชเศรษฐกิจ'),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 16),
+
+                // 🟢 2. ช่องค้นหา + ปุ่มฟิลเตอร์
+                PlantSearchFilterWidget(
+                  controller: _searchController,
+                  searchQuery: _searchQuery,
+                  selectedFilter: _selectedFilter,
+                  onSearchChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                      _currentPage = 1;
+                      _updateDisplayedItems();
+                    });
+                  },
+                  onClearSearch: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                      _currentPage = 1;
+                      _updateDisplayedItems();
+                    });
+                  },
+                  onFilterSelected: (String value) {
+                    setState(() {
+                      _selectedFilter = value;
+                      _currentPage = 1;
+                      _updateDisplayedItems();
+                    });
+                  },
                 ),
+
+                const SizedBox(height: 16),
+
+                // 🟢 3. รายการพืช
                 Expanded(
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF4A7C59),
+                          ),
+                        )
                       : _currentPageItems.isEmpty
-                          ? const Center(
-                              child: Text(
-                                "ไม่พบข้อมูล",
-                                style: TextStyle(
-                                    fontSize: 18, color: Colors.grey),
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off_rounded,
+                                    size: 50,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    "ไม่พบข้อมูลพืชที่ค้นหา",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             )
                           : ListView.builder(
@@ -245,243 +201,37 @@ class _PlantsPageState extends State<PlantsPage> {
                               itemCount: _currentPageItems.length,
                               itemBuilder: (context, index) {
                                 final item = _currentPageItems[index];
-                                return GestureDetector(
-                                  // 🟢 เรียก Dialog แสดงรายละเอียดพืชจากไฟล์ plant_detail.dart
+                                return PlantItemCard(
+                                  title: item['normal_name'] ?? 'ไม่มีชื่อพืช',
+                                  otherName: item['other_name']?.toString(),
+                                  imgUrl: item['img_cloudinary'] ??
+                                      item['img'] ??
+                                      '',
                                   onTap: () => PlantDetailDialog.show(
                                     context,
                                     Map<String, dynamic>.from(item),
-                                  ),
-                                  child: _buildItemCard(
-                                    item['normal_name'] ?? 'ไม่มีชื่อพืช',
-                                    item['other_name']?.toString(),
-                                    item['img_cloudinary'] ??
-                                        item['img'] ??
-                                        '',
                                   ),
                                 );
                               },
                             ),
                 ),
-                _buildDynamicPagination(),
+
+                const SizedBox(height: 8),
+
+                // 🟢 4. แถบปุ่มแบ่งหน้า (Pagination)
+                PlantPaginationWidget(
+                  currentPage: _currentPage,
+                  lastPage: _lastPage,
+                  onPageChanged: (newPage) {
+                    setState(() {
+                      _currentPage = newPage;
+                      _updateDisplayedItems();
+                    });
+                  },
+                ),
+
                 const SizedBox(height: 15),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildItemCard(String title, String? otherName, String imgUrl) {
-    // 🟢 เรียกใช้ Helper ฟอร์แมต URL รูปจาก PlantDetailDialog
-    String formattedImgUrl = PlantDetailDialog.formatImgUrl(imgUrl);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2EDB4),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black, width: 1.2),
-      ),
-      child: Row(
-        children: [
-          // 🟢 1. รูปภาพอยู่ฝั่งซ้าย
-          ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: formattedImgUrl.isNotEmpty
-                ? Image.network(
-                    formattedImgUrl,
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.cover,
-                    cacheWidth: 300,
-                    cacheHeight: 300,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        width: 100,
-                        height: 100,
-                        color: Colors.grey.shade200,
-                        child: const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 100,
-                        height: 100,
-                        color: Colors.grey.shade300,
-                        child: const Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey,
-                        ),
-                      );
-                    },
-                  )
-                : Container(
-                    width: 100,
-                    height: 100,
-                    color: Colors.grey.shade300,
-                    child: const Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey,
-                    ),
-                  ),
-          ),
-          const SizedBox(width: 15),
-
-          // 🟢 2. ข้อความอยู่ฝั่งขวา ( แสดง "ชื่อพืช : " และ "ชื่ออื่นๆ : " )
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'ชื่อพืช : $title',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (otherName != null && otherName.trim().isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'ชื่ออื่นๆ : $otherName',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade800,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDynamicPagination() {
-    if (_lastPage <= 1) return const SizedBox.shrink();
-
-    List<Widget> pageButtons = [];
-
-    pageButtons.add(
-      _buildPageBtn(
-        "<",
-        disabled: _currentPage == 1,
-        onTap: () {
-          if (_currentPage > 1) {
-            _currentPage--;
-            _updateDisplayedItems();
-          }
-        },
-      ),
-    );
-
-    bool showLeftDots = false;
-    bool showRightDots = false;
-
-    for (int i = 1; i <= _lastPage; i++) {
-      if (i == 1 || i == _lastPage || (i - _currentPage).abs() <= 1) {
-        pageButtons.add(
-          _buildPageBtn(
-            i.toString(),
-            isActive: _currentPage == i,
-            onTap: () {
-              if (_currentPage != i) {
-                _currentPage = i;
-                _updateDisplayedItems();
-              }
-            },
-          ),
-        );
-      } else if (i < _currentPage && !showLeftDots) {
-        showLeftDots = true;
-        pageButtons.add(_buildDotsBtn());
-      } else if (i > _currentPage && !showRightDots) {
-        showRightDots = true;
-        pageButtons.add(_buildDotsBtn());
-      }
-    }
-
-    pageButtons.add(
-      _buildPageBtn(
-        ">",
-        disabled: _currentPage == _lastPage,
-        onTap: () {
-          if (_currentPage < _lastPage) {
-            _currentPage++;
-            _updateDisplayedItems();
-          }
-        },
-      ),
-    );
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: pageButtons,
-    );
-  }
-
-  Widget _buildDotsBtn() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      width: 32,
-      height: 32,
-      child: const Center(
-        child: Text(
-          "...",
-          style: TextStyle(
-            color: Colors.grey,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPageBtn(
-    String text, {
-    bool isActive = false,
-    bool disabled = false,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: disabled ? null : onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: isActive
-              ? const Color(0xFF5A45FF)
-              : (disabled ? Colors.grey.shade300 : Colors.white),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.grey.shade300, width: 0.5),
-        ),
-        child: Center(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: isActive
-                  ? Colors.white
-                  : (disabled ? Colors.grey : Colors.black),
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
             ),
           ),
         ),

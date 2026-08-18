@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:project/service/earth_service.dart';
-import 'package:flutter/foundation.dart';
-
-// 🟩 เพิ่ม Import สำหรับเรนเดอร์ HTML และจัดการการคลิกลิงก์
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:project/style/reccomment/style_earth.dart'; // 🟢 Import ไฟล์ส่วนตกแต่ง UI
 
 class EarthPage extends StatefulWidget {
   const EarthPage({super.key});
@@ -14,19 +12,19 @@ class EarthPage extends StatefulWidget {
 }
 
 class _EarthPageState extends State<EarthPage> {
-  List<dynamic> _allRawItems = []; // 🔹 เก็บข้อมูลดินทั้งหมดที่ดึงมาจาก Laravel
-  List<dynamic> _filteredItems = []; // 🟩 เก็บข้อมูลประเภทดินที่ผ่านการกรองคำค้นหาแล้ว
-  List<dynamic> _currentPageItems = []; // 🔹 เก็บข้อมูลที่จะแสดงบนหน้าปัจจุบัน
+  List<dynamic> _allRawItems = []; // 🔹 เก็บข้อมูลดินทั้งหมดจาก API
+  List<dynamic> _filteredItems = []; // 🟩 เก็บข้อมูลดินหลังกรองค้นหา
+  List<dynamic> _currentPageItems = []; // 🔹 เก็บข้อมูลแสดงหน้าปัจจุบัน
   bool _isLoading = false;
 
   int _currentPage = 1; // หน้าปัจจุบัน
-  int _lastPage = 1; // จำนวนหน้าทั้งหมด (คำนวณอัตโนมัติ)
-  final int _itemsPerPage = 3; // กำหนดแสดงผลหน้าละ 3 ชิ้นคงที่เหมือนหน้าพืช
+  int _lastPage = 1; // จำนวนหน้าทั้งหมด
+  final int _itemsPerPage = 3; // แสดงหน้าละ 3 ข้อมูล
 
-  // 🟩 ตัวแปรสำหรับเก็บคำค้นหา
+  // 🟩 Controller & ตัวแปรคำค้นหา
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
-  // 🔹 ตัวแปร URL ทางผ่านหลักของ Ngrok สำหรับจัดการรูปภาพ
   static const String ngrokUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev';
 
   @override
@@ -35,7 +33,12 @@ class _EarthPageState extends State<EarthPage> {
     _fetchDataFromAPI();
   }
 
-  // ฟังก์ชันสลับหัว IP รูปภาพเก่าให้วิ่งผ่านอุโมงค์ Ngrok ป้องกันภาพหลุด
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   String _formatImgUrl(String imgUrl) {
     String cleanImgUrl = imgUrl.replaceAll(r'\/', '/');
     if (cleanImgUrl.contains('10.0.2.2:8000')) {
@@ -48,7 +51,6 @@ class _EarthPageState extends State<EarthPage> {
     return cleanImgUrl;
   }
 
-  // 🔹 ฟังก์ชันเชื่อมต่อดึงข้อมูลผ่าน EarthService
   Future<void> _fetchDataFromAPI() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -74,11 +76,9 @@ class _EarthPageState extends State<EarthPage> {
     }
   }
 
-  // 🟩 ฟังก์ชันสำหรับกรองข้อมูลตาม earthTypeName และจัดส่วนแบ่งหน้า (Pagination)
   void _applyFilterAndPagination() {
     List<dynamic> tempFiltered = _allRawItems;
 
-    // กรองคำตาม earthTypeName
     if (_searchQuery.isNotEmpty) {
       tempFiltered = tempFiltered.where((item) {
         String earthTypeName = (item['earthTypeName'] ?? '').toString().toLowerCase();
@@ -88,14 +88,11 @@ class _EarthPageState extends State<EarthPage> {
 
     _filteredItems = tempFiltered;
 
-    // คำนวณจำนวนหน้าทั้งหมด
     _lastPage = (_filteredItems.length / _itemsPerPage).ceil();
     if (_lastPage < 1) _lastPage = 1;
 
-    // ป้องกันกรณีหน้าปัจจุบันเกินจำนวนหน้าที่มีอยู่หลังจากกรอง
     if (_currentPage > _lastPage) _currentPage = 1;
 
-    // ตัดสไลด์ข้อมูลมาแสดงในหน้าปัจจุบัน
     int startIndex = (_currentPage - 1) * _itemsPerPage;
     _currentPageItems = _filteredItems
         .skip(startIndex)
@@ -103,7 +100,6 @@ class _EarthPageState extends State<EarthPage> {
         .toList();
   }
 
-  // 🔹 ฟังก์ชันแสดงหน้าจอ Popup รายละเอียดดิน
   void _showEarthDetailDialog(Map<String, dynamic> item) {
     String title = item['earthTypeName'] ?? 'ไม่มีชื่อประเภทดิน';
     String imgUrl = _formatImgUrl(item['img_cloudinary'] ?? item['img'] ?? '');
@@ -114,10 +110,10 @@ class _EarthPageState extends State<EarthPage> {
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          backgroundColor: const Color(0xFFEFE8CE), // สีพื้นหลังครีมอมเหลืองตามรูปภาพ
+          backgroundColor: const Color(0xFFEFE8CE),
           child: Container(
             padding: const EdgeInsets.all(20),
-            constraints: const BoxConstraints(maxHeight: 650), // ควบคุมไม่ให้หน้าต่างล้นจอ
+            constraints: const BoxConstraints(maxHeight: 650),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,47 +204,65 @@ class _EarthPageState extends State<EarthPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 15),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 28, color: Colors.black),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const Text("ดิน", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                  ],
+
+                // 🟢 1. Header Widget
+                EarthHeaderWidget(
+                  onBackPressed: () => Navigator.pop(context),
                 ),
-                const SizedBox(height: 15),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0EAE1),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value.trim().toLowerCase();
-                        _currentPage = 1; // รีเซ็ตไปหน้าแรกทันทีที่พิมพ์ค้นหา
-                        _applyFilterAndPagination();
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      hintText: 'ค้นหา เช่น ดินร่วน, ดินเหนียว...',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      border: InputBorder.none,
-                      suffixIcon: Icon(Icons.search, color: Colors.black),
-                    ),
-                  ),
+
+                const SizedBox(height: 16),
+
+                // 🟢 2. Search Widget
+                EarthSearchWidget(
+                  controller: _searchController,
+                  searchQuery: _searchQuery,
+                  onSearchChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.trim().toLowerCase();
+                      _currentPage = 1;
+                      _applyFilterAndPagination();
+                    });
+                  },
+                  onClearSearch: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = "";
+                      _currentPage = 1;
+                      _applyFilterAndPagination();
+                    });
+                  },
                 ),
-                const SizedBox(height: 25),
+
+                const SizedBox(height: 16),
+
+                // 🟢 3. List Item Widget
                 Expanded(
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF4A7C59),
+                          ),
+                        )
                       : _currentPageItems.isEmpty
-                          ? const Center(
-                              child: Text(
-                                "ไม่พบข้อมูลประเภทดิน",
-                                style: TextStyle(fontSize: 18, color: Colors.grey),
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off_rounded,
+                                    size: 50,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    "ไม่พบข้อมูลประเภทดิน",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             )
                           : ListView.builder(
@@ -256,147 +270,35 @@ class _EarthPageState extends State<EarthPage> {
                               itemCount: _currentPageItems.length,
                               itemBuilder: (context, index) {
                                 final item = _currentPageItems[index];
-                                return GestureDetector(
-                                  onTap: () => _showEarthDetailDialog(item),
-                                  child: _buildItemCard(
-                                    item['earthTypeName'] ?? 'ไม่มีชื่อประเภทดิน', 
-                                    item['img_cloudinary'] ?? item['img'] ?? 'https://via.placeholder.com/150',
+                                return EarthItemCard(
+                                  title: item['earthTypeName'] ?? 'ไม่มีชื่อประเภทดิน',
+                                  formattedImgUrl: _formatImgUrl(
+                                    item['img_cloudinary'] ??
+                                        item['img'] ??
+                                        'https://via.placeholder.com/150',
                                   ),
+                                  onTap: () => _showEarthDetailDialog(item),
                                 );
                               },
                             ),
                 ),
-                _buildDynamicPagination(),
+
+                const SizedBox(height: 8),
+
+                // 🟢 4. Pagination Widget
+                EarthPaginationWidget(
+                  currentPage: _currentPage,
+                  lastPage: _lastPage,
+                  onPageChanged: (newPage) {
+                    setState(() {
+                      _currentPage = newPage;
+                      _applyFilterAndPagination();
+                    });
+                  },
+                ),
+
                 const SizedBox(height: 15),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // 🔹 สลับตำแหน่ง: รูปภาพอยู่ซ้าย / ข้อความอยู่ขวา
-  Widget _buildItemCard(String title, String imgUrl) {
-    String formattedImgUrl = _formatImgUrl(imgUrl);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2EDB4),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black, width: 1.2),
-      ),
-      child: Row(
-        children: [
-          // 🖼️ รูปภาพอยู่ฝั่งซ้าย
-          ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: Image.network(
-              formattedImgUrl,
-              width: 110,
-              height: 110,
-              fit: BoxFit.cover,
-              cacheWidth: 300,
-              cacheHeight: 300,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  width: 110, height: 110,
-                  color: Colors.grey.shade200,
-                  child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 110, height: 110,
-                  color: Colors.grey.shade300,
-                  child: const Icon(Icons.image_not_supported, color: Colors.grey),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 15),
-          // 📝 ข้อความอยู่ฝั่งขวา
-          Expanded(
-            child: Text(
-              title, 
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDynamicPagination() {
-    List<Widget> pageButtons = [];
-    
-    pageButtons.add(_buildPageBtn("<", disabled: _currentPage == 1, onTap: () {
-      if (_currentPage > 1) { 
-        setState(() {
-          _currentPage--;
-          _applyFilterAndPagination();
-        }); 
-      }
-    }));
-    
-    for (int i = 1; i <= _lastPage; i++) {
-      pageButtons.add(_buildPageBtn(i.toString(), isActive: _currentPage == i, onTap: () {
-        setState(() {
-          _currentPage = i; 
-          _applyFilterAndPagination();
-        }); 
-      }));
-    }
-    
-    pageButtons.add(_buildPageBtn(">", disabled: _currentPage == _lastPage, onTap: () {
-      if (_currentPage < _lastPage) { 
-        setState(() {
-          _currentPage++;
-          _applyFilterAndPagination();
-        }); 
-      }
-    }));
-    
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Flexible(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: pageButtons,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPageBtn(String text, {bool isActive = false, bool disabled = false, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: disabled ? null : onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF5A45FF) : (disabled ? Colors.grey.shade300 : Colors.white),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.grey.shade300, width: 0.5),
-        ),
-        child: Center(
-          child: Text(
-            text, 
-            style: TextStyle(
-              color: isActive ? Colors.white : (disabled ? Colors.grey : Colors.black), 
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
             ),
           ),
         ),

@@ -15,39 +15,14 @@ class GuestNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 70,
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFF6E5),
-        border: Border(top: BorderSide(color: Colors.black87, width: 1.5)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(context, Icons.home, 0, const MenuPage()), 
-          _buildNavItem(context, Icons.menu_book, 1, const DataWarehousePage()),
-          _buildNavItem(context, Icons.local_florist, 2, const RecommendPlantsPage()),
-          _buildNavItem(context, Icons.business_center, 3, const LoginPage()), // ไปหน้า Login
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(BuildContext context, IconData icon, int index, Widget page) {
-    bool isSelected = currentIndex == index;
-    return GestureDetector(
-      onTap: () {
-        if (!isSelected) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => page));
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: isSelected
-            ? const BoxDecoration(color: Color(0xFFD6B98D), shape: BoxShape.circle)
-            : null,
-        child: Icon(icon, size: 32, color: Colors.black87),
-      ),
+    return _CustomBottomBarLayout(
+      currentIndex: currentIndex,
+      items: [
+        _NavItemData(icon: Icons.home_rounded, page: const MenuPage()), 
+        _NavItemData(icon: Icons.menu_book_rounded, page: const DataWarehousePage()),
+        _NavItemData(icon: Icons.local_florist_rounded, page: const RecommendPlantsPage()),
+        _NavItemData(icon: Icons.business_center_rounded, page: const LoginPage()),
+      ],
     );
   }
 }
@@ -61,41 +36,105 @@ class AuthNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 70,
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFF6E5),
-        border: Border(top: BorderSide(color: Colors.black87, width: 1.5)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          // --- จุดที่แก้: เพิ่ม isLoggedIn: true ให้กับหน้าที่ต้องใช้แถบเมนูร่วมกัน ---
-          _buildNavItem(context, Icons.home, 0, const MenuPage(isLoggedIn: true)), 
-          _buildNavItem(context, Icons.menu_book, 1, const DataWarehousePage(isLoggedIn: true)),
-          _buildNavItem(context, Icons.local_florist, 2, const RecommendPlantsPage(isLoggedIn: true)),
-          // ------------------------------------------------------------------
-          _buildNavItem(context, Icons.chat_bubble, 3, const ChatPage()), // แชทบอท
-          _buildNavItem(context, Icons.business_center, 4, const ToolPage()), // อุปกรณ์
-        ],
-      ),
+    return _CustomBottomBarLayout(
+      currentIndex: currentIndex,
+      items: [
+        _NavItemData(icon: Icons.home_rounded, page: const MenuPage(isLoggedIn: true)), 
+        _NavItemData(icon: Icons.menu_book_rounded, page: const DataWarehousePage(isLoggedIn: true)),
+        _NavItemData(icon: Icons.local_florist_rounded, page: const RecommendPlantsPage(isLoggedIn: true)),
+        _NavItemData(icon: Icons.chat_bubble_rounded, page: const ChatPage()), 
+        _NavItemData(icon: Icons.business_center_rounded, page: const ToolPage()), 
+      ],
     );
   }
+}
 
-  Widget _buildNavItem(BuildContext context, IconData icon, int index, Widget page) {
-    bool isSelected = currentIndex == index;
-    return GestureDetector(
-      onTap: () {
-        if (!isSelected) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => page));
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: isSelected
-            ? const BoxDecoration(color: Color(0xFFD6B98D), shape: BoxShape.circle)
-            : null,
-        child: Icon(icon, size: 32, color: Colors.black87),
+// ---------------------------------------------
+// 3. ส่วนประกอบการตกแต่งหลัก (ภายในไฟล์เดียว)
+// ---------------------------------------------
+class _NavItemData {
+  final IconData icon;
+  final Widget page;
+
+  _NavItemData({required this.icon, required this.page});
+}
+
+class _CustomBottomBarLayout extends StatelessWidget {
+  final int currentIndex;
+  final List<_NavItemData> items;
+
+  const _CustomBottomBarLayout({
+    required this.currentIndex,
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF6E5),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          height: 65,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(items.length, (index) {
+              final item = items[index];
+              final isSelected = currentIndex == index;
+
+              return Expanded(
+                child: InkWell(
+                  onTap: () {
+                    if (!isSelected) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => item.page),
+                      );
+                    }
+                  },
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFD6B98D) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFFD6B98D).withOpacity(0.4),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : [],
+                      ),
+                      child: Icon(
+                        item.icon,
+                        size: isSelected ? 28 : 26,
+                        color: Colors.black87, // 💡 ชัดเจน 100% เท่ากันทุกปุ่ม ไม่ดรอปสีลง
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }

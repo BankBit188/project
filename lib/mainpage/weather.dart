@@ -8,6 +8,9 @@ import 'dart:convert';
 import 'package:project/service/plants_service.dart';
 import 'package:project/modal/plant_recommendation_helper.dart';
 
+// 🛠️ นำเข้าสไตล์ Weather Theme
+import 'package:project/style/style_weather.dart';
+
 // 📍 คลาสสำหรับเก็บปีและเดือนที่เลือก
 class MonthYear {
   final int year;
@@ -342,7 +345,7 @@ class _WeatherPageState extends State<WeatherPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: kWeatherDialogShape,
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -353,7 +356,7 @@ class _WeatherPageState extends State<WeatherPage> {
                       const Text("ปี: ", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
                       DropdownButton<int>(
                         value: selectedYearInDialog,
-                        underline: Container(height: 1, color: Colors.green),
+                        underline: Container(height: 1.5, color: const Color(0xFF2E5A36)),
                         items: [currentYear, currentYear - 1, currentYear - 2, currentYear - 3].map((y) {
                           return DropdownMenuItem<int>(
                             value: y,
@@ -561,13 +564,7 @@ class _WeatherPageState extends State<WeatherPage> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF3A9CED), Color(0xFF76C2F9)],
-          ),
-        ),
+        decoration: kWeatherBackgroundDecoration,
         child: SafeArea(
           child: isLoading
               ? const Center(
@@ -660,23 +657,11 @@ class _WeatherPageState extends State<WeatherPage> {
                             itemBuilder: (context, index) {
                               final item = hourlyForecast[index];
                               bool isCurrent = item['isCurrent'];
-                              return Container(
-                                width: 70,
-                                margin: const EdgeInsets.only(right: 10),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: isCurrent ? Colors.white.withOpacity(0.25) : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(15),
-                                  border: isCurrent ? Border.all(color: Colors.white54) : null,
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                  children: [
-                                    Text("${item['temp'].round()}°C", style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-                                    Icon(getWeatherIcon(item['code']), color: Colors.white, size: 22),
-                                    Text(item['time'], style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                                  ],
-                                ),
+                              return buildHourlyForecastCard(
+                                tempText: "${item['temp'].round()}°C",
+                                icon: getWeatherIcon(item['code']),
+                                timeText: item['time'],
+                                isCurrent: isCurrent,
                               );
                             },
                           ),
@@ -685,43 +670,26 @@ class _WeatherPageState extends State<WeatherPage> {
 
                         Row(
                           children: [
-                            Expanded(child: _buildDetailCard(icon: Icons.water_drop, title: "ความชื้น", value: "$currentHumidity%")),
+                            Expanded(child: buildWeatherDetailCard(icon: Icons.water_drop, title: "ความชื้น", value: "$currentHumidity%")),
                             const SizedBox(width: 15),
-                            Expanded(child: _buildDetailCard(icon: Icons.air, title: "ลม", value: "${windSpeed.round()} กม/ชม")),
+                            Expanded(child: buildWeatherDetailCard(icon: Icons.air, title: "ลม", value: "${windSpeed.round()} กม/ชม")),
                           ],
                         ),
                         const SizedBox(height: 20),
 
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton.icon(
-                            onPressed: isRecommending ? null : _recommendPlantsFromWeather,
-                            icon: isRecommending
-                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Color(0xFF2E5A36), strokeWidth: 2))
-                                : const Icon(Icons.eco, color: Color(0xFF2E5A36), size: 24),
-                            label: Text(
-                              isRecommending ? "กำลังคำนวณ..." : "แนะนำพืชจากสภาพอากาศตอนนี้",
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2E5A36)),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            ),
-                          ),
+                        buildPrimaryActionButton(
+                          onPressed: isRecommending ? null : _recommendPlantsFromWeather,
+                          isLoading: isRecommending,
+                          defaultText: "แนะนำพืชจากสภาพอากาศตอนนี้",
+                          loadingText: "กำลังคำนวณ...",
+                          icon: Icons.eco,
                         ),
                         const SizedBox(height: 30),
 
                         const Text("พยากรณ์อากาศ 5 วันข้างหน้า", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                         const SizedBox(height: 12),
-                        Container(
+                        buildGlassCard(
                           padding: const EdgeInsets.all(15),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white24),
-                          ),
                           child: Column(
                             children: dailyForecast.map((dayData) {
                               return Padding(
@@ -762,13 +730,8 @@ class _WeatherPageState extends State<WeatherPage> {
                         ),
                         const SizedBox(height: 30),
 
-                        Container(
+                        buildGlassCard(
                           padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white38),
-                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -832,23 +795,13 @@ class _WeatherPageState extends State<WeatherPage> {
                                     ),
                               const SizedBox(height: 15),
 
-                              SizedBox(
-                                width: double.infinity,
+                              buildPrimaryActionButton(
+                                onPressed: (isRecommendingMonth || isLoadingMonthAvg) ? null : _recommendPlantsFromMonthlyAvg,
+                                isLoading: isRecommendingMonth,
+                                defaultText: "แนะนำพืชตามค่าเฉลี่ยที่เลือก",
+                                loadingText: "กำลังคำนวณ...",
+                                icon: Icons.eco,
                                 height: 45,
-                                child: ElevatedButton.icon(
-                                  onPressed: (isRecommendingMonth || isLoadingMonthAvg) ? null : _recommendPlantsFromMonthlyAvg,
-                                  icon: isRecommendingMonth
-                                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Color(0xFF2E5A36), strokeWidth: 2))
-                                      : const Icon(Icons.eco, color: Color(0xFF2E5A36), size: 22),
-                                  label: Text(
-                                    isRecommendingMonth ? "กำลังคำนวณ..." : "แนะนำพืชตามค่าเฉลี่ยที่เลือก",
-                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF2E5A36)),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                ),
                               ),
                             ],
                           ),
@@ -859,32 +812,6 @@ class _WeatherPageState extends State<WeatherPage> {
                   ),
                 ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildDetailCard({required IconData icon, required String title, required String value}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      height: 110,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: Colors.white, size: 20),
-              const SizedBox(width: 6),
-              Text(title, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
-            ],
-          ),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-        ],
       ),
     );
   }

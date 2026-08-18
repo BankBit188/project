@@ -1,26 +1,22 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 
 import 'package:project/navbar/navbars.dart';
 import 'package:project/mainpage/history.dart';
 import 'package:project/mainpage/menu.dart';
 import 'package:project/mainpage/profile.dart';
 import 'package:project/mainpage/followreport.dart';
-
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:project/service/reports_service.dart';
-import 'package:project/service/user_service.dart';
-
-import 'package:intl/date_symbol_data_local.dart';
-import 'package:intl/intl.dart';
-
 import 'package:project/service/tool_service.dart';
 import 'package:project/modal/plant_recommendation_helper.dart';
+
+import 'package:project/modal/tool_save_location_dialog.dart';
+import 'package:project/modal/tool_report_dialog.dart';
+
+import 'package:project/style/style_tool.dart';
 
 class ToolPage extends StatefulWidget {
   const ToolPage({super.key});
@@ -39,10 +35,8 @@ class _ToolPageState extends State<ToolPage> {
   bool _isLoadingTool = false;
 
   String _currentDateTimeString = "";
-
   List<dynamic> _thailandData = [];
 
-  // 🔴🟢 ตรวจสอบสถานะว่าอุปกรณ์ Offline หรือไม่ (เกิน 2 นาทีถือว่า Offline)
   bool get _isOffline {
     if (_toolData == null) return true;
     
@@ -54,10 +48,7 @@ class _ToolPageState extends State<ToolPage> {
     try {
       final createdAt = DateTime.parse(createdAtStr).toLocal();
       final now = DateTime.now();
-      final difference = now.difference(createdAt);
-
-      // ถ้าเวลาต่างกันตั้งแต่ 2 นาที (120 วินาที) ขึ้นไป ถือว่า Offline
-      return difference.inSeconds >= 120;
+      return now.difference(createdAt).inSeconds >= 120;
     } catch (e) {
       return true;
     }
@@ -73,9 +64,7 @@ class _ToolPageState extends State<ToolPage> {
 
   Future<void> _loadAddressData() async {
     try {
-      String jsonString = await rootBundle.loadString(
-        'assets/data/thailand_data.json',
-      );
+      String jsonString = await rootBundle.loadString('assets/data/thailand_data.json');
       if (!mounted) return;
       setState(() {
         _thailandData = jsonDecode(jsonString);
@@ -116,74 +105,33 @@ class _ToolPageState extends State<ToolPage> {
 
   Future<void> _fetchToolData() async {
     if (!mounted) return;
-    setState(() {
-      _isLoadingTool = true;
-    });
+    setState(() => _isLoadingTool = true);
     try {
       final response = await ToolService.gettoolbyuser(_userId!, _authToken!);
-      if (response != null && response['status'] == 'success') {
-        if (!mounted) return;
+      if (mounted) {
         setState(() {
-          _toolData = response['data'];
-          _isLoadingTool = false;
-        });
-      } else {
-        if (!mounted) return;
-        setState(() {
+          if (response != null && response['status'] == 'success') {
+            _toolData = response['data'];
+          }
           _isLoadingTool = false;
         });
       }
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoadingTool = false;
-      });
+      if (mounted) setState(() => _isLoadingTool = false);
     }
-  }
-
-  String _getName(dynamic item) {
-    if (item is Map) {
-      return item['name_th'] ?? item['name'] ?? item['name_en'] ?? '';
-    }
-    return item.toString();
-  }
-
-  List<dynamic> _getAmphures(dynamic provinceObj) {
-    if (provinceObj is Map) {
-      return provinceObj['amphure'] ??
-          provinceObj['amphur'] ??
-          provinceObj['districts'] ??
-          [];
-    }
-    return [];
-  }
-
-  List<dynamic> _getTambons(dynamic amphurObj) {
-    if (amphurObj is Map) {
-      return amphurObj['tambon'] ??
-          amphurObj['district'] ??
-          amphurObj['subdistricts'] ??
-          [];
-    }
-    return [];
   }
 
   Future<void> _recommendPlants() async {
-    // Check if offline
     if (_isOffline) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("อุปกรณ์ออฟไลน์อยู่"),
-        ),
+        const SnackBar(content: Text("อุปกรณ์ออฟไลน์อยู่")),
       );
       return;
     }
 
     if (_toolData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("ยังไม่มีข้อมูลสภาพดิน กรุณารอโหลดข้อมูลสักครู่"),
-        ),
+        const SnackBar(content: Text("ยังไม่มีข้อมูลสภาพดิน กรุณารอโหลดข้อมูลสักครู่")),
       );
       return;
     }
@@ -191,15 +139,11 @@ class _ToolPageState extends State<ToolPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     await Future.delayed(const Duration(milliseconds: 100));
-
     if (!mounted) return;
-
     Navigator.pop(context);
 
     PlantRecommendationHelper.showRecommendations(
@@ -219,422 +163,23 @@ class _ToolPageState extends State<ToolPage> {
   }
 
   void _showSaveLocationDialog(BuildContext context) {
-    final TextEditingController titleController = TextEditingController();
-
-    final List<Map<String, dynamic>> regions = [
-      {'id': 1, 'name': 'ภาคเหนือ'},
-      {'id': 2, 'name': 'ภาคกลาง'},
-      {'id': 3, 'name': 'ภาคตะวันออกเฉียงเหนือ'},
-      {'id': 4, 'name': 'ภาคตะวันตก'},
-      {'id': 5, 'name': 'ภาคตะวันออก'},
-      {'id': 6, 'name': 'ภาคใต้'},
-    ];
-
-    String? selectedRegion;
-    String? selectedProvince;
-    String? selectedAmphur;
-    String? selectedDistrict;
-
-    List<dynamic> provinceList = [];
-    List<dynamic> amphurList = [];
-    List<dynamic> districtList = [];
-
     showDialog(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return Dialog(
-              backgroundColor: const Color(0xFFF5EFCB),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
-                side: const BorderSide(color: Colors.black87, width: 1.5),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20.0,
-                  vertical: 25.0,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      "ระบุสถานที่และที่ตั้ง",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 25),
-
-                    _buildLocationInputRow(
-                      label: "สถานที่ :",
-                      child: TextField(
-                        controller: titleController,
-                        style: const TextStyle(fontSize: 14),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          border: InputBorder.none,
-                          hintText: "เช่น แปลงนาที่ 1",
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    _buildLocationInputRow(
-                      label: "ภาค :",
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedRegion,
-                          hint: const Text(
-                            "เลือกภาค",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          isExpanded: true,
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down,
-                            color: Colors.black,
-                          ),
-                          items: regions.map<DropdownMenuItem<String>>((reg) {
-                            return DropdownMenuItem<String>(
-                              value: reg['name'].toString(),
-                              child: Text(
-                                reg['name'].toString(),
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            setDialogState(() {
-                              selectedRegion = val;
-                              selectedProvince = null;
-                              selectedAmphur = null;
-                              selectedDistrict = null;
-                              amphurList = [];
-                              districtList = [];
-
-                              var regObj = regions.firstWhere(
-                                (r) => r['name'] == val,
-                                orElse: () => {},
-                              );
-                              if (regObj.isNotEmpty) {
-                                provinceList = _thailandData
-                                    .where((p) => p['geography_id'] == regObj['id'])
-                                    .toList();
-                              } else {
-                                provinceList = [];
-                              }
-                            });
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    _buildLocationInputRow(
-                      label: "จังหวัด :",
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedProvince,
-                          hint: const Text(
-                            "เลือกจังหวัด",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          isExpanded: true,
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down,
-                            color: Colors.black,
-                          ),
-                          items: provinceList.map<DropdownMenuItem<String>>((prov) {
-                            String name = _getName(prov);
-                            return DropdownMenuItem<String>(
-                              value: name,
-                              child: Text(
-                                name,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            setDialogState(() {
-                              selectedProvince = val;
-                              selectedAmphur = null;
-                              selectedDistrict = null;
-                              districtList = [];
-
-                              var provObj = provinceList.firstWhere(
-                                (element) => _getName(element) == val,
-                                orElse: () => null,
-                              );
-                              amphurList = provObj != null
-                                  ? _getAmphures(provObj)
-                                  : [];
-                            });
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    _buildLocationInputRow(
-                      label: "อำเภอ :",
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedAmphur,
-                          hint: const Text(
-                            "เลือกอำเภอ",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          isExpanded: true,
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down,
-                            color: Colors.black,
-                          ),
-                          items: amphurList.map<DropdownMenuItem<String>>((amp) {
-                            String name = _getName(amp);
-                            return DropdownMenuItem<String>(
-                              value: name,
-                              child: Text(
-                                name,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            setDialogState(() {
-                              selectedAmphur = val;
-                              selectedDistrict = null;
-
-                              var ampObj = amphurList.firstWhere(
-                                (element) => _getName(element) == val,
-                                orElse: () => null,
-                              );
-                              districtList = ampObj != null
-                                  ? _getTambons(ampObj)
-                                  : [];
-                            });
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    _buildLocationInputRow(
-                      label: "ตำบล :",
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedDistrict,
-                          hint: const Text(
-                            "เลือกตำบล",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          isExpanded: true,
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down,
-                            color: Colors.black,
-                          ),
-                          items: districtList.map<DropdownMenuItem<String>>((dt) {
-                            String name = _getName(dt);
-                            return DropdownMenuItem<String>(
-                              value: name,
-                              child: Text(
-                                name,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            setDialogState(() {
-                              selectedDistrict = val;
-                            });
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        InkWell(
-                          onTap: () async {
-                            if (_authToken == null ||
-                                _userId == null ||
-                                _authToken!.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "ไม่พบข้อมูลการเข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่อีกครั้ง",
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
-
-                            if (titleController.text.trim().isEmpty ||
-                                selectedRegion == null ||
-                                selectedProvince == null ||
-                                selectedAmphur == null ||
-                                selectedDistrict == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "กรุณากรอกข้อมูลสถานที่และเลือกที่ตั้งให้ครบถ้วน",
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
-
-                            showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (context) => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-
-                            try {
-                              String formattedRegion = selectedRegion!.replaceAll('ภาค', '');
-
-                              await ToolService.createhistory(
-                                userId: _userId!,
-                                token: _authToken!,
-                                title: titleController.text.trim(),
-                                region: formattedRegion,
-                                province: selectedProvince!,
-                                Amphur: selectedAmphur!,
-                                district: selectedDistrict!,
-                                toolData: _toolData,
-                              );
-
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                Navigator.pop(dialogContext);
-                                titleController.dispose();
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("บันทึกข้อมูลเรียบร้อยแล้ว"),
-                                  ),
-                                );
-
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const HistoryPage(),
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text("บันทึกข้อมูลไม่สำเร็จ: $e"),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                          child: Container(
-                            width: 110,
-                            height: 40,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6BBA90),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.black87,
-                                width: 1.2,
-                              ),
-                            ),
-                            child: const Text(
-                              "ยืนยัน",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        InkWell(
-                          onTap: () {
-                            titleController.dispose();
-                            Navigator.pop(dialogContext);
-                          },
-                          child: Container(
-                            width: 110,
-                            height: 40,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE26A6A),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.black87,
-                                width: 1.2,
-                              ),
-                            ),
-                            child: const Text(
-                              "ยกเลิก",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      builder: (context) => SaveLocationDialog(
+        userId: _userId,
+        authToken: _authToken,
+        toolData: _toolData,
+        thailandData: _thailandData,
+      ),
     );
   }
 
-  Widget _buildLocationInputRow({
-    required String label,
-    required Widget child,
-  }) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 85,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-        ),
-        const SizedBox(width: 5),
-        Expanded(
-          child: Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFE8C8),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.black87, width: 1),
-            ),
-            child: Center(child: child),
-          ),
-        ),
-      ],
+  void _showReportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => ReportDialog(
+        userId: _userId,
+      ),
     );
   }
 
@@ -644,613 +189,217 @@ class _ToolPageState extends State<ToolPage> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFDCEAF1), Color(0xFFD2E0C4)],
-          ),
-        ),
+        decoration: ToolTheme.pageDecoration,
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20.0,
-              vertical: 20.0,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const Text(
-                          "อุปกรณ์",
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // 🔴🟢 ป้ายแสดงสถานะ ออนไลน์/ออฟไลน์
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _isOffline
-                                ? Colors.red.shade100
-                                : Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _isOffline ? Colors.red : Colors.green,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 💡 ปรับปรุง Header Row ใส่ Expanded ป้องกัน Right Overflow
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  "อุปกรณ์",
+                                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CircleAvatar(
-                                radius: 4,
-                                backgroundColor:
-                                    _isOffline ? Colors.red : Colors.green,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _isOffline ? "ออฟไลน์" : "ออนไลน์",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: _isOffline
-                                      ? Colors.red.shade900
-                                      : Colors.green.shade900,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        _isLoadingTool
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.black87,
+                            const SizedBox(width: 6),
+                            ToolStatusBadge(isOffline: _isOffline),
+                            const SizedBox(width: 4),
+                            _isLoadingTool
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.0,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
+                                    ),
+                                  )
+                                : IconButton(
+                                    icon: const Icon(Icons.refresh, size: 26, color: Colors.black87),
+                                    constraints: const BoxConstraints(),
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () {
+                                      _fetchToolData();
+                                      _initThaiDateTime();
+                                    },
                                   ),
-                                ),
-                              )
-                            : IconButton(
-                                icon: const Icon(
-                                  Icons.refresh,
-                                  size: 28,
-                                  color: Colors.black87,
-                                ),
-                                constraints: const BoxConstraints(),
-                                padding: EdgeInsets.zero,
-                                onPressed: () {
-                                  _fetchToolData();
-                                  _initThaiDateTime();
-                                },
-                              ),
-                      ],
-                    ),
-
-                    Theme(
-                      data: Theme.of(
-                        context,
-                      ).copyWith(dividerColor: Colors.black54),
-                      child: PopupMenuButton<String>(
-                        icon: const Icon(
-                          Icons.menu,
-                          size: 35,
-                          color: Colors.black,
+                          ],
                         ),
-                        offset: const Offset(0, 45),
-                        color: const Color(0xFFFCEEBA),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(
-                            color: Colors.black54,
-                            width: 1,
-                          ),
-                        ),
-                        onSelected: (String value) async {
-                          if (value == 'profile') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ProfilePage(),
-                              ),
-                            );
-                          } else if (value == 'report') {
-                            _showReportDialog(context);
-                          } else if (value == 'follow_report') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const FollowReportPage(),
-                              ),
-                            );
-                          } else if (value == 'history') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const HistoryPage(),
-                              ),
-                            );
-                          } else if (value == 'logout') {
-                            await _secureStorage.delete(key: "auth_token");
-                            await _secureStorage.delete(key: "Userid");
-
-                            if (!mounted) return;
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const MenuPage(isLoggedIn: false),
-                              ),
-                              (Route<dynamic> route) => false,
-                            );
-                          }
-                        },
-                        itemBuilder: (BuildContext context) =>
-                            <PopupMenuEntry<String>>[
-                              _buildPopupMenuItem('profile', 'โปรไฟล์'),
-                              const PopupMenuDivider(height: 1),
-                              _buildPopupMenuItem(
-                                'history',
-                                'ประวัติการบันทึก',
-                              ),
-                              const PopupMenuDivider(height: 1),
-                              _buildPopupMenuItem('report', 'รายงานปัญหา'),
-                              const PopupMenuDivider(height: 1),
-                              _buildPopupMenuItem('follow_report', 'ติดตามปัญหา'),
-                              const PopupMenuDivider(height: 1),
-                              _buildPopupMenuItem('logout', 'ออกจากระบบ'),
-                            ],
                       ),
-                    ),
-                  ],
-                ),
 
-                const SizedBox(height: 6),
-                Text(
-                  _currentDateTimeString.isNotEmpty
-                      ? _currentDateTimeString
-                      : "กำลังโหลดเวลา...",
-                  style: const TextStyle(fontSize: 15, color: Colors.black54),
-                ),
-                const SizedBox(height: 15),
+                      Theme(
+                        data: Theme.of(context).copyWith(dividerColor: Colors.black54),
+                        child: PopupMenuButton<String>(
+                          icon: const Icon(Icons.menu, size: 35, color: Colors.black),
+                          offset: const Offset(0, 45),
+                          color: ToolTheme.menuBg,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(color: Colors.black54, width: 1),
+                          ),
+                          onSelected: (String value) async {
+                            if (value == 'profile') {
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfilePage()));
+                            } else if (value == 'report') {
+                              _showReportDialog(context);
+                            } else if (value == 'follow_report') {
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const FollowReportPage()));
+                            } else if (value == 'history') {
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryPage()));
+                            } else if (value == 'logout') {
+                              await _secureStorage.delete(key: "auth_token");
+                              await _secureStorage.delete(key: "Userid");
 
-                // 🔹 ย้ายระบุหน่วยมาไว้ทางขวาสุด
-                const Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    "(หน่วย: mg/kg)",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black54,
+                              if (!mounted) return;
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (context) => const MenuPage(isLoggedIn: false)),
+                                (Route<dynamic> route) => false,
+                              );
+                            }
+                          },
+                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                            _buildPopupMenuItem('profile', 'โปรไฟล์'),
+                            const PopupMenuDivider(height: 1),
+                            _buildPopupMenuItem('history', 'ประวัติการบันทึก'),
+                            const PopupMenuDivider(height: 1),
+                            _buildPopupMenuItem('report', 'รายงานปัญหา'),
+                            const PopupMenuDivider(height: 1),
+                            _buildPopupMenuItem('follow_report', 'ติดตามปัญหา'),
+                            const PopupMenuDivider(height: 1),
+                            _buildPopupMenuItem('logout', 'ออกจากระบบ'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time_rounded, size: 16, color: Colors.black54),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          _currentDateTimeString.isNotEmpty ? _currentDateTimeString : "กำลังโหลดเวลา...",
+                          style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  const Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      "(หน่วย: mg/kg)",
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 6),
 
-                // 🔹 แถวแสดง N, P, K (ถ้า Offline ให้แสดง "-")
-                _buildElementRow(
-                  "N",
-                  _isOffline ? "-" : (_toolData?['N']?.toString() ?? "-"),
-                  "P",
-                  _isOffline ? "-" : (_toolData?['P']?.toString() ?? "-"),
-                  "K",
-                  _isOffline ? "-" : (_toolData?['K']?.toString() ?? "-"),
-                ),
-                const SizedBox(height: 15),
+                  Row(
+                    children: [
+                      Expanded(child: NutrientCardTile(label: "N", value: _isOffline ? "-" : (_toolData?['N']?.toString() ?? "-"))),
+                      const SizedBox(width: 6),
+                      Expanded(child: NutrientCardTile(label: "P", value: _isOffline ? "-" : (_toolData?['P']?.toString() ?? "-"))),
+                      const SizedBox(width: 6),
+                      Expanded(child: NutrientCardTile(label: "K", value: _isOffline ? "-" : (_toolData?['K']?.toString() ?? "-"))),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
 
-                // 🔹 แถวแสดง Ca, Mg, S (ถ้า Offline ให้แสดง "-")
-                _buildElementRow(
-                  "Ca",
-                  _isOffline ? "-" : (_toolData?['Ca']?.toString() ?? "-"),
-                  "Mg",
-                  _isOffline ? "-" : (_toolData?['Mg']?.toString() ?? "-"),
-                  "S",
-                  _isOffline ? "-" : (_toolData?['S']?.toString() ?? "-"),
-                ),
-                const SizedBox(height: 35),
+                  Row(
+                    children: [
+                      Expanded(child: NutrientCardTile(label: "Ca", value: _isOffline ? "-" : (_toolData?['Ca']?.toString() ?? "-"))),
+                      const SizedBox(width: 6),
+                      Expanded(child: NutrientCardTile(label: "Mg", value: _isOffline ? "-" : (_toolData?['Mg']?.toString() ?? "-"))),
+                      const SizedBox(width: 6),
+                      Expanded(child: NutrientCardTile(label: "S", value: _isOffline ? "-" : (_toolData?['S']?.toString() ?? "-"))),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-                _buildDetailRow(
-                  Icons.water_drop,
-                  "ความชื้น",
-                  _isOffline
-                      ? "-"
-                      : (_toolData?['humid'] != null
-                          ? "${_toolData!['humid']} %"
-                          : "-"),
-                  Colors.lightBlue,
-                ),
-                const SizedBox(height: 20),
-                _buildDetailRow(
-                  Icons.science,
-                  "ค่า pH",
-                  _isOffline
-                      ? "-"
-                      : (_toolData != null
-                          ? "${_toolData!['PH'] ?? _toolData!['ph'] ?? '-'}"
-                          : "-"),
-                  Colors.purple,
-                ),
-                const SizedBox(height: 20),
-                _buildDetailRow(
-                  Icons.thermostat,
-                  "อุณหภูมิ",
-                  _isOffline
-                      ? "-"
-                      : (_toolData?['temperature'] != null
-                          ? "${_toolData!['temperature']} C°"
-                          : "-"),
-                  Colors.black54,
-                ),
-                const SizedBox(height: 20),
-                _buildDetailRow(
-                  Icons.waves,
-                  "ความเค็ม",
-                  _isOffline
-                      ? "-"
-                      : (_toolData?['salty'] != null
-                          ? "${_toolData!['salty']} us/cm"
-                          : "-"),
-                  Colors.black54,
-                ),
+                  EnvironmentMetricTile(
+                    icon: Icons.water_drop_rounded,
+                    label: "ความชื้น",
+                    value: _isOffline ? "-" : (_toolData?['humid'] != null ? "${_toolData!['humid']} %" : "-"),
+                    iconColor: Colors.blue.shade600,
+                  ),
+                  const SizedBox(height: 10),
+                  EnvironmentMetricTile(
+                    icon: Icons.science_rounded,
+                    label: "ค่า pH",
+                    value: _isOffline ? "-" : (_toolData != null ? "${_toolData!['PH'] ?? _toolData!['ph'] ?? '-'}" : "-"),
+                    iconColor: Colors.purple.shade600,
+                  ),
+                  const SizedBox(height: 10),
+                  EnvironmentMetricTile(
+                    icon: Icons.thermostat_rounded,
+                    label: "อุณหภูมิ",
+                    value: _isOffline ? "-" : (_toolData?['temperature'] != null ? "${_toolData!['temperature']} C°" : "-"),
+                    iconColor: Colors.orange.shade700,
+                  ),
+                  const SizedBox(height: 10),
+                  EnvironmentMetricTile(
+                    icon: Icons.waves_rounded,
+                    label: "ความเค็ม",
+                    value: _isOffline ? "-" : (_toolData?['salty'] != null ? "${_toolData!['salty']} us/cm" : "-"),
+                    iconColor: Colors.teal.shade700,
+                  ),
 
-                const Spacer(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildBottomButton(
-                      "บันทึกข้อมูล",
-                      onTap: () {
-                        if (_isOffline) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("อุปกรณ์ออฟไลน์อยู่"),
-                            ),
-                          );
-                          return;
-                        }
-                        _showSaveLocationDialog(context);
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    _buildBottomButton(
-                      "พืชปลูกที่เหมาะสม",
-                      onTap: _recommendPlants,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-              ],
+                  const SizedBox(height: 24),
+                  
+                  // 💡 ครอบ Expanded สำหรับปุ่มกดคู่ด้านล่าง
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ToolActionButton(
+                          text: "บันทึกข้อมูล",
+                          icon: Icons.bookmark_add_rounded,
+                          onTap: () {
+                            if (_isOffline) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("อุปกรณ์ออฟไลน์อยู่")),
+                              );
+                              return;
+                            }
+                            _showSaveLocationDialog(context);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ToolActionButton(
+                          text: "พืชปลูกที่เหมาะสม",
+                          icon: Icons.eco_rounded,
+                          onTap: _recommendPlants,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
           ),
         ),
       ),
       bottomNavigationBar: const AuthNavBar(currentIndex: 4),
-    );
-  }
-
-  // 🔹 แจ้งปัญหา
-  void _showReportDialog(BuildContext context) {
-    final TextEditingController titleController = TextEditingController();
-    final TextEditingController detailController = TextEditingController();
-    
-    XFile? selectedImageFile; 
-    
-    final ImagePicker picker = ImagePicker();
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return Dialog(
-              backgroundColor: const Color(0xFFFCEEBA),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-                side: const BorderSide(color: Colors.black87, width: 1),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          const Align(
-                            alignment: Alignment.center,
-                            child: Text(
-                              "แจ้งปัญหา",
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: InkWell(
-                              onTap: () {
-                                titleController.dispose();
-                                detailController.dispose();
-                                Navigator.of(context).pop();
-                              },
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.red,
-                                size: 28,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          const Text(
-                            "หัวข้อ : ",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.black54),
-                              ),
-                              child: TextField(
-                                controller: titleController,
-                                textAlignVertical: TextAlignVertical.center,
-                                style: const TextStyle(fontSize: 14),
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      const Text(
-                        "รายละเอียด",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Container(
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: Colors.black54),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: TextField(
-                          controller: detailController,
-                          maxLines: null,
-                          expands: true,
-                          textAlignVertical: TextAlignVertical.top,
-                          style: const TextStyle(fontSize: 14),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.all(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            "รูปภาพ : ",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Container(
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE0E0E0),
-                              borderRadius: BorderRadius.circular(15),
-                              border: Border.all(color: Colors.black54),
-                            ),
-                            child: TextButton(
-                              onPressed: () async {
-                                final XFile? image = await picker.pickImage(
-                                  source: ImageSource.gallery,
-                                );
-                                if (image != null) {
-                                  setDialogState(() {
-                                    selectedImageFile = image; 
-                                  });
-                                }
-                              },
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                minimumSize: Size.zero,
-                              ),
-                              child: Text(
-                                selectedImageFile == null ? "เลือกรูปภาพ" : "เปลี่ยนรูปภาพ",
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-
-                      if (selectedImageFile != null)
-                        Stack(
-                          children: [
-                            Container(
-                              width: double.infinity,
-                              height: 160,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.black38),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.file(
-                                  File(selectedImageFile!.path),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              top: 6,
-                              right: 6,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setDialogState(() {
-                                    selectedImageFile = null;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      else
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4.0),
-                          child: Text(
-                            "ยังไม่ได้เลือกรูปภาพ",
-                            style: TextStyle(fontSize: 12, color: Colors.black54),
-                          ),
-                        ),
-
-                      const SizedBox(height: 25),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Container(
-                          height: 40,
-                          width: 90,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6BBA90),
-                            borderRadius: BorderRadius.circular(15),
-                            border: Border.all(color: Colors.black87),
-                          ),
-                          child: TextButton(
-                            onPressed: () async {
-                              if (titleController.text.trim().isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('กรุณากรอกหัวข้อแจ้งปัญหา'),
-                                  ),
-                                );
-                                return;
-                              }
-
-                              showDialog(
-                                context: context,
-                                barrierDismissible: false,
-                                builder: (context) => const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                              try {
-                                Map<String, String> reportData = {
-                                  'Userid': _userId ?? '',
-                                  'reporttitle': titleController.text.trim(),
-                                  'reportdetail': detailController.text.trim(),
-                                };
-
-                                final response =
-                                    await ReportsService.createReport(
-                                  reportData: reportData,
-                                  imageFile: selectedImageFile,
-                                );
-                                if (context.mounted) {
-                                  Navigator.of(context).pop();
-                                  Navigator.of(context).pop();
-
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        response['message'] ??
-                                            'ส่งรายงานสำเร็จ',
-                                      ),
-                                    ),
-                                  );
-                                  titleController.dispose();
-                                  detailController.dispose();
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  Navigator.of(context).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'ส่งข้อมูลล้มเหลวเนื่องจาก: $e',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            child: const Text(
-                              "ส่ง",
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 
@@ -1260,104 +409,7 @@ class _ToolPageState extends State<ToolPage> {
       child: Center(
         child: Text(
           text,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildElementRow(
-    String l1,
-    String v1,
-    String l2,
-    String v2,
-    String l3,
-    String v3,
-  ) {
-    return Row(
-      children: [
-        Expanded(child: _elementText(l1, v1)),
-        const SizedBox(width: 8),
-        Expanded(child: _elementText(l2, v2)),
-        const SizedBox(width: 8),
-        Expanded(child: _elementText(l3, v3)),
-      ],
-    );
-  }
-
-  Widget _elementText(String label, String value) {
-    final String displayValue =
-        (value == "-" || value.trim().isEmpty) ? "-" : value;
-
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(color: Colors.black),
-          children: [
-            TextSpan(
-              text: "$label ",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
-            ),
-            TextSpan(
-              text: ": $displayValue",
-              style: const TextStyle(fontSize: 20),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(
-    IconData icon,
-    String label,
-    String value,
-    Color iconColor,
-  ) {
-    return Row(
-      children: [
-        Icon(icon, size: 35, color: iconColor),
-        const SizedBox(width: 15),
-        Expanded(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "$label   : $value",
-              style: const TextStyle(fontSize: 20, color: Colors.black),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBottomButton(String text, {VoidCallback? onTap}) {
-    return Flexible(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFCF4D9),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.black87),
-          ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
         ),
       ),
     );

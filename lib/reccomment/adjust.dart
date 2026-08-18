@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:project/service/adjust_service.dart'; 
-import 'package:flutter/foundation.dart';
-
-// 🟩 เพิ่ม Import สำหรับการแสดงผล HTML และการเปิดลิงก์
+import 'package:project/service/adjust_service.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:project/style/reccomment/style_adjust.dart'; // 🟢 Import ไฟล์ส่วนตกแต่ง UI
 
 class AdjustPage extends StatefulWidget {
   const AdjustPage({super.key});
@@ -19,11 +17,12 @@ class _AdjustPageState extends State<AdjustPage> {
   List<dynamic> _currentPageItems = []; // ข้อมูลที่จะตัดแสดงในหน้าปัจจุบัน
   bool _isLoading = false;
 
-  int _currentPage = 1; 
-  int _lastPage = 1; 
-  final int _itemsPerPage = 3; 
+  int _currentPage = 1;
+  int _lastPage = 1;
+  final int _itemsPerPage = 3;
 
-  // 🟩 เพิ่มตัวแปรสำหรับเก็บคำค้นหา
+  // 🟩 Controller & ตัวแปรคำค้นหา
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
   static const String ngrokUrl = 'https://uselessly-disclose-stingray.ngrok-free.dev';
@@ -34,7 +33,12 @@ class _AdjustPageState extends State<AdjustPage> {
     _fetchDataFromAPI();
   }
 
-  // ฟังก์ชันสลับหัวไอพีรูปภาพ
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   String _formatImgUrl(String imgUrl) {
     String cleanImgUrl = imgUrl.replaceAll(r'\/', '/');
     if (cleanImgUrl.contains('10.0.2.2:8000')) {
@@ -47,21 +51,20 @@ class _AdjustPageState extends State<AdjustPage> {
     return cleanImgUrl;
   }
 
-  // 🔹 ฟังก์ชันเรียกข้อมูลปรับสภาพดิน
   Future<void> _fetchDataFromAPI() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final response = await AdjustService.getAdjustments();
 
-      final List<dynamic> fetchedData = response is List 
-          ? response 
+      final List<dynamic> fetchedData = response is List
+          ? response
           : (response['data'] ?? []);
 
       if (mounted) {
         setState(() {
           _allRawItems = fetchedData;
-          _applyFilterAndPagination(); 
+          _applyFilterAndPagination();
         });
       }
     } catch (e) {
@@ -73,11 +76,9 @@ class _AdjustPageState extends State<AdjustPage> {
     }
   }
 
-  // 🟩 ฟังก์ชันกรองข้อมูลตาม adjustName และคำนวณการแบ่งหน้า (Pagination)
   void _applyFilterAndPagination() {
     List<dynamic> tempFiltered = _allRawItems;
 
-    // กรองคำตาม adjustName
     if (_searchQuery.isNotEmpty) {
       tempFiltered = tempFiltered.where((item) {
         String adjustName = (item['adjustName'] ?? '').toString().toLowerCase();
@@ -87,14 +88,11 @@ class _AdjustPageState extends State<AdjustPage> {
 
     _filteredItems = tempFiltered;
 
-    // คำนวณจำนวนหน้าทั้งหมด
     _lastPage = (_filteredItems.length / _itemsPerPage).ceil();
     if (_lastPage < 1) _lastPage = 1;
 
-    // ป้องกันกรณีหน้าปัจจุบันเกินจำนวนหน้าที่มีอยู่
     if (_currentPage > _lastPage) _currentPage = 1;
 
-    // ตัดข้อมูลมาแสดงผลเฉพาะหน้าปัจจุบัน
     int startIndex = (_currentPage - 1) * _itemsPerPage;
     _currentPageItems = _filteredItems
         .skip(startIndex)
@@ -102,21 +100,20 @@ class _AdjustPageState extends State<AdjustPage> {
         .toList();
   }
 
-  // 🔹 หน้าจอ Popup รายละเอียดวิธีการปรับสภาพดิน
   void _showAdjustDetailDialog(Map<String, dynamic> item) {
-    String title = item['adjustName'] ?? 'ไม่มีชื่อข้อมูลปรับสภาพดิน'; 
-    String imgUrl = _formatImgUrl(item['img_cloudinary'] ?? item['img'] ?? ''); 
-    String detail = item['detail'] ?? 'ไม่มีข้อมูลรายละเอียดเพิ่มเติม'; 
+    String title = item['adjustName'] ?? 'ไม่มีชื่อข้อมูลปรับสภาพดิน';
+    String imgUrl = _formatImgUrl(item['img_cloudinary'] ?? item['img'] ?? '');
+    String detail = item['detail'] ?? 'ไม่มีข้อมูลรายละเอียดเพิ่มเติม';
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          backgroundColor: const Color(0xFFEFE8CE), 
+          backgroundColor: const Color(0xFFEFE8CE),
           child: Container(
             padding: const EdgeInsets.all(20),
-            constraints: const BoxConstraints(maxHeight: 650), 
+            constraints: const BoxConstraints(maxHeight: 650),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,8 +158,8 @@ class _AdjustPageState extends State<AdjustPage> {
                     child: HtmlWidget(
                       detail,
                       textStyle: const TextStyle(
-                        fontSize: 16, 
-                        color: Colors.black87, 
+                        fontSize: 16,
+                        color: Colors.black87,
                         height: 1.4,
                       ),
                       onTapUrl: (url) async {
@@ -207,47 +204,65 @@ class _AdjustPageState extends State<AdjustPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 15),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 28, color: Colors.black),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const Text("การปรับสภาพดิน", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                  ],
+
+                // 🟢 1. Header Widget
+                AdjustHeaderWidget(
+                  onBackPressed: () => Navigator.pop(context),
                 ),
-                const SizedBox(height: 15),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0EAE1),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value.trim().toLowerCase();
-                        _currentPage = 1; // รีเซ็ตไปหน้าแรกทันทีเมื่อค้นหา
-                        _applyFilterAndPagination();
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      hintText: 'ค้นหา เช่น วิธีปรับสภาพดิน...',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      border: InputBorder.none,
-                      suffixIcon: Icon(Icons.search, color: Colors.black),
-                    ),
-                  ),
+
+                const SizedBox(height: 16),
+
+                // 🟢 2. Search Widget
+                AdjustSearchWidget(
+                  controller: _searchController,
+                  searchQuery: _searchQuery,
+                  onSearchChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.trim().toLowerCase();
+                      _currentPage = 1;
+                      _applyFilterAndPagination();
+                    });
+                  },
+                  onClearSearch: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = "";
+                      _currentPage = 1;
+                      _applyFilterAndPagination();
+                    });
+                  },
                 ),
-                const SizedBox(height: 25),
+
+                const SizedBox(height: 16),
+
+                // 🟢 3. List Item Widget
                 Expanded(
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF4A7C59),
+                          ),
+                        )
                       : _currentPageItems.isEmpty
-                          ? const Center(
-                              child: Text(
-                                "ไม่พบข้อมูลวิธีการปรับสภาพดิน",
-                                style: TextStyle(fontSize: 18, color: Colors.grey),
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off_rounded,
+                                    size: 50,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    "ไม่พบข้อมูลวิธีการปรับสภาพดิน",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             )
                           : ListView.builder(
@@ -255,124 +270,37 @@ class _AdjustPageState extends State<AdjustPage> {
                               itemCount: _currentPageItems.length,
                               itemBuilder: (context, index) {
                                 final item = _currentPageItems[index];
-                                return GestureDetector(
-                                  onTap: () => _showAdjustDetailDialog(item),
-                                  child: _buildItemCard(
-                                    item['adjustName'] ?? 'ไม่มีชื่อข้อมูลปรับสภาพดิน', 
-                                    item['img_cloudinary'] ?? item['img'] ?? 'https://via.placeholder.com/150',
+                                return AdjustItemCard(
+                                  title: item['adjustName'] ?? 'ไม่มีชื่อข้อมูลปรับสภาพดิน',
+                                  formattedImgUrl: _formatImgUrl(
+                                    item['img_cloudinary'] ??
+                                        item['img'] ??
+                                        'https://via.placeholder.com/150',
                                   ),
+                                  onTap: () => _showAdjustDetailDialog(item),
                                 );
                               },
                             ),
                 ),
-                _buildDynamicPagination(),
+
+                const SizedBox(height: 8),
+
+                // 🟢 4. Pagination Widget
+                AdjustPaginationWidget(
+                  currentPage: _currentPage,
+                  lastPage: _lastPage,
+                  onPageChanged: (newPage) {
+                    setState(() {
+                      _currentPage = newPage;
+                      _applyFilterAndPagination();
+                    });
+                  },
+                ),
+
                 const SizedBox(height: 15),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  // 🔹 สลับตำแหน่ง: รูปภาพอยู่ซ้าย / ข้อความอยู่ขวา
-  Widget _buildItemCard(String title, String imgUrl) {
-    String formattedImgUrl = _formatImgUrl(imgUrl);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2EDB4),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black, width: 1.2),
-      ),
-      child: Row(
-        children: [
-          // 🖼️ รูปภาพอยู่ฝั่งซ้าย
-          ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: Image.network(
-              formattedImgUrl,
-              width: 110,
-              height: 110,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 110, height: 110,
-                  color: Colors.grey.shade300,
-                  child: const Icon(Icons.image_not_supported, color: Colors.grey),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 15),
-          // 📝 ข้อความอยู่ฝั่งขวา
-          Expanded(
-            child: Text(
-              title, 
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDynamicPagination() {
-    List<Widget> pageButtons = [];
-    
-    pageButtons.add(_buildPageBtn("<", disabled: _currentPage == 1, onTap: () {
-      if (_currentPage > 1) { 
-        setState(() {
-          _currentPage--;
-          _applyFilterAndPagination(); 
-        });
-      }
-    }));
-    
-    for (int i = 1; i <= _lastPage; i++) {
-      pageButtons.add(_buildPageBtn(i.toString(), isActive: _currentPage == i, onTap: () {
-        setState(() {
-          _currentPage = i; 
-          _applyFilterAndPagination();
-        });
-      }));
-    }
-    
-    pageButtons.add(_buildPageBtn(">", disabled: _currentPage == _lastPage, onTap: () {
-      if (_currentPage < _lastPage) { 
-        setState(() {
-          _currentPage++; 
-          _applyFilterAndPagination(); 
-        });
-      }
-    }));
-    
-    return Row(mainAxisAlignment: MainAxisAlignment.center, children: pageButtons);
-  }
-
-  Widget _buildPageBtn(String text, {bool isActive = false, bool disabled = false, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: disabled ? null : onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF5A45FF) : (disabled ? Colors.grey.shade300 : Colors.white),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.grey.shade300, width: 0.5),
-        ),
-        child: Center(
-          child: Text(
-            text, 
-            style: TextStyle(
-              color: isActive ? Colors.white : (disabled ? Colors.grey : Colors.black), 
-              fontSize: 12,
-            )
-          )
         ),
       ),
     );

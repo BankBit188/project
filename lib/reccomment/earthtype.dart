@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project/service/plants_service.dart';
 import 'package:project/modal/plant_detail.dart';
+import 'package:project/style/reccomment/style_earthtype.dart'; // 🟢 Import ไฟล์ส่วนตกแต่ง UI
 
 class EarthTypePage extends StatefulWidget {
   const EarthTypePage({super.key});
@@ -11,19 +12,18 @@ class EarthTypePage extends StatefulWidget {
 
 class _EarthTypePageState extends State<EarthTypePage> {
   List<dynamic> _allRawItems = []; // 🔹 เก็บข้อมูลพืชดิบทั้งหมดจากหลังบ้าน
-  List<dynamic> _filteredItems = []; // 🔹 เก็บข้อมูลพืชที่กรองแยกประเภทดิน ประเภทพืช และการค้นหาแล้ว
-  List<dynamic> _currentPageItems = []; // 🔹 เก็บข้อมูลพืชที่จะเฉือนแสดงเฉพาะในหน้าปัจจุบัน
-  
+  List<dynamic> _filteredItems = []; // 🔹 เก็บข้อมูลพืชที่ผ่านการกรองแล้ว
+  List<dynamic> _currentPageItems = []; // 🔹 เก็บข้อมูลพืชที่จะแสดงในหน้าปัจจุบัน
+
   bool _isLoading = false;
   int _currentPage = 1;
   int _lastPage = 1;
-  final int _itemsPerPage = 3; // แสดงหน้าละ 3 ชิ้นตามโครงสร้างเดิม
-  String _selectedSoilType = "ดินร่วน"; // ค่าเริ่มต้นจำลองการคัดเลือกเป็นประเภทดินร่วน
+  final int _itemsPerPage = 3;
+  String _selectedSoilType = "ดินร่วน";
+  String _selectedPlantType = "ทั้งหมด";
 
-  // 🔹 ตัวแปรเก็บค่าประเภทพืชสำหรับปุ่มตัวกรอง (Icon)
-  String _selectedPlantType = "ทั้งหมด"; // ตัวเลือก: ทั้งหมด, พืชไร่, พืชสวน, พืชเศรษฐกิจ
-
-  // 🟩 ตัวแปรสำหรับเก็บข้อความค้นหา (Search Query)
+  // 🟩 Controller & ตัวแปรสำหรับเก็บข้อความค้นหา
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
   @override
@@ -32,21 +32,26 @@ class _EarthTypePageState extends State<EarthTypePage> {
     _fetchDataFromAPI();
   }
 
-  // 🔹 ฟังก์ชันติดต่อรับข้อมูลพืชทั้งหมดจากคลาสพืชบริการ
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchDataFromAPI() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final response = await PlantsService.getplants(); // ดึงข้อมูลโครงสร้างพืช
+      final response = await PlantsService.getplants();
 
-      final List<dynamic> fetchedData = response is List 
-          ? response 
+      final List<dynamic> fetchedData = response is List
+          ? response
           : (response['data'] ?? []);
 
       if (mounted) {
         setState(() {
           _allRawItems = fetchedData;
-          _applyFilterAndPagination(); // คัดกรองและตัดหน้ากระดาษ
+          _applyFilterAndPagination();
         });
       }
     } catch (e) {
@@ -58,53 +63,59 @@ class _EarthTypePageState extends State<EarthTypePage> {
     }
   }
 
-  // 🔹 ฟังก์ชันรับค่าชื่อดินภาษาไทย -> แตกยอดคืนค่ารหัสสากล (1, 2, 3)
   int _getSoilTypeCode(String soilName) {
     switch (soilName) {
-      case "ดินร่วน": return 1;
-      case "ดินเหนียว": return 2;
-      case "ดินทราย": return 3;
-      default: return 1;
+      case "ดินร่วน":
+        return 1;
+      case "ดินเหนียว":
+        return 2;
+      case "ดินทราย":
+        return 3;
+      default:
+        return 1;
     }
   }
 
-  // 🔹 ฟังก์ชันรับค่าชื่อประเภทพืชภาษาไทย -> คืนค่าเป็นรหัสรหัสสากล (1, 2, 3) ตามที่ API ส่งมา
   int _getPlantTypeCode(String plantTypeName) {
     switch (plantTypeName) {
-      case "พืชไร่": return 1;
-      case "พืชสวน": return 2;
-      case "พืชเศรษฐกิจ": return 3;
-      default: return 0;
+      case "พืชไร่":
+        return 1;
+      case "พืชสวน":
+        return 2;
+      case "พืชเศรษฐกิจ":
+        return 3;
+      default:
+        return 0;
     }
   }
 
-  // 🔹 ฟังก์ชันคำนวณคัดแยกคุณสมบัติดิน ประเภทพืช คำค้นหา และจัดส่วนการแบ่งหน้า (Pagination)
   void _applyFilterAndPagination() {
     int targetSoilCode = _getSoilTypeCode(_selectedSoilType);
 
-    // 1. กรองข้อมูลจากฟิลด์ "earthTypeCode" ให้ตรงกับประเภทดินที่กดเลือก
     List<dynamic> tempFiltered = _allRawItems.where((item) {
       var codeValue = item['earthTypeCode'];
       if (codeValue == null) return false;
-      
-      int currentCode = codeValue is int ? codeValue : int.tryParse(codeValue.toString()) ?? 0;
+
+      int currentCode = codeValue is int
+          ? codeValue
+          : int.tryParse(codeValue.toString()) ?? 0;
       return currentCode == targetSoilCode;
     }).toList();
 
-    // 2. กรองประเภทพืช (plantsTypeCode) ต่อจากที่กรองเรื่องดินเสร็จแล้ว
     if (_selectedPlantType != "ทั้งหมด") {
       int targetPlantCode = _getPlantTypeCode(_selectedPlantType);
-      
+
       tempFiltered = tempFiltered.where((item) {
-        var typeValue = item['plantsTypeCode']; // ใช้คีย์ plantsTypeCode ตามที่ API ส่งมา
+        var typeValue = item['plantsTypeCode'];
         if (typeValue == null) return false;
 
-        int currentPlantCode = typeValue is int ? typeValue : int.tryParse(typeValue.toString()) ?? 0;
+        int currentPlantCode = typeValue is int
+            ? typeValue
+            : int.tryParse(typeValue.toString()) ?? 0;
         return currentPlantCode == targetPlantCode;
       }).toList();
     }
 
-    // 3. กรองตามคำค้นหา (normal_name, scientific_name, other_name)
     if (_searchQuery.isNotEmpty) {
       tempFiltered = tempFiltered.where((item) {
         String normalName = (item['normal_name'] ?? '').toString().toLowerCase();
@@ -112,22 +123,18 @@ class _EarthTypePageState extends State<EarthTypePage> {
         String otherName = (item['other_name'] ?? '').toString().toLowerCase();
 
         return normalName.contains(_searchQuery) ||
-               scientificName.contains(_searchQuery) ||
-               otherName.contains(_searchQuery);
+            scientificName.contains(_searchQuery) ||
+            otherName.contains(_searchQuery);
       }).toList();
     }
 
-    // กำหนดค่าผลลัพธ์สุดท้ายให้ตัวแปรแสดงผล
     _filteredItems = tempFiltered;
 
-    // 4. ปรับยอดจำนวนหน้าแถบ Pagination ทั้งหมดใหม่
     _lastPage = (_filteredItems.length / _itemsPerPage).ceil();
     if (_lastPage < 1) _lastPage = 1;
 
-    // 5. ป้องกันหน้าปัจจุบันเตลิดกรณีเปลี่ยนตัวกรองหรือค้นหาแล้วหน้าเกินขอบเขต
     if (_currentPage > _lastPage) _currentPage = 1;
 
-    // 6. หั่นสไลด์ข้อมูลมาฉายในหน้าปัจจุบัน (เช่น หน้าละ 3 ตัว)
     int startIndex = (_currentPage - 1) * _itemsPerPage;
     _currentPageItems = _filteredItems
         .skip(startIndex)
@@ -155,85 +162,87 @@ class _EarthTypePageState extends State<EarthTypePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 15),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 28, color: Colors.black),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        "แนะนำพืชปลูกตามประเภทดิน",
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+
+                // 🟢 1. Header Widget
+                EarthTypeHeaderWidget(
+                  onBackPressed: () => Navigator.pop(context),
                 ),
-                const SizedBox(height: 15),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0EAE1),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value.trim().toLowerCase(); // แปลงข้อความค้นหาเป็นพิมพ์เล็ก
-                        _currentPage = 1; // รีเซ็ตกลับไปหน้าแรกทันทีเมื่อค้นหา
-                        _applyFilterAndPagination(); // ประมวลผลตัวกรองใหม่
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      hintText: 'ค้นหา เช่น ชื่อพืช',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      border: InputBorder.none,
-                      suffixIcon: Icon(Icons.search, color: Colors.black),
-                    ),
-                  ),
+
+                const SizedBox(height: 14),
+
+                // 🟢 2. Search Widget
+                EarthTypeSearchWidget(
+                  controller: _searchController,
+                  searchQuery: _searchQuery,
+                  onSearchChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.trim().toLowerCase();
+                      _currentPage = 1;
+                      _applyFilterAndPagination();
+                    });
+                  },
+                  onClearSearch: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = "";
+                      _currentPage = 1;
+                      _applyFilterAndPagination();
+                    });
+                  },
                 ),
+
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _buildFilterChip("ดินร่วน"),
-                    _buildFilterChip("ดินเหนียว"),
-                    _buildFilterChip("ดินทราย"),
-                    const Spacer(),
-                    
-                    PopupMenuButton<String>(
-                      icon: Icon(
-                        _selectedPlantType == "ทั้งหมด" ? Icons.filter_alt_outlined : Icons.filter_alt, 
-                        size: 28, 
-                        color: _selectedPlantType == "ทั้งหมด" ? Colors.black : const Color(0xFF5A45FF)
-                      ),
-                      tooltip: 'กรองประเภทพืช',
-                      onSelected: (String value) {
-                        setState(() {
-                          _selectedPlantType = value;
-                          _currentPage = 1;
-                          _applyFilterAndPagination(); 
-                        });
-                      },
-                      itemBuilder: (BuildContext context) => [
-                        const PopupMenuItem<String>(value: "ทั้งหมด", child: Text("พืชทั้งหมด")),
-                        const PopupMenuItem<String>(value: "พืชไร่", child: Text("พืชไร่")),
-                        const PopupMenuItem<String>(value: "พืชสวน", child: Text("พืชสวน")),
-                        const PopupMenuItem<String>(value: "พืชเศรษฐกิจ", child: Text("พืชเศรษฐกิจ")),
-                      ],
-                    ),
-                  ],
+
+                // 🟢 3. Filter Section Widget
+                EarthTypeFilterSection(
+                  selectedSoilType: _selectedSoilType,
+                  selectedPlantType: _selectedPlantType,
+                  onSoilTypeSelected: (soil) {
+                    setState(() {
+                      _selectedSoilType = soil;
+                      _currentPage = 1;
+                      _applyFilterAndPagination();
+                    });
+                  },
+                  onPlantTypeSelected: (plantType) {
+                    setState(() {
+                      _selectedPlantType = plantType;
+                      _currentPage = 1;
+                      _applyFilterAndPagination();
+                    });
+                  },
                 ),
-                const SizedBox(height: 15),
+
+                const SizedBox(height: 14),
+
+                // 🟢 4. List Item Widget
                 Expanded(
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF4A7C59),
+                          ),
+                        )
                       : _currentPageItems.isEmpty
-                          ? const Center(
-                              child: Text(
-                                "ไม่มีพืชที่ตรงตามเงื่อนไขนี้",
-                                style: TextStyle(fontSize: 18, color: Colors.grey),
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off_rounded,
+                                    size: 50,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    "ไม่มีพืชที่ตรงตามเงื่อนไขนี้",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             )
                           : ListView.builder(
@@ -241,193 +250,36 @@ class _EarthTypePageState extends State<EarthTypePage> {
                               itemCount: _currentPageItems.length,
                               itemBuilder: (context, index) {
                                 final item = _currentPageItems[index];
-                                return GestureDetector(
-                                  // 🟢 เรียก Dialog แสดงรายละเอียดพืชจากไฟล์ plant_detail.dart
+                                return EarthTypeItemCard(
+                                  title: item['normal_name'] ?? 'ไม่มีชื่อพืช',
+                                  imgUrl: item['img_cloudinary'] ?? item['img'] ?? '',
                                   onTap: () => PlantDetailDialog.show(
                                     context,
                                     Map<String, dynamic>.from(item),
-                                  ),
-                                  child: _buildItemCard(
-                                    item['normal_name'] ?? 'ไม่มีชื่อพืช',
-                                    item['img_cloudinary'] ?? item['img'] ?? '',
                                   ),
                                 );
                               },
                             ),
                 ),
-                _buildDynamicPagination(),
+
+                const SizedBox(height: 8),
+
+                // 🟢 5. Pagination Widget
+                EarthTypePaginationWidget(
+                  currentPage: _currentPage,
+                  lastPage: _lastPage,
+                  onPageChanged: (newPage) {
+                    setState(() {
+                      _currentPage = newPage;
+                      _applyFilterAndPagination();
+                    });
+                  },
+                ),
+
                 const SizedBox(height: 15),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String label) {
-    bool isActive = _selectedSoilType == label;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedSoilType = label;
-          _currentPage = 1; 
-          _applyFilterAndPagination();
-        });
-      },
-      child: Container(
-        margin: const EdgeInsets.only(right: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFC5DC9D) : const Color(0xFFE2EAD2),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: isActive ? FontWeight.bold : FontWeight.normal),
-        ),
-      ),
-    );
-  }
-
-  // 🔹 สลับตำแหน่ง: รูปภาพอยู่ซ้าย / ข้อความอยู่ขวา
-  Widget _buildItemCard(String title, String imgUrl) {
-    // 🟢 เรียกใช้ Helper ฟอร์แมต URL รูปจาก PlantDetailDialog
-    String formattedImgUrl = PlantDetailDialog.formatImgUrl(imgUrl);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      height: 140,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2EDB4),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black, width: 1.2),
-      ),
-      child: Row(
-        children: [
-          // 🖼️ รูปภาพอยู่ฝั่งซ้าย
-          ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: formattedImgUrl.isNotEmpty
-                ? Image.network(
-                    formattedImgUrl, 
-                    width: 110, height: 110, fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 110, height: 110, color: Colors.grey.shade300,
-                      child: const Icon(Icons.image_not_supported, color: Colors.grey),
-                    ),
-                  )
-                : Container(
-                    width: 110, height: 110, color: Colors.grey.shade300,
-                    child: const Icon(Icons.image_not_supported, color: Colors.grey),
-                  ),
-          ),
-          const SizedBox(width: 15),
-          // 📝 ข้อความอยู่ฝั่งขวา
-          Expanded(
-            child: Text(
-              title, 
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDynamicPagination() {
-    List<Widget> pageButtons = [];
-
-    pageButtons.add(_buildPageBtn("<", disabled: _currentPage == 1, onTap: () {
-      if (_currentPage > 1) {
-        setState(() => _currentPage--);
-        _applyFilterAndPagination();
-      }
-    }));
-
-    int range = 1; 
-
-    if (_lastPage <= 5) {
-      for (int i = 1; i <= _lastPage; i++) {
-        pageButtons.add(_buildPageBtn(i.toString(), isActive: _currentPage == i, onTap: () {
-          setState(() => _currentPage = i);
-          _applyFilterAndPagination();
-        }));
-      }
-    } else {
-      pageButtons.add(_buildPageBtn("1", isActive: _currentPage == 1, onTap: () {
-        setState(() => _currentPage = 1);
-        _applyFilterAndPagination();
-      }));
-
-      if (_currentPage > range + 2) {
-        pageButtons.add(
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4),
-            child: Text("...", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-          ),
-        );
-      }
-
-      int startPage = _currentPage - range;
-      int endPage = _currentPage + range;
-
-      if (startPage <= 1) startPage = 2;
-      if (endPage >= _lastPage) endPage = _lastPage - 1;
-
-      for (int i = startPage; i <= endPage; i++) {
-        pageButtons.add(_buildPageBtn(i.toString(), isActive: _currentPage == i, onTap: () {
-          setState(() => _currentPage = i);
-          _applyFilterAndPagination();
-        }));
-      }
-
-      if (_currentPage < _lastPage - range - 1) {
-        pageButtons.add(
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4),
-            child: Text("...", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-          ),
-        );
-      }
-
-      pageButtons.add(_buildPageBtn(_lastPage.toString(), isActive: _currentPage == _lastPage, onTap: () {
-        setState(() => _currentPage = _lastPage);
-        _applyFilterAndPagination();
-      }));
-    }
-
-    pageButtons.add(_buildPageBtn(">", disabled: _currentPage == _lastPage, onTap: () {
-      if (_currentPage < _lastPage) {
-        setState(() => _currentPage++);
-        _applyFilterAndPagination();
-      }
-    }));
-
-    return Row(mainAxisAlignment: MainAxisAlignment.center, children: pageButtons);
-  }
-
-  Widget _buildPageBtn(String text, {bool isActive = false, bool disabled = false, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: disabled ? null : onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 32, height: 32,
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF5A45FF) : (disabled ? Colors.grey.shade300 : Colors.white),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.grey.shade300, width: 0.5),
-        ),
-        child: Center(
-          child: Text(
-            text, 
-            style: TextStyle(
-              color: isActive ? Colors.white : (disabled ? Colors.grey : Colors.black), 
-              fontSize: 12, fontWeight: isActive ? FontWeight.bold : FontWeight.normal
-            )
-          )
         ),
       ),
     );

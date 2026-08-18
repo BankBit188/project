@@ -211,57 +211,160 @@ class _MenuPageState extends State<MenuPage> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFFF4EFC9),
+        final mediaQuery = MediaQuery.of(context);
+        final screenWidth = mediaQuery.size.width;
+        final screenHeight = mediaQuery.size.height;
+
+        // เช็กขนาดหน้าจอเพื่อปรับ Responsive
+        final isSmallScreen = screenWidth < 360;
+        final dialogMaxWidth = screenWidth > 600 ? 460.0 : screenWidth * 0.88;
+
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30.0),
-            side: const BorderSide(color: Colors.black87, width: 1.2),
+            borderRadius: BorderRadius.circular(28.0),
           ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20.0,
-            vertical: 15.0,
+          elevation: 8,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16.0,
+            vertical: 24.0,
           ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Align(
-                  alignment: Alignment.topRight,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(
-                      Icons.close,
-                      color: Colors.black,
-                      size: 24,
+          backgroundColor: Colors.transparent,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: dialogMaxWidth,
+              maxHeight: screenHeight * 0.85, // จำกัดความสูงป้องกันล้นจอ
+            ),
+            child: Container(
+              padding: EdgeInsets.all(isSmallScreen ? 16.0 : 22.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFBF8EB),
+                borderRadius: BorderRadius.circular(28.0),
+                border: Border.all(
+                  color: const Color(0xFF1B4332).withOpacity(0.18),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 📌 ส่วนหัว (Header)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1B4332).withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.verified_rounded,
+                                color: Color(0xFF1B4332),
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                "สิทธิของสมาชิก",
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 18 : 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF0F291E),
+                                  letterSpacing: 0.3,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.05),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.black54,
+                            size: 20,
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 📌 ส่วนเนื้อหา Scrollable (ป้องกัน Overflow เวลาจอต่ำ/แนวนอน)
+                  Flexible(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildRightItem(
+                            "1",
+                            "สามารถใช้ฟังก์ชันแนะนำพืชที่เหมาะสมได้ โดยไม่ต้องกรอกค่าลงไป โดยจะนำค่าจากอุปกรณ์ไปประมวลผลและแนะนำให้",
+                            isSmallScreen,
+                          ),
+                          const SizedBox(height: 10),
+                          _buildRightItem(
+                            "2",
+                            "สามารถบันทึกข้อมูลค่าในดินแต่ละพื้นที่ได้",
+                            isSmallScreen,
+                          ),
+                          const SizedBox(height: 10),
+                          _buildRightItem(
+                            "3",
+                            "สามารถใช้แชตบอตได้",
+                            isSmallScreen,
+                          ),
+                        ],
+                      ),
                     ),
-                    onPressed: () => Navigator.pop(context),
                   ),
-                ),
-                const Text(
-                  "สิทธิของสมาชิก",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                  const SizedBox(height: 18),
+
+                  // 📌 ปุ่มปิด / ยืนยัน
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1B4332),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "เข้าใจแล้ว",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                _buildRightItem(
-                  "1.",
-                  "สามารถใช้ฟังก์ชันแนะนำพืชที่เหมาะสมได้ โดยไม่ต้องกรอกค่าลงไป โดยจะนำค่าจากอุปกรณ์ไปประมวลผลและแนะนำให้",
-                ),
-                const SizedBox(height: 10),
-                _buildRightItem(
-                  "2. ",
-                  "สามารถบันทึกข้อมูลค่าในดินแต่ละพื้นที่ได้",
-                ),
-                const SizedBox(height: 10),
-                _buildRightItem("3. ", "สามารถใช้แชตบอตได้"),
-                const SizedBox(height: 15),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -269,29 +372,56 @@ class _MenuPageState extends State<MenuPage> {
     );
   }
 
-  Widget _buildRightItem(String number, String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          number,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+  // 🎨 Widget การ์ดรายการสิทธิประโยชน์แบบ Responsive
+  Widget _buildRightItem(String number, String text, bool isSmallScreen) {
+    return Container(
+      padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1B4332).withOpacity(0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-        ),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.black87,
-              height: 1.3,
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Color(0xFF1B4332),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              number,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: isSmallScreen ? 13 : 14,
+                height: 1.45,
+                color: const Color(0xFF2C3E50),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
