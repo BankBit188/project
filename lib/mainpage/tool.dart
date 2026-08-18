@@ -39,10 +39,11 @@ class _ToolPageState extends State<ToolPage> {
 
   bool get _isOffline {
     if (_toolData == null) return true;
-    
-    final createdAtStr = _toolData!['created_at']?.toString() ?? 
-                         _toolData!['createdAt']?.toString();
-                         
+
+    final createdAtStr =
+        _toolData!['created_at']?.toString() ??
+        _toolData!['createdAt']?.toString();
+
     if (createdAtStr == null || createdAtStr.isEmpty) return true;
 
     try {
@@ -64,7 +65,9 @@ class _ToolPageState extends State<ToolPage> {
 
   Future<void> _loadAddressData() async {
     try {
-      String jsonString = await rootBundle.loadString('assets/data/thailand_data.json');
+      String jsonString = await rootBundle.loadString(
+        'assets/data/thailand_data.json',
+      );
       if (!mounted) return;
       setState(() {
         _thailandData = jsonDecode(jsonString);
@@ -123,15 +126,17 @@ class _ToolPageState extends State<ToolPage> {
 
   Future<void> _recommendPlants() async {
     if (_isOffline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("อุปกรณ์ออฟไลน์อยู่")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("อุปกรณ์ออฟไลน์อยู่")));
       return;
     }
 
     if (_toolData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("ยังไม่มีข้อมูลสภาพดิน กรุณารอโหลดข้อมูลสักครู่")),
+        const SnackBar(
+          content: Text("ยังไม่มีข้อมูลสภาพดิน กรุณารอโหลดข้อมูลสักครู่"),
+        ),
       );
       return;
     }
@@ -149,7 +154,9 @@ class _ToolPageState extends State<ToolPage> {
     PlantRecommendationHelper.showRecommendations(
       context: context,
       customTitle: "พืชปลูกที่เหมาะสมกับสภาพดินปัจจุบัน",
-      ph: double.tryParse(_toolData?['PH']?.toString() ?? _toolData?['ph']?.toString() ?? ''),
+      ph: double.tryParse(
+        _toolData?['PH']?.toString() ?? _toolData?['ph']?.toString() ?? '',
+      ),
       humidity: double.tryParse(_toolData?['humid']?.toString() ?? ''),
       temp: double.tryParse(_toolData?['temperature']?.toString() ?? ''),
       salty: double.tryParse(_toolData?['salty']?.toString() ?? ''),
@@ -177,10 +184,187 @@ class _ToolPageState extends State<ToolPage> {
   void _showReportDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => ReportDialog(
-        userId: _userId,
+      builder: (context) => ReportDialog(userId: _userId),
+    );
+  }
+
+  // 📌 ฟังก์ชันเรียกแสดง PopupMenu พร้อมฉากหลังดำโปร่งแสง
+  // 📌 ฟังก์ชันแสดงเมนูด้วย showGeneralDialog รองรับ barrierColor
+  // 📌 ฟังก์ชันแสดงเมนูแบบนูนลอย มีมิติ ไม่กินขอบ
+  Future<void> _showTopMenu(BuildContext buttonContext) async {
+    final String? value = await showGeneralDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black.withOpacity(0.45), // 👈 ฉากหลังมืดลงขับให้เมนูเด่น
+      transitionDuration: const Duration(milliseconds: 180),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return FadeTransition(
+          opacity: anim1,
+          child: ScaleTransition(
+            scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
+            alignment: Alignment.topRight, // 👈 เด้งขยายออกมาจากปุ่ม 3 ขีดขวาบน
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return SafeArea(
+          child: Stack(
+            children: [
+              Positioned(
+                top: 55, // ระยะห่างจากด้านบน
+                right: 16, // ระยะห่างจากขอบขวา
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: 210, // 👈 ขยายความกว้าง ไม่ให้อึดอัด
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8EFE6), // สีธีมเขียวพาสเทล
+                      borderRadius: BorderRadius.circular(16), // 👈 มุมโค้งมนนุ่มนวลขึ้น
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.8), // 👈 ไฮไลต์ขอบขาวซอฟต์ๆ เพิ่มมิติ
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        // 👈 ซ้อนเงา 2 ชั้นสร้างมิติความนูนลอยคมชัด
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.20),
+                          blurRadius: 20,
+                          spreadRadius: 1,
+                          offset: const Offset(0, 10),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildMenuItem(
+                              dialogContext, 
+                              'profile', 
+                              'โปรไฟล์', 
+                              Icons.person_outline_rounded
+                            ),
+                            const Divider(height: 1, indent: 14, endIndent: 14, color: Colors.black12),
+                            _buildMenuItem(
+                              dialogContext, 
+                              'history', 
+                              'ประวัติการบันทึก', 
+                              Icons.history_rounded
+                            ),
+                            const Divider(height: 1, indent: 14, endIndent: 14, color: Colors.black12),
+                            _buildMenuItem(
+                              dialogContext, 
+                              'report', 
+                              'รายงานปัญหา', 
+                              Icons.report_problem_outlined
+                            ),
+                            const Divider(height: 1, indent: 14, endIndent: 14, color: Colors.black12),
+                            _buildMenuItem(
+                              dialogContext, 
+                              'follow_report', 
+                              'ติดตามปัญหา', 
+                              Icons.assignment_outlined
+                            ),
+                            const Divider(height: 1, indent: 14, endIndent: 14, color: Colors.black12),
+                            _buildMenuItem(
+                              dialogContext, 
+                              'logout', 
+                              'ออกจากระบบ', 
+                              Icons.logout_rounded, 
+                              isDestructive: true
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (value != null) {
+      _handleMenuSelection(value);
+    }
+  }
+
+  // 📌 เมธอดสร้างรายการเมนูพร้อมไอคอนและระยะ Padding สบายตา
+  Widget _buildMenuItem(
+    BuildContext dialogContext, 
+    String value, 
+    String text, 
+    IconData icon, 
+    {bool isDestructive = false}
+  ) {
+    final color = isDestructive ? Colors.red.shade700 : const Color(0xFF212522);
+    return InkWell(
+      onTap: () => Navigator.pop(dialogContext, value),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 16),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 12),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  // 📌 ฟังก์ชันจัดการ Action เมื่อเลือกเมนู
+  Future<void> _handleMenuSelection(String value) async {
+    if (value == 'profile') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ProfilePage()),
+      );
+    } else if (value == 'report') {
+      _showReportDialog(context);
+    } else if (value == 'follow_report') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const FollowReportPage()),
+      );
+    } else if (value == 'history') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const HistoryPage()),
+      );
+    } else if (value == 'logout') {
+      await _secureStorage.delete(key: "auth_token");
+      await _secureStorage.delete(key: "Userid");
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const MenuPage(isLoggedIn: false),
+        ),
+        (Route<dynamic> route) => false,
+      );
+    }
   }
 
   @override
@@ -194,11 +378,13 @@ class _ToolPageState extends State<ToolPage> {
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 15.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 💡 ปรับปรุง Header Row ใส่ Expanded ป้องกัน Right Overflow
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -211,7 +397,11 @@ class _ToolPageState extends State<ToolPage> {
                                 fit: BoxFit.scaleDown,
                                 child: Text(
                                   "อุปกรณ์",
-                                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF212522),
+                                  ),
                                 ),
                               ),
                             ),
@@ -224,11 +414,17 @@ class _ToolPageState extends State<ToolPage> {
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.0,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF4A7C59),
+                                      ),
                                     ),
                                   )
                                 : IconButton(
-                                    icon: const Icon(Icons.refresh, size: 26, color: Colors.black87),
+                                    icon: const Icon(
+                                      Icons.refresh,
+                                      size: 26,
+                                      color: Color(0xFF212522),
+                                    ),
                                     constraints: const BoxConstraints(),
                                     padding: EdgeInsets.zero,
                                     onPressed: () {
@@ -240,49 +436,18 @@ class _ToolPageState extends State<ToolPage> {
                         ),
                       ),
 
-                      Theme(
-                        data: Theme.of(context).copyWith(dividerColor: Colors.black54),
-                        child: PopupMenuButton<String>(
-                          icon: const Icon(Icons.menu, size: 35, color: Colors.black),
-                          offset: const Offset(0, 45),
-                          color: ToolTheme.menuBg,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: const BorderSide(color: Colors.black54, width: 1),
-                          ),
-                          onSelected: (String value) async {
-                            if (value == 'profile') {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfilePage()));
-                            } else if (value == 'report') {
-                              _showReportDialog(context);
-                            } else if (value == 'follow_report') {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => const FollowReportPage()));
-                            } else if (value == 'history') {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryPage()));
-                            } else if (value == 'logout') {
-                              await _secureStorage.delete(key: "auth_token");
-                              await _secureStorage.delete(key: "Userid");
-
-                              if (!mounted) return;
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(builder: (context) => const MenuPage(isLoggedIn: false)),
-                                (Route<dynamic> route) => false,
-                              );
-                            }
-                          },
-                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                            _buildPopupMenuItem('profile', 'โปรไฟล์'),
-                            const PopupMenuDivider(height: 1),
-                            _buildPopupMenuItem('history', 'ประวัติการบันทึก'),
-                            const PopupMenuDivider(height: 1),
-                            _buildPopupMenuItem('report', 'รายงานปัญหา'),
-                            const PopupMenuDivider(height: 1),
-                            _buildPopupMenuItem('follow_report', 'ติดตามปัญหา'),
-                            const PopupMenuDivider(height: 1),
-                            _buildPopupMenuItem('logout', 'ออกจากระบบ'),
-                          ],
-                        ),
+                      // 💡 เปลี่ยนจาก PopupMenuButton เป็น IconButton + showMenu เพื่อรองรับ barrierColor
+                      Builder(
+                        builder: (menuContext) {
+                          return IconButton(
+                            icon: const Icon(
+                              Icons.menu,
+                              size: 35,
+                              color: Color(0xFF212522),
+                            ),
+                            onPressed: () => _showTopMenu(menuContext),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -290,12 +455,22 @@ class _ToolPageState extends State<ToolPage> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.access_time_rounded, size: 16, color: Colors.black54),
+                      const Icon(
+                        Icons.access_time_rounded,
+                        size: 16,
+                        color: Colors.black54,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          _currentDateTimeString.isNotEmpty ? _currentDateTimeString : "กำลังโหลดเวลา...",
-                          style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w500),
+                          _currentDateTimeString.isNotEmpty
+                              ? _currentDateTimeString
+                              : "กำลังโหลดเวลา...",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w500,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -307,29 +482,75 @@ class _ToolPageState extends State<ToolPage> {
                     alignment: Alignment.centerRight,
                     child: Text(
                       "(หน่วย: mg/kg)",
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black54,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 6),
 
                   Row(
                     children: [
-                      Expanded(child: NutrientCardTile(label: "N", value: _isOffline ? "-" : (_toolData?['N']?.toString() ?? "-"))),
+                      Expanded(
+                        child: NutrientCardTile(
+                          label: "N",
+                          value: _isOffline
+                              ? "-"
+                              : (_toolData?['N']?.toString() ?? "-"),
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Expanded(child: NutrientCardTile(label: "P", value: _isOffline ? "-" : (_toolData?['P']?.toString() ?? "-"))),
+                      Expanded(
+                        child: NutrientCardTile(
+                          label: "P",
+                          value: _isOffline
+                              ? "-"
+                              : (_toolData?['P']?.toString() ?? "-"),
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Expanded(child: NutrientCardTile(label: "K", value: _isOffline ? "-" : (_toolData?['K']?.toString() ?? "-"))),
+                      Expanded(
+                        child: NutrientCardTile(
+                          label: "K",
+                          value: _isOffline
+                              ? "-"
+                              : (_toolData?['K']?.toString() ?? "-"),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
 
                   Row(
                     children: [
-                      Expanded(child: NutrientCardTile(label: "Ca", value: _isOffline ? "-" : (_toolData?['Ca']?.toString() ?? "-"))),
+                      Expanded(
+                        child: NutrientCardTile(
+                          label: "Ca",
+                          value: _isOffline
+                              ? "-"
+                              : (_toolData?['Ca']?.toString() ?? "-"),
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Expanded(child: NutrientCardTile(label: "Mg", value: _isOffline ? "-" : (_toolData?['Mg']?.toString() ?? "-"))),
+                      Expanded(
+                        child: NutrientCardTile(
+                          label: "Mg",
+                          value: _isOffline
+                              ? "-"
+                              : (_toolData?['Mg']?.toString() ?? "-"),
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Expanded(child: NutrientCardTile(label: "S", value: _isOffline ? "-" : (_toolData?['S']?.toString() ?? "-"))),
+                      Expanded(
+                        child: NutrientCardTile(
+                          label: "S",
+                          value: _isOffline
+                              ? "-"
+                              : (_toolData?['S']?.toString() ?? "-"),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -337,34 +558,49 @@ class _ToolPageState extends State<ToolPage> {
                   EnvironmentMetricTile(
                     icon: Icons.water_drop_rounded,
                     label: "ความชื้น",
-                    value: _isOffline ? "-" : (_toolData?['humid'] != null ? "${_toolData!['humid']} %" : "-"),
+                    value: _isOffline
+                        ? "-"
+                        : (_toolData?['humid'] != null
+                              ? "${_toolData!['humid']} %"
+                              : "-"),
                     iconColor: Colors.blue.shade600,
                   ),
                   const SizedBox(height: 10),
                   EnvironmentMetricTile(
                     icon: Icons.science_rounded,
                     label: "ค่า pH",
-                    value: _isOffline ? "-" : (_toolData != null ? "${_toolData!['PH'] ?? _toolData!['ph'] ?? '-'}" : "-"),
+                    value: _isOffline
+                        ? "-"
+                        : (_toolData != null
+                              ? "${_toolData!['PH'] ?? _toolData!['ph'] ?? '-'}"
+                              : "-"),
                     iconColor: Colors.purple.shade600,
                   ),
                   const SizedBox(height: 10),
                   EnvironmentMetricTile(
                     icon: Icons.thermostat_rounded,
                     label: "อุณหภูมิ",
-                    value: _isOffline ? "-" : (_toolData?['temperature'] != null ? "${_toolData!['temperature']} C°" : "-"),
+                    value: _isOffline
+                        ? "-"
+                        : (_toolData?['temperature'] != null
+                              ? "${_toolData!['temperature']} C°"
+                              : "-"),
                     iconColor: Colors.orange.shade700,
                   ),
                   const SizedBox(height: 10),
                   EnvironmentMetricTile(
                     icon: Icons.waves_rounded,
                     label: "ความเค็ม",
-                    value: _isOffline ? "-" : (_toolData?['salty'] != null ? "${_toolData!['salty']} us/cm" : "-"),
+                    value: _isOffline
+                        ? "-"
+                        : (_toolData?['salty'] != null
+                              ? "${_toolData!['salty']} us/cm"
+                              : "-"),
                     iconColor: Colors.teal.shade700,
                   ),
 
                   const SizedBox(height: 24),
-                  
-                  // 💡 ครอบ Expanded สำหรับปุ่มกดคู่ด้านล่าง
+
                   Row(
                     children: [
                       Expanded(
@@ -374,7 +610,9 @@ class _ToolPageState extends State<ToolPage> {
                           onTap: () {
                             if (_isOffline) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("อุปกรณ์ออฟไลน์อยู่")),
+                                const SnackBar(
+                                  content: Text("อุปกรณ์ออฟไลน์อยู่"),
+                                ),
                               );
                               return;
                             }
@@ -409,7 +647,11 @@ class _ToolPageState extends State<ToolPage> {
       child: Center(
         child: Text(
           text,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
         ),
       ),
     );

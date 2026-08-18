@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:project/service/user_service.dart';
+import 'package:project/style/style_chat.dart'; // 🟢 Import ไฟล์ส่วนตกแต่ง UI
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -51,17 +52,16 @@ class _ChatPageState extends State<ChatPage>
 
   // 🔒 1. ตรวจสอบทั้ง Token และ UserID ก่อนเริ่มต้นโหลดข้อมูล
   Future<void> _initializeChat() async {
-    await _loadToken(); 
-    // เช็กว่ามีทั้ง Token และ UserID หรือไม่
+    await _loadToken();
     if (_authToken != null && _authToken!.isNotEmpty && _userId != null) {
-      await _fetchInitialQuota(); 
-      await _fetchChatHistory(); 
+      await _fetchInitialQuota();
+      await _fetchChatHistory();
     } else {
       _showAuthErrorSnackBar("ไม่พบ Token หรือรหัสผู้ใช้ กรุณาเข้าสู่ระบบใหม่");
     }
   }
 
-  // 🔒 2. ฟังก์ชันดึงประวัติแชต (เพิ่มการเช็ก Token + ดักจับ HTTP 401)
+  // 🔒 2. ฟังก์ชันดึงประวัติแชต
   Future<void> _fetchChatHistory() async {
     if (_authToken == null || _authToken!.isEmpty) return;
 
@@ -75,7 +75,7 @@ class _ChatPageState extends State<ChatPage>
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $_authToken', // 🔒 แนบ Token ใน Header
+          'Authorization': 'Bearer $_authToken',
         },
         body: jsonEncode({'Userid': _userId}),
       );
@@ -106,7 +106,6 @@ class _ChatPageState extends State<ChatPage>
 
         _scrollToBottom();
       } else if (response.statusCode == 401) {
-        // 🔒 ดักจับ Sanctum Unauthenticated
         print("Log Error 401 (ประวัติแชต): Token ไม่ถูกต้องหรือหมดอายุ");
         _showAuthErrorSnackBar("Token หมดอายุหรือไม่มีสิทธิ์ กรุณาเข้าสู่ระบบใหม่");
       } else {
@@ -157,12 +156,11 @@ class _ChatPageState extends State<ChatPage>
     }
   }
 
-  // 🔒 4. ฟังก์ชันส่งข้อความ (ตรวจสอบ Token ก่อนส่ง + ดักจับ HTTP 401)
+  // 🔒 4. ฟังก์ชันส่งข้อความ
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    // เช็กโควตาเบื้องต้นจาก UI
     if (currentUsage >= maxDailyLimit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -174,7 +172,6 @@ class _ChatPageState extends State<ChatPage>
       return;
     }
 
-    // 🔒 เช็กทั้ง Token และ UserID ก่อนสั่งส่งข้อมูล
     if (_authToken == null || _authToken!.isEmpty || _userId == null) {
       _showAuthErrorSnackBar("ไม่พบ Token หรือรหัสผู้ใช้งาน กรุณาล็อกอินใหม่อีกครั้ง");
       return;
@@ -196,7 +193,7 @@ class _ChatPageState extends State<ChatPage>
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $_authToken', // 🔒 ส่ง Token ยืนยันสิทธิ์
+          'Authorization': 'Bearer $_authToken',
         },
         body: jsonEncode({
           'message': text,
@@ -206,7 +203,6 @@ class _ChatPageState extends State<ChatPage>
 
       print("ส่งข้อความไปหลังบ้านพร้อม UserID: $_userId, ข้อความ: $text");
 
-      // 🔒 ดักจับกรณี Token ไม่ผ่าน/หมดอายุ (HTTP 401)
       if (response.statusCode == 401) {
         setState(() {
           messages.add({
@@ -220,7 +216,6 @@ class _ChatPageState extends State<ChatPage>
         return;
       }
 
-      // กรณีที่หลังบ้านตอบกลับว่าโควตาหมดจริง (HTTP 403)
       if (response.statusCode == 403) {
         final data = jsonDecode(response.body);
         setState(() {
@@ -235,7 +230,6 @@ class _ChatPageState extends State<ChatPage>
         return;
       }
 
-      // กรณีส่งข้อความสำเร็จ (HTTP 200)
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         int remainingQuota = data['remaining_quota'] ?? 0;
@@ -265,7 +259,6 @@ class _ChatPageState extends State<ChatPage>
     _scrollToBottom();
   }
 
-  // 🔒 ฟังก์ชันแสดง SnackBar แจ้งเตือนเรื่อง Authentication
   void _showAuthErrorSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -304,157 +297,63 @@ class _ChatPageState extends State<ChatPage>
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(25.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "แชตบอต",
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: currentUsage >= maxDailyLimit
-                            ? Colors.red.shade100
-                            : Colors.green.shade200,
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(
-                          color: currentUsage >= maxDailyLimit
-                              ? Colors.red
-                              : Colors.green.shade800,
-                        ),
-                      ),
-                      child: Text(
-                        "โควตา: $currentUsage / $maxDailyLimit",
-                        style: TextStyle(
-                          color: currentUsage >= maxDailyLimit
-                              ? Colors.red.shade800
-                              : Colors.green.shade900,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                // 🟢 1. Header Widget
+                ChatHeaderWidget(
+                  currentUsage: currentUsage,
+                  maxDailyLimit: maxDailyLimit,
                 ),
-                const SizedBox(height: 20),
+
+                const SizedBox(height: 15),
+
+                // 🟢 2. Chat Window Container
                 Expanded(
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1EBB8),
+                      color: const Color(0xFFF2EDB4),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.black87),
+                      border: Border.all(color: Colors.black, width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: ListView.builder(
                       controller: _scrollController,
-                      itemCount: messages.length,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: messages.length + (isLoading ? 1 : 0),
                       itemBuilder: (context, index) {
+                        if (index == messages.length && isLoading) {
+                          return const ChatLoadingWidget();
+                        }
                         final msg = messages[index];
                         final isUser = msg["role"] == "user";
-                        return Align(
-                          alignment: isUser
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 5),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 15,
-                              vertical: 10,
-                            ),
-                            constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isUser
-                                  ? const Color(0xFF915C22)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(15),
-                              border: isUser
-                                  ? null
-                                  : Border.all(color: Colors.grey.shade400),
-                            ),
-                            child: Text(
-                              msg["text"]!,
-                              style: TextStyle(
-                                color: isUser ? Colors.white : Colors.black87,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
+
+                        return ChatMessageBubble(
+                          text: msg["text"] ?? "",
+                          isUser: isUser,
                         );
                       },
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                if (isLoading)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 10),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF915C22),
-                      ),
-                    ),
-                  ),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Color(0xFF915C22),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Container(
-                        height: 45,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF424242),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: TextField(
-                          controller: _controller,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 15,
-                              vertical: 10,
-                            ),
-                            hintText: currentUsage >= maxDailyLimit
-                                ? "โควตาหมดแล้ว"
-                                : "พิมพ์ข้อความ...",
-                            hintStyle: const TextStyle(color: Colors.white54),
-                          ),
-                          onSubmitted: (_) => _sendMessage(),
-                          enabled: currentUsage < maxDailyLimit && !isLoading,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: (currentUsage >= maxDailyLimit || isLoading)
-                          ? null
-                          : _sendMessage,
-                      child: Icon(
-                        Icons.send,
-                        size: 35,
-                        color: (currentUsage >= maxDailyLimit || isLoading)
-                            ? Colors.grey
-                            : const Color(0xFF915C22),
-                      ),
-                    ),
-                  ],
+
+                const SizedBox(height: 12),
+
+                // 🟢 3. Input Bar Widget
+                ChatInputBarWidget(
+                  controller: _controller,
+                  isDisabled: currentUsage >= maxDailyLimit,
+                  isLoading: isLoading,
+                  onSend: _sendMessage,
                 ),
               ],
             ),

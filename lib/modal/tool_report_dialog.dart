@@ -21,6 +21,11 @@ class _ReportDialogState extends State<ReportDialog> {
   final ImagePicker _picker = ImagePicker();
   XFile? _selectedImageFile;
 
+  // 🎨 กำหนดชุดสีธีมของแอป
+  static const Color modalBg = Color(0xFFE8EFE6);      // พื้นหลัง Modal เขียวอุ่นละมุน
+  static const Color primaryGreen = Color(0xFF4A7C59); // สีเขียวหลัก
+  static const Color textColor = Color(0xFF212522);    // สีตัวอักษรเข้มอ่านง่าย
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -38,10 +43,10 @@ class _ReportDialogState extends State<ReportDialog> {
     final dialogMaxWidth = screenWidth > 600 ? 460.0 : screenWidth * 0.90;
 
     return Dialog(
-      backgroundColor: const Color(0xFFFCEEBA),
+      backgroundColor: modalBg, // 👈 ปรับพื้นหลังเป็นสีเขียวพาสเทล ถนอมสายตา
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-        side: const BorderSide(color: Colors.black87, width: 1),
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: Colors.black54, width: 1), // 👈 กรอบสีดำชัดเจน
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       child: ConstrainedBox(
@@ -66,6 +71,7 @@ class _ReportDialogState extends State<ReportDialog> {
                       style: TextStyle(
                         fontSize: isSmallScreen ? 18 : 22,
                         fontWeight: FontWeight.bold,
+                        color: textColor,
                       ),
                     ),
                   ),
@@ -73,10 +79,14 @@ class _ReportDialogState extends State<ReportDialog> {
                     alignment: Alignment.centerRight,
                     child: InkWell(
                       onTap: () => Navigator.pop(context),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.red,
-                        size: 26,
+                      borderRadius: BorderRadius.circular(20),
+                      child: const Padding(
+                        padding: EdgeInsets.all(2.0),
+                        child: Icon(
+                          Icons.close,
+                          color: textColor, // 👈 ไอคอนปิดโทนสีเข้มละมุน
+                          size: 26,
+                        ),
                       ),
                     ),
                   ),
@@ -99,20 +109,24 @@ class _ReportDialogState extends State<ReportDialog> {
                             style: TextStyle(
                               fontSize: isSmallScreen ? 14 : 16,
                               fontWeight: FontWeight.bold,
+                              color: textColor,
                             ),
                           ),
                           Expanded(
                             child: Container(
-                              height: 40,
+                              height: 42,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: Colors.white, // 👈 กล่องข้อความสีขาว คมชัด
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.black54),
+                                border: Border.all(color: Colors.black54, width: 1),
                               ),
                               child: TextField(
                                 controller: _titleController,
                                 textAlignVertical: TextAlignVertical.center,
-                                style: TextStyle(fontSize: isSmallScreen ? 13 : 14),
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 13 : 14,
+                                  color: textColor,
+                                ),
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
                                   isDense: true,
@@ -126,36 +140,40 @@ class _ReportDialogState extends State<ReportDialog> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
                       Text(
                         "รายละเอียด",
                         style: TextStyle(
                           fontSize: isSmallScreen ? 14 : 16,
                           fontWeight: FontWeight.bold,
+                          color: textColor,
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 6),
                       Container(
-                        height: 100,
+                        height: 110,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          border: Border.all(color: Colors.black54),
-                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.black54, width: 1),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: TextField(
                           controller: _detailController,
                           maxLines: null,
                           expands: true,
                           textAlignVertical: TextAlignVertical.top,
-                          style: TextStyle(fontSize: isSmallScreen ? 13 : 14),
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 13 : 14,
+                            color: textColor,
+                          ),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.all(10),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -165,14 +183,15 @@ class _ReportDialogState extends State<ReportDialog> {
                             style: TextStyle(
                               fontSize: isSmallScreen ? 14 : 16,
                               fontWeight: FontWeight.bold,
+                              color: textColor,
                             ),
                           ),
                           Container(
-                            height: 32,
+                            height: 34,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE0E0E0),
-                              borderRadius: BorderRadius.circular(15),
-                              border: Border.all(color: Colors.black54),
+                              color: primaryGreen, // 👈 ปุ่มเลือกรูปโทนสีเขียวประจำธีม
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.black54, width: 1),
                             ),
                             child: TextButton(
                               onPressed: () async {
@@ -186,13 +205,13 @@ class _ReportDialogState extends State<ReportDialog> {
                                 }
                               },
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
                                 minimumSize: Size.zero,
                               ),
                               child: Text(
                                 _selectedImageFile == null ? "เลือกรูปภาพ" : "เปลี่ยนรูปภาพ",
                                 style: const TextStyle(
-                                  color: Colors.black,
+                                  color: Colors.white, // 👈 ข้อความสีขาวอ่านง่าย
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -211,10 +230,10 @@ class _ReportDialogState extends State<ReportDialog> {
                               height: 150,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.black38),
+                                border: Border.all(color: Colors.black54, width: 1),
                               ),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(9),
                                 child: Image.file(
                                   File(_selectedImageFile!.path),
                                   fit: BoxFit.cover,
@@ -233,13 +252,13 @@ class _ReportDialogState extends State<ReportDialog> {
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: const BoxDecoration(
-                                    color: Colors.black,
+                                    color: Colors.black87,
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
                                     Icons.close,
                                     color: Colors.white,
-                                    size: 18,
+                                    size: 16,
                                   ),
                                 ),
                               ),
@@ -248,7 +267,7 @@ class _ReportDialogState extends State<ReportDialog> {
                         )
                       else
                         const Padding(
-                          padding: EdgeInsets.only(top: 4.0),
+                          padding: EdgeInsets.only(top: 2.0),
                           child: Text(
                             "ยังไม่ได้เลือกรูปภาพ",
                             style: TextStyle(fontSize: 12, color: Colors.black54),
@@ -263,19 +282,19 @@ class _ReportDialogState extends State<ReportDialog> {
               Align(
                 alignment: Alignment.centerRight,
                 child: Container(
-                  height: 40,
-                  width: 90,
+                  height: 42,
+                  width: 100,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6BBA90),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Colors.black87),
+                    color: primaryGreen, // 👈 ปุ่มส่งรายงานสีเขียวธีมหลัก
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.black54, width: 1),
                   ),
                   child: TextButton(
                     onPressed: _sendReport,
                     child: const Text(
                       "ส่ง",
                       style: TextStyle(
-                        color: Colors.black,
+                        color: Colors.white, // 👈 ตัวอักษรสีขาวเน้นความคมชัด
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
