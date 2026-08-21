@@ -221,10 +221,10 @@ class PlantRecommendationHelper {
       context: context,
       builder: (BuildContext dialogContext) {
         return Dialog(
-          backgroundColor: const Color(0xFFF5EFCB),
+          backgroundColor: const Color(0xFFE8EFE6), // 👈 สีธีมพาสเทล
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
-            side: const BorderSide(color: Colors.black87, width: 1.5),
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: Colors.black38, width: 1),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
@@ -242,7 +242,7 @@ class PlantRecommendationHelper {
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: Color(0xFF212522),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -259,7 +259,7 @@ class PlantRecommendationHelper {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: Color(0xFF212522),
                     ),
                   ),
                 ),
@@ -268,9 +268,9 @@ class PlantRecommendationHelper {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFE8C8),
+                    color: const Color(0xFFD6E3D4), // 👈 สีกล่องรายการอ่อนละมุน
                     borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Colors.black26),
+                    border: Border.all(color: Colors.black12),
                   ),
                   child: Wrap(
                     spacing: 8,
@@ -283,7 +283,7 @@ class PlantRecommendationHelper {
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: isSupported
-                              ? Colors.green.shade700
+                              ? const Color(0xFF2E6F40)
                               : Colors.red.shade700,
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -307,16 +307,22 @@ class PlantRecommendationHelper {
                     height: 40,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6BBA90),
+                      color: const Color(0xFF2E6F40), // 👈 ปุ่มเขียวธีมหลัก
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.black87, width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: const Text(
                       "ตกลง",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -358,10 +364,10 @@ class PlantRecommendationHelper {
             return Container(
               height: MediaQuery.of(context).size.height * 0.88,
               decoration: const BoxDecoration(
-                color: Color(0xFFF1E6C9),
+                color: Color(0xFFE8EFE6), // 👈 สีธีมพาสเทล
                 borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
+                  topLeft: Radius.circular(28),
+                  topRight: Radius.circular(28),
                 ),
               ),
               child: Column(
@@ -371,10 +377,10 @@ class PlantRecommendationHelper {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 15),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF2E5A36),
+                      color: Color(0xFF2E6F40), // 👈 สีเขียวธีมหลัก
                       borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(30),
-                        topRight: Radius.circular(30),
+                        topLeft: Radius.circular(28),
+                        topRight: Radius.circular(28),
                       ),
                     ),
                     child: Row(
@@ -391,7 +397,7 @@ class PlantRecommendationHelper {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
+                          icon: const Icon(Icons.close_rounded, color: Colors.white),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
@@ -420,10 +426,17 @@ class PlantRecommendationHelper {
                             margin: const EdgeInsets.only(bottom: 15),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF6F8E5F),
+                              color: const Color(0xFF386641), // 👈 สีการ์ดพืชเขียวเข้ม
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                  color: const Color(0xFF2E5A36), width: 1.5),
+                                  color: const Color(0xFF1E4B2B), width: 1.2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
@@ -489,11 +502,11 @@ class PlantRecommendationHelper {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 10, vertical: 6),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFFCF4D9),
+                                            color: const Color(0xFFE8EFE6), // 👈 สีปุ่มพาสเทลสบายตา
                                             borderRadius:
                                                 BorderRadius.circular(12),
                                             border: Border.all(
-                                                color: Colors.black54),
+                                                color: Colors.black26),
                                           ),
                                           child: const Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -501,13 +514,13 @@ class PlantRecommendationHelper {
                                               Icon(
                                                 Icons.fact_check_outlined,
                                                 size: 16,
-                                                color: Colors.black87,
+                                                color: Color(0xFF212522),
                                               ),
                                               SizedBox(width: 5),
                                               Text(
                                                 "เช็คค่าธาตุอาหาร",
                                                 style: TextStyle(
-                                                  color: Colors.black87,
+                                                  color: Color(0xFF212522),
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 12,
                                                 ),
@@ -648,7 +661,7 @@ class PlantRecommendationHelper {
         height: 32,
         decoration: BoxDecoration(
           color: isActive
-              ? const Color(0xFF5A45FF)
+              ? const Color(0xFF2E6F40) // 👈 เปลี่ยนสีปุ่มที่เลือกเป็นสีธีมหลัก
               : (disabled ? Colors.grey.shade300 : Colors.white),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: Colors.grey.shade300, width: 0.5),
@@ -659,7 +672,7 @@ class PlantRecommendationHelper {
             style: TextStyle(
               color: isActive
                   ? Colors.white
-                  : (disabled ? Colors.grey : Colors.black),
+                  : (disabled ? Colors.grey : const Color(0xFF212522)),
               fontSize: 12,
               fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
             ),
@@ -696,10 +709,10 @@ class PlantRecommendationHelper {
       context: context,
       builder: (dialogContext) {
         return Dialog(
-          backgroundColor: const Color(0xFFF5EFCB),
+          backgroundColor: const Color(0xFFE8EFE6), // 👈 สีธีมพาสเทล
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
-            side: const BorderSide(color: Colors.black87, width: 1.5),
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: Colors.black38, width: 1),
           ),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
@@ -716,11 +729,11 @@ class PlantRecommendationHelper {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: Color(0xFF212522),
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.red),
+                        icon: const Icon(Icons.close_rounded, color: Colors.red),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () => Navigator.pop(dialogContext),
@@ -743,17 +756,17 @@ class PlantRecommendationHelper {
                                 errorBuilder: (ctx, err, stack) => Container(
                                   width: 55,
                                   height: 55,
-                                  color: Colors.white30,
+                                  color: const Color(0xFFD6E3D4),
                                   child: const Icon(Icons.eco,
-                                      color: Colors.green),
+                                      color: Color(0xFF2E6F40)),
                                 ),
                               )
                             : Container(
                                 width: 55,
                                 height: 55,
-                                color: Colors.white30,
+                                color: const Color(0xFFD6E3D4),
                                 child:
-                                    const Icon(Icons.eco, color: Colors.green),
+                                    const Icon(Icons.eco, color: Color(0xFF2E6F40)),
                               ),
                       ),
                       const SizedBox(width: 12),
@@ -763,14 +776,14 @@ class PlantRecommendationHelper {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                            color: Color(0xFF212522),
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Divider(color: Colors.black26),
+                  const Divider(color: Colors.black12),
                   const SizedBox(height: 8),
 
                   // แสดงรายการ Min - Max และ ค่าของผู้ใช้
@@ -792,12 +805,12 @@ class PlantRecommendationHelper {
                             horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: hasUserInput
-                              ? const Color(0xFFD8EAD3)
-                              : const Color(0xFFEFE8C8),
+                              ? const Color(0xFFCBE3C8) // 👈 สีไฮไลต์เมื่อมีข้อมูล
+                              : const Color(0xFFDDE7DA),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: hasUserInput
-                                ? Colors.green.shade700
+                                ? const Color(0xFF2E6F40)
                                 : Colors.black12,
                           ),
                         ),
@@ -811,7 +824,7 @@ class PlantRecommendationHelper {
                                 fontWeight: hasUserInput
                                     ? FontWeight.bold
                                     : FontWeight.normal,
-                                color: Colors.black87,
+                                color: const Color(0xFF212522),
                               ),
                             ),
                             if (hasUserInput) ...[
@@ -822,13 +835,13 @@ class PlantRecommendationHelper {
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.black,
+                                      color: Color(0xFF212522),
                                     ),
                                   ),
                                   const SizedBox(width: 4),
                                   const Icon(
                                     Icons.check_circle,
-                                    color: Colors.green,
+                                    color: Color(0xFF2E6F40),
                                     size: 18,
                                   ),
                                 ],
@@ -849,16 +862,22 @@ class PlantRecommendationHelper {
                       height: 38,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6BBA90),
+                        color: const Color(0xFF2E6F40), // 👈 ปุ่มเขียวธีมหลัก
                         borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: Colors.black87),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: const Text(
                         "ตกลง",
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: Colors.white,
                         ),
                       ),
                     ),

@@ -84,10 +84,10 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
     final dialogMaxWidth = screenWidth > 600 ? 480.0 : screenWidth * 0.90;
 
     return Dialog(
-      backgroundColor: const Color(0xFFF5EFCB),
+      backgroundColor: const Color(0xFFE8EFE6), // 👈 สีธีมพาสเทล
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(25),
-        side: const BorderSide(color: Colors.black87, width: 1.5),
+        borderRadius: BorderRadius.circular(24),
+        side: const BorderSide(color: Colors.black38, width: 1),
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       child: ConstrainedBox(
@@ -108,7 +108,7 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
                 style: TextStyle(
                   fontSize: isSmallScreen ? 18 : 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: const Color(0xFF212522),
                 ),
               ),
               const SizedBox(height: 16),
@@ -124,7 +124,7 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
                         isSmallScreen: isSmallScreen,
                         child: TextField(
                           controller: _titleController,
-                          style: TextStyle(fontSize: isSmallScreen ? 13 : 14),
+                          style: TextStyle(fontSize: isSmallScreen ? 13 : 14, color: const Color(0xFF212522)),
                           decoration: const InputDecoration(
                             isDense: true,
                             contentPadding: EdgeInsets.symmetric(
@@ -133,6 +133,7 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
                             ),
                             border: InputBorder.none,
                             hintText: "เช่น แปลงนาที่ 1",
+                            hintStyle: TextStyle(color: Colors.black38),
                           ),
                         ),
                       ),
@@ -144,13 +145,13 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: _selectedRegion,
-                            hint: Text("เลือกภาค", style: TextStyle(fontSize: isSmallScreen ? 13 : 14)),
+                            hint: Text("เลือกภาค", style: TextStyle(fontSize: isSmallScreen ? 13 : 14, color: Colors.black54)),
                             isExpanded: true,
-                            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF212522)),
                             items: _regions.map<DropdownMenuItem<String>>((reg) {
                               return DropdownMenuItem<String>(
                                 value: reg['name'].toString(),
-                                child: Text(reg['name'].toString(), style: TextStyle(fontSize: isSmallScreen ? 13 : 14)),
+                                child: Text(reg['name'].toString(), style: TextStyle(fontSize: isSmallScreen ? 13 : 14, color: const Color(0xFF212522))),
                               );
                             }).toList(),
                             onChanged: (val) {
@@ -186,14 +187,14 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: _selectedProvince,
-                            hint: Text("เลือกจังหวัด", style: TextStyle(fontSize: isSmallScreen ? 13 : 14)),
+                            hint: Text("เลือกจังหวัด", style: TextStyle(fontSize: isSmallScreen ? 13 : 14, color: Colors.black54)),
                             isExpanded: true,
-                            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF212522)),
                             items: _provinceList.map<DropdownMenuItem<String>>((prov) {
                               String name = _getName(prov);
                               return DropdownMenuItem<String>(
                                 value: name,
-                                child: Text(name, style: TextStyle(fontSize: isSmallScreen ? 13 : 14)),
+                                child: Text(name, style: TextStyle(fontSize: isSmallScreen ? 13 : 14, color: const Color(0xFF212522))),
                               );
                             }).toList(),
                             onChanged: (val) {
@@ -221,14 +222,14 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: _selectedAmphur,
-                            hint: Text("เลือกอำเภอ", style: TextStyle(fontSize: isSmallScreen ? 13 : 14)),
+                            hint: Text("เลือกอำเภอ", style: TextStyle(fontSize: isSmallScreen ? 13 : 14, color: Colors.black54)),
                             isExpanded: true,
-                            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF212522)),
                             items: _amphurList.map<DropdownMenuItem<String>>((amp) {
                               String name = _getName(amp);
                               return DropdownMenuItem<String>(
                                 value: name,
-                                child: Text(name, style: TextStyle(fontSize: isSmallScreen ? 13 : 14)),
+                                child: Text(name, style: TextStyle(fontSize: isSmallScreen ? 13 : 14, color: const Color(0xFF212522))),
                               );
                             }).toList(),
                             onChanged: (val) {
@@ -254,14 +255,14 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: _selectedDistrict,
-                            hint: Text("เลือกตำบล", style: TextStyle(fontSize: isSmallScreen ? 13 : 14)),
+                            hint: Text("เลือกตำบล", style: TextStyle(fontSize: isSmallScreen ? 13 : 14, color: Colors.black54)),
                             isExpanded: true,
-                            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF212522)),
                             items: _districtList.map<DropdownMenuItem<String>>((dt) {
                               String name = _getName(dt);
                               return DropdownMenuItem<String>(
                                 value: name,
-                                child: Text(name, style: TextStyle(fontSize: isSmallScreen ? 13 : 14)),
+                                child: Text(name, style: TextStyle(fontSize: isSmallScreen ? 13 : 14, color: const Color(0xFF212522))),
                               );
                             }).toList(),
                             onChanged: (val) {
@@ -289,16 +290,22 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
                       height: 40,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6BBA90),
+                        color: const Color(0xFF2E6F40), // 👈 ปุ่มยืนยันสีเขียวธีมหลัก
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.black87, width: 1.2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Text(
                         "ยืนยัน",
                         style: TextStyle(
                           fontSize: isSmallScreen ? 15 : 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -310,16 +317,22 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
                       height: 40,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE26A6A),
+                        color: const Color(0xFFE26A6A), // 👈 ปุ่มยกเลิกสีส้มแดงพาสเทล
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.black87, width: 1.2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Text(
                         "ยกเลิก",
                         style: TextStyle(
                           fontSize: isSmallScreen ? 15 : 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -409,7 +422,7 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
             style: TextStyle(
               fontSize: isSmallScreen ? 14 : 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: const Color(0xFF212522),
             ),
           ),
         ),
@@ -419,9 +432,9 @@ class _SaveLocationDialogState extends State<SaveLocationDialog> {
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFE8C8),
+              color: const Color(0xFFDDE7DA), // 👈 สีพื้นหลังของช่องกรอกข้อมูลพาสเทล
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.black87, width: 1),
+              border: Border.all(color: Colors.black12, width: 1),
             ),
             child: Center(child: child),
           ),

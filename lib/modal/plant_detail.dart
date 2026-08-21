@@ -39,9 +39,12 @@ class PlantDetailDialog {
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          backgroundColor: const Color(0xFFEFE8CE),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: Colors.black38, width: 1),
+          ),
+          backgroundColor: const Color(0xFFE8EFE6), // 👈 สีธีมพาสเทลเขียวละมุน
+          elevation: 8,
           child: Container(
             padding: const EdgeInsets.all(20),
             constraints: const BoxConstraints(maxHeight: 680),
@@ -56,34 +59,53 @@ class PlantDetailDialog {
                       child: Text(
                         normalName,
                         style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black),
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF212522), // 👈 สีข้อความเข้มคมชัด
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close,
-                          size: 28, color: Colors.black),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 28,
+                        color: Color(0xFF212522),
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.network(
-                      imgUrl,
-                      width: 220,
-                      height: 220,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.network(
+                        imgUrl,
                         width: 220,
                         height: 220,
-                        color: Colors.grey.shade300,
-                        child: const Icon(Icons.image_not_supported,
-                            size: 50, color: Colors.grey),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 220,
+                          height: 220,
+                          color: const Color(0xFFD6E3D4),
+                          child: const Icon(
+                            Icons.image_not_supported_rounded,
+                            size: 50,
+                            color: Colors.black45,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -95,93 +117,123 @@ class PlantDetailDialog {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("ชื่อสามัญ : $normalName",
-                            style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black)),
-                        Text("ชื่อวิทยาศาสตร์ : $scientificName",
-                            style: const TextStyle(
-                                fontSize: 15,
-                                fontStyle: FontStyle.italic,
-                                color: Colors.black)),
-                        Text("ชื่ออื่นๆ : $otherName",
-                            style: const TextStyle(
-                                fontSize: 15, color: Colors.black)),
-                        const Divider(color: Colors.black26),
+                        Text(
+                          "ชื่อสามัญ : $normalName",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF212522),
+                          ),
+                        ),
+                        Text(
+                          "ชื่อวิทยาศาสตร์ : $scientificName",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontStyle: FontStyle.italic,
+                            color: Color(0xFF212522),
+                          ),
+                        ),
+                        Text(
+                          "ชื่ออื่นๆ : $otherName",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF212522),
+                          ),
+                        ),
+                        const Divider(color: Colors.black12, height: 20),
                         const SizedBox(height: 5),
 
                         HtmlWidget(
                           detaill,
                           textStyle: const TextStyle(
-                              height: 1.4,
-                              color: Colors.black),
+                            height: 1.4,
+                            color: Color(0xFF212522),
+                          ),
                           customStylesBuilder: _customStylesBuilder,
                         ),
                         const SizedBox(height: 12),
-                        const Text("ลักษณะทั่วไป",
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black)),
+                        const Text(
+                          "ลักษณะทั่วไป",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF212522),
+                          ),
+                        ),
                         HtmlWidget(
                           nature,
                           textStyle: const TextStyle(
-                              fontSize: 14,
-                              height: 1.4,
-                              color: Colors.black),
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Color(0xFF212522),
+                          ),
                           customStylesBuilder: _customStylesBuilder,
                         ),
                         const SizedBox(height: 12),
-                        const Text("ข้อมูลการปลูก",
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black)),
+                        const Text(
+                          "ข้อมูลการปลูก",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF212522),
+                          ),
+                        ),
                         HtmlWidget(
                           plant,
                           textStyle: const TextStyle(
-                              fontSize: 14,
-                              height: 1.4,
-                              color: Colors.black),
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Color(0xFF212522),
+                          ),
                           customStylesBuilder: _customStylesBuilder,
                         ),
                         const SizedBox(height: 12),
-                        const Text("การดูแลรักษา",
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black)),
+                        const Text(
+                          "การดูแลรักษา",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF212522),
+                          ),
+                        ),
                         HtmlWidget(
                           care,
                           textStyle: const TextStyle(
-                              fontSize: 14,
-                              height: 1.4,
-                              color: Colors.black),
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Color(0xFF212522),
+                          ),
                           customStylesBuilder: _customStylesBuilder,
                         ),
                         const SizedBox(height: 12),
-                        const Text("การเก็บเกี่ยว",
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black)),
+                        const Text(
+                          "การเก็บเกี่ยว",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF212522),
+                          ),
+                        ),
                         HtmlWidget(
                           harvest,
                           textStyle: const TextStyle(
-                              fontSize: 14,
-                              height: 1.4,
-                              color: Colors.black),
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Color(0xFF212522),
+                          ),
                           customStylesBuilder: _customStylesBuilder,
                         ),
 
-                        const Divider(color: Colors.black26, height: 25),
+                        const Divider(color: Colors.black12, height: 25),
                         const Center(
-                          child: Text("สภาพดินและธาตุอาหารในดินที่เหมาะสม",
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87)),
+                          child: Text(
+                            "สภาพดินและธาตุอาหารในดินที่เหมาะสม",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF212522),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 15),
 
@@ -216,26 +268,26 @@ class PlantDetailDialog {
                           child: Column(
                             children: [
                               _buildEnvGridRow(
-                                iconLeft: Icons.opacity,
-                                colorLeft: Colors.blue,
+                                iconLeft: Icons.water_drop_rounded,
+                                colorLeft: Colors.blue.shade600,
                                 titleLeft: "ความชื้น",
                                 valueLeft:
                                     "${_formatRange(item['minhumid'], item['maxhumid'])} %",
-                                iconRight: Icons.grid_3x3,
-                                colorRight: Colors.black87,
+                                iconRight: Icons.science_rounded,
+                                colorRight: Colors.purple.shade600,
                                 titleRight: "pH",
                                 valueRight:
                                     _formatRange(item['minPH'], item['maxPH']),
                               ),
                               const SizedBox(height: 16),
                               _buildEnvGridRow(
-                                iconLeft: Icons.thermostat,
-                                colorLeft: Colors.black87,
+                                iconLeft: Icons.thermostat_rounded,
+                                colorLeft: Colors.orange.shade700,
                                 titleLeft: "อุณหภูมิ",
                                 valueLeft:
                                     "${_formatRange(item['mintemperature'], item['maxtemperature'])} °C",
-                                iconRight: Icons.waves,
-                                colorRight: Colors.brown,
+                                iconRight: Icons.waves_rounded,
+                                colorRight: Colors.teal.shade700,
                                 titleRight: "ความเค็ม",
                                 valueRight:
                                     "${_formatRange(item['minsalty'], item['maxsalty'])} mS/cm",
@@ -243,7 +295,7 @@ class PlantDetailDialog {
                             ],
                           ),
                         ),
-                        const Divider(color: Colors.black26, height: 30),
+                        const Divider(color: Colors.black12, height: 30),
 
                         // 🟢 ส่วน Supply และ Demand
                         Center(
@@ -254,7 +306,7 @@ class PlantDetailDialog {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black,
+                                  color: Color(0xFF212522),
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -273,13 +325,15 @@ class PlantDetailDialog {
                                 text: TextSpan(
                                   text: 'คลิกเพื่อดูรายละเอียด',
                                   style: const TextStyle(
-                                      fontSize: 15, color: Colors.black),
+                                    fontSize: 15,
+                                    color: Color(0xFF212522),
+                                  ),
                                   children: [
                                     TextSpan(
                                       text: 'เพิ่มเติม',
                                       style: const TextStyle(
                                         fontSize: 15,
-                                        color: Colors.blue,
+                                        color: Color(0xFF2E6F40), // 👈 สีเขียวธีมหลัก
                                         decoration: TextDecoration.underline,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -307,13 +361,15 @@ class PlantDetailDialog {
                                 text: TextSpan(
                                   text: 'คลิกเพื่อดูรายละเอียด',
                                   style: const TextStyle(
-                                      fontSize: 15, color: Colors.black),
+                                    fontSize: 15,
+                                    color: Color(0xFF212522),
+                                  ),
                                   children: [
                                     TextSpan(
                                       text: 'เพิ่มเติม',
                                       style: const TextStyle(
                                         fontSize: 15,
-                                        color: Colors.blue,
+                                        color: Color(0xFF2E6F40), // 👈 สีเขียวธีมหลัก
                                         decoration: TextDecoration.underline,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -387,7 +443,7 @@ class PlantDetailDialog {
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: Color(0xFF212522),
             ),
           ),
           Column(
@@ -398,7 +454,7 @@ class PlantDetailDialog {
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Color(0xFF212522),
                 ),
               ),
               if (hasValue)
@@ -434,21 +490,28 @@ class PlantDetailDialog {
           child: Row(
             children: [
               if (iconLeft != null)
-                Icon(iconLeft, color: colorLeft, size: 28)
+                Icon(iconLeft, color: colorLeft, size: 26)
               else
-                const SizedBox(width: 28, height: 28),
+                const SizedBox(width: 26, height: 26),
               const SizedBox(width: 8),
               Expanded(
                 child: Wrap(
                   children: [
-                    Text("$titleLeft : ",
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black)),
-                    Text(valueLeft,
-                        style:
-                            const TextStyle(fontSize: 14, color: Colors.black)),
+                    Text(
+                      "$titleLeft : ",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF212522),
+                      ),
+                    ),
+                    Text(
+                      valueLeft,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF212522),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -460,21 +523,28 @@ class PlantDetailDialog {
           child: Row(
             children: [
               if (iconRight != null)
-                Icon(iconRight, color: colorRight, size: 28)
+                Icon(iconRight, color: colorRight, size: 26)
               else
-                const SizedBox(width: 28, height: 28),
+                const SizedBox(width: 26, height: 26),
               const SizedBox(width: 8),
               Expanded(
                 child: Wrap(
                   children: [
-                    Text("$titleRight : ",
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black)),
-                    Text(valueRight,
-                        style:
-                            const TextStyle(fontSize: 14, color: Colors.black)),
+                    Text(
+                      "$titleRight : ",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF212522),
+                      ),
+                    ),
+                    Text(
+                      valueRight,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF212522),
+                      ),
+                    ),
                   ],
                 ),
               ),
