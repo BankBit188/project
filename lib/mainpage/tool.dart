@@ -18,6 +18,9 @@ import 'package:project/modal/tool_report_dialog.dart';
 
 import 'package:project/style/style_tool.dart';
 
+// 🟢 Import LoginPage เข้ามาใช้งาน
+import 'package:project/login/login.dart';
+
 class ToolPage extends StatefulWidget {
   const ToolPage({super.key});
 
@@ -91,19 +94,29 @@ class _ToolPageState extends State<ToolPage> {
     });
   }
 
+  // 🟢 ปรับปรุงฟังก์ชันเช็ค Token และ UserId
   Future<void> _loadToken() async {
     String? token = await _secureStorage.read(key: "auth_token");
     String? userId = await _secureStorage.read(key: "Userid");
 
     if (!mounted) return;
+
+    // 🔴 หาก auth_token หรือ Userid เป็น null ให้เปลี่ยนไปยังหน้า LoginPage ทันที
+    if (token == null || userId == null) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+      return;
+    }
+
     setState(() {
       _authToken = token;
       _userId = userId;
     });
 
-    if (_userId != null && _authToken != null) {
-      _fetchToolData();
-    }
+    _fetchToolData();
   }
 
   Future<void> _fetchToolData() async {
@@ -188,22 +201,19 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  // 📌 ฟังก์ชันเรียกแสดง PopupMenu พร้อมฉากหลังดำโปร่งแสง
-  // 📌 ฟังก์ชันแสดงเมนูด้วย showGeneralDialog รองรับ barrierColor
-  // 📌 ฟังก์ชันแสดงเมนูแบบนูนลอย มีมิติ ไม่กินขอบ
   Future<void> _showTopMenu(BuildContext buttonContext) async {
     final String? value = await showGeneralDialog<String>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Dismiss',
-      barrierColor: Colors.black.withOpacity(0.45), // 👈 ฉากหลังมืดลงขับให้เมนูเด่น
+      barrierColor: Colors.black.withOpacity(0.45),
       transitionDuration: const Duration(milliseconds: 180),
       transitionBuilder: (context, anim1, anim2, child) {
         return FadeTransition(
           opacity: anim1,
           child: ScaleTransition(
             scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-            alignment: Alignment.topRight, // 👈 เด้งขยายออกมาจากปุ่ม 3 ขีดขวาบน
+            alignment: Alignment.topRight,
             child: child,
           ),
         );
@@ -213,21 +223,20 @@ class _ToolPageState extends State<ToolPage> {
           child: Stack(
             children: [
               Positioned(
-                top: 55, // ระยะห่างจากด้านบน
-                right: 16, // ระยะห่างจากขอบขวา
+                top: 55,
+                right: 16,
                 child: Material(
                   color: Colors.transparent,
                   child: Container(
-                    width: 210, // 👈 ขยายความกว้าง ไม่ให้อึดอัด
+                    width: 210,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8EFE6), // สีธีมเขียวพาสเทล
-                      borderRadius: BorderRadius.circular(16), // 👈 มุมโค้งมนนุ่มนวลขึ้น
+                      color: const Color(0xFFE8EFE6),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.8), // 👈 ไฮไลต์ขอบขาวซอฟต์ๆ เพิ่มมิติ
+                        color: Colors.white.withOpacity(0.8),
                         width: 1.5,
                       ),
                       boxShadow: [
-                        // 👈 ซ้อนเงา 2 ชั้นสร้างมิติความนูนลอยคมชัด
                         BoxShadow(
                           color: Colors.black.withOpacity(0.20),
                           blurRadius: 20,
@@ -301,7 +310,6 @@ class _ToolPageState extends State<ToolPage> {
     }
   }
 
-  // 📌 เมธอดสร้างรายการเมนูพร้อมไอคอนและระยะ Padding สบายตา
   Widget _buildMenuItem(
     BuildContext dialogContext, 
     String value, 
@@ -333,7 +341,6 @@ class _ToolPageState extends State<ToolPage> {
     );
   }
 
-  // 📌 ฟังก์ชันจัดการ Action เมื่อเลือกเมนู
   Future<void> _handleMenuSelection(String value) async {
     if (value == 'profile') {
       Navigator.push(
@@ -436,7 +443,6 @@ class _ToolPageState extends State<ToolPage> {
                         ),
                       ),
 
-                      // 💡 เปลี่ยนจาก PopupMenuButton เป็น IconButton + showMenu เพื่อรองรับ barrierColor
                       Builder(
                         builder: (menuContext) {
                           return IconButton(

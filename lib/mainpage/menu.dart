@@ -698,201 +698,262 @@ class _MenuPageState extends State<MenuPage> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
+          // 🎨 ธีมสีฟ้า iOS Soft Blue สว่าง อ่านง่าย
           gradient: const LinearGradient(
-            colors: [Color(0xFF88C0FA), Color(0xFF5A94ED)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            colors: [Color(0xFF4A7CB5), Color(0xFF5B89C3)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4A7CB5).withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: _isLoadingWeather
+                ? const SizedBox(
+                    height: 120,
+                    child: Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // 👈 ฝั่งซ้าย: สภาพอากาศปัจจุบัน + ชิปความชื้น/ลม
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // ☀️ ไอคอนดวงอาทิตย์ซ้อนเมฆสไตล์คลีนๆ
+                            SizedBox(
+                              height: 36,
+                              child: Stack(
+                                children: [
+                                  const Icon(
+                                    Icons.wb_sunny_rounded,
+                                    size: 30,
+                                    color: Color(0xFFFFD54F),
+                                  ),
+                                  Positioned(
+                                    left: 12,
+                                    top: 8,
+                                    child: Icon(
+                                      Icons.cloud_rounded,
+                                      size: 24,
+                                      color: Colors.white.withOpacity(0.95),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            // 🌡️ อุณหภูมิปัจจุบัน
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                "$_currentTemp°",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.0,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            // 🔺🔻 อุณหภูมิ สูงสุด / ต่ำสุด
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.arrow_upward_rounded,
+                                    color: Color(0xFFFF8A65),
+                                    size: 11,
+                                  ),
+                                  Text(
+                                    "$_todayMaxTemp°",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.arrow_downward_rounded,
+                                    color: Color(0xFF80DEEA),
+                                    size: 11,
+                                  ),
+                                  Text(
+                                    "$_todayMinTemp°",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            // 💧/💨 ชิปความชื้น และ ความเร็วลม (อยู่บรรทัดเดียวกัน)
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                children: [
+                                  _buildWeatherChip(
+                                    icon: Icons.water_drop_rounded,
+                                    iconColor: const Color(0xFF80DEEA),
+                                    text: "$_humidity%",
+                                  ),
+                                  const SizedBox(width: 4),
+                                  _buildWeatherChip(
+                                    icon: Icons.air_rounded,
+                                    iconColor: const Color(0xFFA7FFEB),
+                                    text:
+                                        "${_windSpeed.toStringAsFixed(1)} กม/ชม",
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ⚡ เส้นแบ่งกึ่งกลางบางๆ
+                      Container(
+                        height: 100,
+                        width: 1,
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                        color: Colors.white.withOpacity(0.22),
+                      ),
+
+                      // 👉 ฝั่งขวา: รายการพยากรณ์รายวัน
+                      Expanded(
+                        flex: 6,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: _dailyForecast.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final item = entry.value;
+                            final isLast = index == _dailyForecast.length - 1;
+                            return _buildWeatherDayRow(
+                              item['day'],
+                              item['high'].toString(),
+                              item['low'].toString(),
+                              Icons.wb_sunny_rounded,
+                              showDivider: !isLast,
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
-        child: _isLoadingWeather
-            ? const SizedBox(
-                height: 120,
-                child: Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
-              )
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "วันนี้",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            "$_currentTemp°",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 48,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.arrow_upward,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                              Text(
-                                " $_todayMaxTemp° / ",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const Icon(
-                                Icons.arrow_downward,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                              Text(
-                                " $_todayMinTemp°",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.water_drop,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                              Text(
-                                " $_humidity%  ",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const Icon(
-                                Icons.air,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                              Text(
-                                " ${_windSpeed.toStringAsFixed(1)} กม/ชม",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  Expanded(
-                    flex: 6,
-                    child: Column(
-                      children: _dailyForecast.map((item) {
-                        return _buildWeatherDayRow(
-                          item['day'],
-                          item['high'],
-                          item['low'],
-                          Icons.cloud,
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              ),
       ),
     );
   }
 
+  // 🔹 แถบพยากรณ์อากาศรายวันฝั่งขวา
   Widget _buildWeatherDayRow(
     String day,
     String high,
     String low,
-    IconData icon,
-  ) {
+    IconData icon, {
+    bool showDivider = true,
+  }) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3.0),
+          padding: const EdgeInsets.symmetric(vertical: 2.5),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               SizedBox(
-                width: 26,
+                width: 24,
                 child: Text(
                   day,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
               Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.arrow_upward,
-                        color: Colors.white,
-                        size: 11,
-                      ),
-                      Text(
-                        " $high ",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const Icon(
-                        Icons.arrow_downward,
-                        color: Colors.white,
-                        size: 11,
-                      ),
-                      Text(
-                        " $low",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+                child: Center(
+                  child: Icon(icon, color: const Color(0xFFFFD54F), size: 15),
                 ),
               ),
-              Icon(icon, color: Colors.white54, size: 18),
+              Text(
+                "$high°  $low°",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
-        const Divider(color: Colors.white30, height: 1, thickness: 1),
+        if (showDivider)
+          Divider(
+            color: Colors.white.withOpacity(0.2),
+            height: 3,
+            thickness: 0.5,
+          ),
       ],
+    );
+  }
+
+  // 🔹 ชิปความชื้นและลม
+  Widget _buildWeatherChip({
+    required IconData icon,
+    required Color iconColor,
+    required String text,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: iconColor, size: 11),
+          const SizedBox(width: 3),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
