@@ -50,10 +50,30 @@ class _ToolPageState extends State<ToolPage> {
     if (createdAtStr == null || createdAtStr.isEmpty) return true;
 
     try {
-      final createdAt = DateTime.parse(createdAtStr).toLocal();
-      final now = DateTime.now();
-      return now.difference(createdAt).inSeconds >= 120;
+      // 1. แปลงช่องว่างเป็น 'T' (เช่น "2026-08-24 17:59:38.998162" -> "2026-08-24T17:59:38.998162")
+      String formattedStr = createdAtStr.trim().replaceAll(' ', 'T');
+
+      // 2. เติม 'Z' ปิดท้ายหากยังไม่มีการระบุ Timezone เพื่อให้ Dart มองเป็น UTC
+      if (!formattedStr.contains('Z') && !formattedStr.contains('+')) {
+        formattedStr += 'Z';
+      }
+
+      // 3. Parse สตริงที่มี Microseconds
+      final createdAt = DateTime.parse(formattedStr).toUtc();
+      final nowUtc = DateTime.now().toUtc();
+
+      // 4. คำนวณผลต่างเวลาเป็นวินาที
+      final diffInSeconds = nowUtc.difference(createdAt).inSeconds.abs();
+
+      // 🔍 พิมพ์ตรวจสอบค่าใน Debug Console
+      debugPrint(
+        "🕒 เวลา DB (UTC): $createdAt | เวลาเครื่อง (UTC): $nowUtc | ต่างกัน: $diffInSeconds วินาที",
+      );
+
+      // ⚠️ เกิน 60 วินาที (1 นาที) ถือว่าออฟไลน์
+      return diffInSeconds >= 60;
     } catch (e) {
+      debugPrint("❌ Parse Timestamp Failure ($createdAtStr): $e");
       return true;
     }
   }
@@ -258,39 +278,59 @@ class _ToolPageState extends State<ToolPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _buildMenuItem(
-                              dialogContext, 
-                              'profile', 
-                              'โปรไฟล์', 
-                              Icons.person_outline_rounded
+                              dialogContext,
+                              'profile',
+                              'โปรไฟล์',
+                              Icons.person_outline_rounded,
                             ),
-                            const Divider(height: 1, indent: 14, endIndent: 14, color: Colors.black12),
-                            _buildMenuItem(
-                              dialogContext, 
-                              'history', 
-                              'ประวัติการบันทึก', 
-                              Icons.history_rounded
+                            const Divider(
+                              height: 1,
+                              indent: 14,
+                              endIndent: 14,
+                              color: Colors.black12,
                             ),
-                            const Divider(height: 1, indent: 14, endIndent: 14, color: Colors.black12),
                             _buildMenuItem(
-                              dialogContext, 
-                              'report', 
-                              'รายงานปัญหา', 
-                              Icons.report_problem_outlined
+                              dialogContext,
+                              'history',
+                              'ประวัติการบันทึก',
+                              Icons.history_rounded,
                             ),
-                            const Divider(height: 1, indent: 14, endIndent: 14, color: Colors.black12),
-                            _buildMenuItem(
-                              dialogContext, 
-                              'follow_report', 
-                              'ติดตามปัญหา', 
-                              Icons.assignment_outlined
+                            const Divider(
+                              height: 1,
+                              indent: 14,
+                              endIndent: 14,
+                              color: Colors.black12,
                             ),
-                            const Divider(height: 1, indent: 14, endIndent: 14, color: Colors.black12),
                             _buildMenuItem(
-                              dialogContext, 
-                              'logout', 
-                              'ออกจากระบบ', 
-                              Icons.logout_rounded, 
-                              isDestructive: true
+                              dialogContext,
+                              'report',
+                              'รายงานปัญหา',
+                              Icons.report_problem_outlined,
+                            ),
+                            const Divider(
+                              height: 1,
+                              indent: 14,
+                              endIndent: 14,
+                              color: Colors.black12,
+                            ),
+                            _buildMenuItem(
+                              dialogContext,
+                              'follow_report',
+                              'ติดตามปัญหา',
+                              Icons.assignment_outlined,
+                            ),
+                            const Divider(
+                              height: 1,
+                              indent: 14,
+                              endIndent: 14,
+                              color: Colors.black12,
+                            ),
+                            _buildMenuItem(
+                              dialogContext,
+                              'logout',
+                              'ออกจากระบบ',
+                              Icons.logout_rounded,
+                              isDestructive: true,
                             ),
                           ],
                         ),
@@ -311,12 +351,12 @@ class _ToolPageState extends State<ToolPage> {
   }
 
   Widget _buildMenuItem(
-    BuildContext dialogContext, 
-    String value, 
-    String text, 
-    IconData icon, 
-    {bool isDestructive = false}
-  ) {
+    BuildContext dialogContext,
+    String value,
+    String text,
+    IconData icon, {
+    bool isDestructive = false,
+  }) {
     final color = isDestructive ? Colors.red.shade700 : const Color(0xFF212522);
     return InkWell(
       onTap: () => Navigator.pop(dialogContext, value),
