@@ -148,6 +148,11 @@ class _ToolPageState extends State<ToolPage> {
         setState(() {
           if (response != null && response['status'] == 'success') {
             _toolData = response['data'];
+          } else if (response != null &&
+              (response['statusCode'] == 401 ||
+                  response['message']?.contains('expired') == true)) {
+            // 🔴 กรณี Token หมดอายุ หรือไม่ถูกต้อง
+            _handleTokenExpired();
           }
           _isLoadingTool = false;
         });
@@ -155,6 +160,22 @@ class _ToolPageState extends State<ToolPage> {
     } catch (e) {
       if (mounted) setState(() => _isLoadingTool = false);
     }
+  }
+
+  Future<void> _handleTokenExpired() async {
+    await _secureStorage.delete(key: "auth_token");
+    await _secureStorage.delete(key: "Userid");
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่")),
+    );
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+      (route) => false,
+    );
   }
 
   Future<void> _recommendPlants() async {

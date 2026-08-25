@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; 
-import 'package:project/mainpage/tool.dart'; 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:project/mainpage/tool.dart';
 import 'package:project/login/register.dart';
 import 'package:project/mainpage/menu.dart';
-import 'package:project/service/user_service.dart'; 
+import 'package:project/service/user_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,14 +18,15 @@ class _LoginPageState extends State<LoginPage> {
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  
+
   // 🔹 3. FocusNode สำหรับเปลี่ยนช่องกรอกข้อมูลผ่านคีย์บอร์ด
   final FocusNode _passwordFocusNode = FocusNode();
-  
+
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  
-  bool _isLoading = false; 
-  bool _isCheckingAuth = true; // 🔹 2. ตัวแปรสถานะสำหรับการเช็ก Auto-Login ตอนเปิดหน้า
+
+  bool _isLoading = false;
+  bool _isCheckingAuth =
+      true; // 🔹 2. ตัวแปรสถานะสำหรับการเช็ก Auto-Login ตอนเปิดหน้า
   bool _obscurePassword = true;
 
   @override
@@ -47,8 +48,15 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _checkAutoLogin() async {
     try {
       final token = await _secureStorage.read(key: "auth_token");
-      if (token != null && token.isNotEmpty) {
-        debugPrint("พบ Auth Token เดิมในระบบ ทำการ Auto-Login");
+      final userId = await _secureStorage.read(
+        key: "Userid",
+      ); // 🟢 เช็ค Userid เพิ่มเติม
+
+      if (token != null &&
+          token.isNotEmpty &&
+          userId != null &&
+          userId.isNotEmpty) {
+        debugPrint("พบ Auth Token และ Userid เดิมในระบบ ทำการ Auto-Login");
         if (mounted) {
           Navigator.pushAndRemoveUntil(
             context,
@@ -63,7 +71,7 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) {
         setState(() {
-          _isCheckingAuth = false; // ตรวจสอบเสร็จสิ้น (กรณีไม่มี Token ให้แสดงหน้าฟอร์มปกติ)
+          _isCheckingAuth = false;
         });
       }
     }
@@ -82,19 +90,24 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final result = await UserService.login(email, password); 
+      final result = await UserService.login(email, password);
       if (result['token'] != null) {
         await _secureStorage.write(key: "auth_token", value: result['token']);
 
         if (result['user'] != null) {
           final userData = result['user'];
           final idToSave = userData['Userid'] ?? userData['id'];
-          
+
           debugPrint("ID ที่สกัดได้เตรียมบันทึก: $idToSave");
 
           if (idToSave != null) {
-            await _secureStorage.write(key: "Userid", value: idToSave.toString());
-            debugPrint("บันทึก Userid สำเร็จแล้ว! ${await _secureStorage.read(key: "Userid")}");
+            await _secureStorage.write(
+              key: "Userid",
+              value: idToSave.toString(),
+            );
+            debugPrint(
+              "บันทึก Userid สำเร็จแล้ว! ${await _secureStorage.read(key: "Userid")}",
+            );
           }
         }
 
@@ -104,7 +117,7 @@ class _LoginPageState extends State<LoginPage> {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const ToolPage()),
-            (route) => false, 
+            (route) => false,
           );
         }
       } else {
@@ -122,15 +135,15 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true, 
+      resizeToAvoidBottomInset: true,
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Container(
@@ -158,7 +171,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: SingleChildScrollView(
                           child: ConstrainedBox(
                             constraints: BoxConstraints(
-                              minHeight: constraints.maxHeight - 60, 
+                              minHeight: constraints.maxHeight - 60,
                             ),
                             child: IntrinsicHeight(
                               child: Form(
@@ -166,11 +179,14 @@ class _LoginPageState extends State<LoginPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    GestureDetector(  
+                                    GestureDetector(
                                       onTap: () {
                                         Navigator.pushReplacement(
                                           context,
-                                          MaterialPageRoute(builder: (context) => const MenuPage()),
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const MenuPage(),
+                                          ),
                                         );
                                       },
                                       child: Image.asset(
@@ -182,49 +198,80 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     const SizedBox(height: 50),
                                     const Center(
-                                      child: Text("เข้าสู่ระบบ", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                                      child: Text(
+                                        "เข้าสู่ระบบ",
+                                        style: TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(height: 40),
-                                    
+
                                     _buildEmailField(),
                                     const SizedBox(height: 20),
-                                    
+
                                     _buildPasswordField(),
                                     const SizedBox(height: 30),
-                                    
+
                                     SizedBox(
                                       width: double.infinity,
                                       height: 55,
                                       child: ElevatedButton(
-                                        onPressed: _isLoading ? null : _handleLogin,
+                                        onPressed: _isLoading
+                                            ? null
+                                            : _handleLogin,
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF4C8E16),
-                                          disabledBackgroundColor: const Color(0xFF4C8E16).withOpacity(0.6),
+                                          backgroundColor: const Color(
+                                            0xFF4C8E16,
+                                          ),
+                                          disabledBackgroundColor: const Color(
+                                            0xFF4C8E16,
+                                          ).withOpacity(0.6),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(20),
-                                            side: const BorderSide(color: Colors.black87),
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                            side: const BorderSide(
+                                              color: Colors.black87,
+                                            ),
                                           ),
                                         ),
-                                        child: _isLoading 
+                                        child: _isLoading
                                             ? const SizedBox(
                                                 width: 24,
                                                 height: 24,
-                                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      color: Colors.white,
+                                                      strokeWidth: 2.5,
+                                                    ),
                                               )
                                             : const Text(
-                                                "เข้าสู่ระบบ", 
-                                                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                                "เข้าสู่ระบบ",
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                       ),
                                     ),
                                     const SizedBox(height: 15),
-                                    
-                                    _buildButton("ลงทะเบียนอุปกรณ์", const Color(0xFF1D460B), () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => const RegisterPage()),
-                                      );
-                                    }),
+
+                                    _buildButton(
+                                      "ลงทะเบียนอุปกรณ์",
+                                      const Color(0xFF1D460B),
+                                      () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const RegisterPage(),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                     const SizedBox(height: 20),
                                   ],
                                 ),
@@ -248,7 +295,7 @@ class _LoginPageState extends State<LoginPage> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: TextFormField(
-        controller: _emailController, 
+        controller: _emailController,
         keyboardType: TextInputType.emailAddress,
         textInputAction: TextInputAction.next,
         onFieldSubmitted: (_) {
@@ -297,7 +344,10 @@ class _LoginPageState extends State<LoginPage> {
         decoration: InputDecoration(
           hintText: "รหัสผ่าน",
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 15,
+          ),
           suffixIcon: IconButton(
             icon: Icon(
               _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -322,9 +372,19 @@ class _LoginPageState extends State<LoginPage> {
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.black87)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.black87),
+          ),
         ),
-        child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
