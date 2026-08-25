@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart'; // 🟢 เพิ่ม import ตัวนี้เพื่อใช้ kIsWeb
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:project/service/reports_service.dart';
@@ -21,10 +22,9 @@ class _ReportDialogState extends State<ReportDialog> {
   final ImagePicker _picker = ImagePicker();
   XFile? _selectedImageFile;
 
-  // 🎨 กำหนดชุดสีธีมของแอป
-  static const Color modalBg = Color(0xFFE8EFE6);      // พื้นหลัง Modal เขียวอุ่นละมุน
-  static const Color primaryGreen = Color(0xFF4A7C59); // สีเขียวหลัก
-  static const Color textColor = Color(0xFF212522);    // สีตัวอักษรเข้มอ่านง่าย
+  static const Color modalBg = Color(0xFFE8EFE6);
+  static const Color primaryGreen = Color(0xFF4A7C59);
+  static const Color textColor = Color(0xFF212522);
 
   @override
   void dispose() {
@@ -43,10 +43,10 @@ class _ReportDialogState extends State<ReportDialog> {
     final dialogMaxWidth = screenWidth > 600 ? 460.0 : screenWidth * 0.90;
 
     return Dialog(
-      backgroundColor: modalBg, // 👈 ปรับพื้นหลังเป็นสีเขียวพาสเทล ถนอมสายตา
+      backgroundColor: modalBg,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: Colors.black54, width: 1), // 👈 กรอบสีดำชัดเจน
+        side: const BorderSide(color: Colors.black54, width: 1),
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       child: ConstrainedBox(
@@ -60,7 +60,6 @@ class _ReportDialogState extends State<ReportDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 📌 ส่วนหัว Dialog
               Stack(
                 alignment: Alignment.center,
                 children: [
@@ -84,7 +83,7 @@ class _ReportDialogState extends State<ReportDialog> {
                         padding: EdgeInsets.all(2.0),
                         child: Icon(
                           Icons.close,
-                          color: textColor, // 👈 ไอคอนปิดโทนสีเข้มละมุน
+                          color: textColor,
                           size: 26,
                         ),
                       ),
@@ -94,7 +93,6 @@ class _ReportDialogState extends State<ReportDialog> {
               ),
               const SizedBox(height: 16),
 
-              // 📌 เนื้อหาที่ Scroll ได้
               Flexible(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
@@ -116,7 +114,7 @@ class _ReportDialogState extends State<ReportDialog> {
                             child: Container(
                               height: 42,
                               decoration: BoxDecoration(
-                                color: Colors.white, // 👈 กล่องข้อความสีขาว คมชัด
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(color: Colors.black54, width: 1),
                               ),
@@ -189,7 +187,7 @@ class _ReportDialogState extends State<ReportDialog> {
                           Container(
                             height: 34,
                             decoration: BoxDecoration(
-                              color: primaryGreen, // 👈 ปุ่มเลือกรูปโทนสีเขียวประจำธีม
+                              color: primaryGreen,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.black54, width: 1),
                             ),
@@ -211,7 +209,7 @@ class _ReportDialogState extends State<ReportDialog> {
                               child: Text(
                                 _selectedImageFile == null ? "เลือกรูปภาพ" : "เปลี่ยนรูปภาพ",
                                 style: const TextStyle(
-                                  color: Colors.white, // 👈 ข้อความสีขาวอ่านง่าย
+                                  color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -234,10 +232,16 @@ class _ReportDialogState extends State<ReportDialog> {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(9),
-                                child: Image.file(
-                                  File(_selectedImageFile!.path),
-                                  fit: BoxFit.cover,
-                                ),
+                                // 🟢 ปรับตรงนี้: เช็ค kIsWeb เพื่อแยกการแสดงผล
+                                child: kIsWeb
+                                    ? Image.network(
+                                        _selectedImageFile!.path,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Image.file(
+                                        File(_selectedImageFile!.path),
+                                        fit: BoxFit.cover,
+                                      ),
                               ),
                             ),
                             Positioned(
@@ -285,7 +289,7 @@ class _ReportDialogState extends State<ReportDialog> {
                   height: 42,
                   width: 100,
                   decoration: BoxDecoration(
-                    color: primaryGreen, // 👈 ปุ่มส่งรายงานสีเขียวธีมหลัก
+                    color: primaryGreen,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: Colors.black54, width: 1),
                   ),
@@ -294,7 +298,7 @@ class _ReportDialogState extends State<ReportDialog> {
                     child: const Text(
                       "ส่ง",
                       style: TextStyle(
-                        color: Colors.white, // 👈 ตัวอักษรสีขาวเน้นความคมชัด
+                        color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -336,8 +340,8 @@ class _ReportDialogState extends State<ReportDialog> {
       );
 
       if (mounted) {
-        Navigator.pop(context); // ปิด Loading
-        Navigator.pop(context); // ปิด Dialog
+        Navigator.pop(context);
+        Navigator.pop(context);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -347,7 +351,7 @@ class _ReportDialogState extends State<ReportDialog> {
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context); // ปิด Loading
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('ส่งข้อมูลล้มเหลวเนื่องจาก: $e')),
         );
