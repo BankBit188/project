@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:project/service/tool_service.dart';
 import 'package:project/style/style_history.dart';
+import 'package:project/login/login.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -94,11 +95,42 @@ class _HistoryPageState extends State<HistoryPage> {
         _isLoading = false;
       });
     } catch (e) {
+      String errStr = e.toString();
+
+      // 🔴 ตรวจจับกรณี Token หมดอายุ / 401 Unauthorized
+      if (errStr.contains('401') ||
+          errStr.contains('Unauthorized') ||
+          errStr.contains('token')) {
+        await _handleSessionExpired();
+        return;
+      }
+
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = errStr.replaceAll('Exception: ', '');
         _isLoading = false;
       });
     }
+  }
+
+  // 🟢 ฟังก์ชันจัดการเมื่อ Token หมดอายุ
+  Future<void> _handleSessionExpired() async {
+    await _secureStorage.delete(key: "auth_token");
+    await _secureStorage.delete(key: "Userid");
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่"),
+        backgroundColor: Colors.red,
+      ),
+    );
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+      (route) => false,
+    );
   }
 
   void _filterHistory(String query) {
@@ -127,22 +159,34 @@ class _HistoryPageState extends State<HistoryPage> {
         if (valStr.length == 10) {
           timestamp *= 1000;
         }
-        dt = DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true)
-            .add(const Duration(hours: 7));
+        dt = DateTime.fromMillisecondsSinceEpoch(
+          timestamp,
+          isUtc: true,
+        ).add(const Duration(hours: 7));
       } else {
         DateTime parsed = DateTime.parse(valStr);
         if (!parsed.isUtc && !valStr.contains('Z') && !valStr.contains('+')) {
-          dt = DateTime.parse("${valStr.replaceAll(' ', 'T')}Z")
-              .toUtc()
-              .add(const Duration(hours: 7));
+          dt = DateTime.parse(
+            "${valStr.replaceAll(' ', 'T')}Z",
+          ).toUtc().add(const Duration(hours: 7));
         } else {
           dt = parsed.toUtc().add(const Duration(hours: 7));
         }
       }
 
       List<String> thaiMonths = [
-        "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+        "มกราคม",
+        "กุมภาพันธ์",
+        "มีนาคม",
+        "เมษายน",
+        "พฤษภาคม",
+        "มิถุนายน",
+        "กรกฎาคม",
+        "สิงหาคม",
+        "กันยายน",
+        "ตุลาคม",
+        "พฤศจิกายน",
+        "ธันวาคม",
       ];
 
       int thaiYear = dt.year + 543;
@@ -205,58 +249,55 @@ class _HistoryPageState extends State<HistoryPage> {
                           ),
                         )
                       : _errorMessage != null
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    _errorMessage!,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.red,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  ElevatedButton(
-                                    onPressed: _fetchHistoryData,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: HistoryTheme.primaryGreen,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    child: const Text("ลองใหม่อีกครั้ง"),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : _displayedList.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    "ไม่พบประวัติการบันทึกข้อมูล",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                )
-                              : RefreshIndicator(
-                                  color: HistoryTheme.primaryGreen,
-                                  onRefresh: _fetchHistoryData,
-                                  child: ListView.builder(
-                                    physics: const BouncingScrollPhysics(),
-                                    itemCount: _displayedList.length,
-                                    itemBuilder: (context, index) {
-                                      final item = _displayedList[index];
-                                      return HistoryCardTile(
-                                        item: item,
-                                        dateTimeStr: _formatDateTime(
-                                          item['created_at'],
-                                        ),
-                                        onTap: () => _showDetailModal(item),
-                                      );
-                                    },
-                                  ),
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 16,
                                 ),
+                              ),
+                              const SizedBox(height: 10),
+                              ElevatedButton(
+                                onPressed: _fetchHistoryData,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: HistoryTheme.primaryGreen,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text("ลองใหม่อีกครั้ง"),
+                              ),
+                            ],
+                          ),
+                        )
+                      : _displayedList.isEmpty
+                      ? const Center(
+                          child: Text(
+                            "ไม่พบประวัติการบันทึกข้อมูล",
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                        )
+                      : RefreshIndicator(
+                          color: HistoryTheme.primaryGreen,
+                          onRefresh: _fetchHistoryData,
+                          child: ListView.builder(
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: _displayedList.length,
+                            itemBuilder: (context, index) {
+                              final item = _displayedList[index];
+                              return HistoryCardTile(
+                                item: item,
+                                dateTimeStr: _formatDateTime(
+                                  item['created_at'],
+                                ),
+                                onTap: () => _showDetailModal(item),
+                              );
+                            },
+                          ),
+                        ),
                 ),
 
                 // 4. Pagination Bar Widget (อยู่ตรงกลาง)
