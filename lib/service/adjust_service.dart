@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class AdjustService {
   // 🔹 ใช้ลิงก์อุโมงค์ Ngrok หลักเพื่อยิงทะลุระบบความปลอดภัยของหลังบ้านคอมพิวเตอร์
-  static const String baseUrl = 'https://api-project-production-0935.up.railway.app/api';
+  static const String baseUrl = String.fromEnvironment('API_URL');
 
   // ฟังก์ชันยิงเซิร์ฟเวอร์ส่วนกลาง
   static Future<dynamic> _fetchAPI(String endpoint, {String method = 'GET', Map<String, dynamic>? body}) async {

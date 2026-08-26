@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart'; // 🟢 1. Import XFile เข�
 
 class ReportsService {
   // 🔹 ใช้ URL ของ Ngrok ตามโครงสร้างเดิม
-  static const String baseUrl = 'https://api-project-production-0935.up.railway.app/api';
+  static const String baseUrl = String.fromEnvironment('API_URL');
 
   // 📌 2. ประกาศใช้งาน FlutterSecureStorage
   static const _secureStorage = FlutterSecureStorage();

@@ -3,7 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 class ToolService {
-  static const String baseUrl = 'https://api-project-production-0935.up.railway.app/api';
+  static const String baseUrl = String.fromEnvironment('API_URL');
   static const _secureStorage = FlutterSecureStorage();
 
   static Future<String?> _getToken() async {
