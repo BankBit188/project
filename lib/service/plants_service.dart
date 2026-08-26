@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart'; 
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PlantsService {
   // 🔹 1. เปลี่ยนมาใช้ลิงก์ Ngrok ของคุณเป็นทางผ่านหลักชิ้นเดียวจบ
-  static const String baseUrl = String.fromEnvironment('API_URL');
+  static String baseUrl = dotenv.env['API_URL'] ?? '';
 
   // 2. ฟังก์ชันส่วนกลางสำหรับยิง API (ปรับให้ดึงค่า baseUrl ตัวบนตรงๆ)
   static Future<dynamic> _fetchAPI(String endpoint, {String method = 'GET', Map<String, dynamic>? body}) async {

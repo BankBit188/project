@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class UserService {
   // 1. กำหนด Base URL ของ API หลังบ้าน
-  static const String baseUrl = String.fromEnvironment('API_URL');
+  static String baseUrl = dotenv.env['API_URL'] ?? '';
 
   // 2. ฟังก์ชันส่วนกลางสำหรับยิง API
   static Future<dynamic> _fetchAPI(

@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class EarthService {
   // 🔹 ใช้ URL ของ Ngrok ตัวเดียวกับระบบพืชปลูกเพื่อให้คุยกับหลังบ้านได้เสถียร
-  static const String baseUrl = String.fromEnvironment('API_URL');
+  static String baseUrl = dotenv.env['API_URL'] ?? '';
 
   // ฟังก์ชันส่วนกลางสำหรับดึงหรือส่งข้อมูล API
   static Future<dynamic> _fetchAPI(String endpoint, {String method = 'GET', Map<String, dynamic>? body}) async {

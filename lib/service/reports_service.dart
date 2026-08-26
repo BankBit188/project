@@ -3,10 +3,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart'; // 🟢 1. Import XFile เข้ามาใช้งานแทน dart:io
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ReportsService {
   // 🔹 ใช้ URL ของ Ngrok ตามโครงสร้างเดิม
-  static const String baseUrl = String.fromEnvironment('API_URL');
+  static String baseUrl = dotenv.env['API_URL'] ?? '';
 
   // 📌 2. ประกาศใช้งาน FlutterSecureStorage
   static const _secureStorage = FlutterSecureStorage();
