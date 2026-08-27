@@ -84,7 +84,7 @@ class _ChatPageState extends State<ChatPage>
         body: jsonEncode({'Userid': _userId}),
       );
 
-      print("โหลดประวัติแชตจากเซิร์ฟเวอร์ ID ที่ส่งไปคือ: $_userId");
+      
 
       if (response.statusCode == 200) {
         final List<dynamic> historyData = jsonDecode(response.body);
@@ -110,13 +110,12 @@ class _ChatPageState extends State<ChatPage>
 
         _scrollToBottom();
       } else if (response.statusCode == 401) {
-        print("Log Error 401 (ประวัติแชต): Token ไม่ถูกต้องหรือหมดอายุ");
         _showAuthErrorSnackBar("Token หมดอายุหรือไม่มีสิทธิ์ กรุณาเข้าสู่ระบบใหม่");
       } else {
-        print("Log Error ${response.statusCode} (ประวัติแชต): ${response.body}");
+        // print("Log Error ${response.statusCode} (ประวัติแชต): ${response.body}");
       }
     } catch (e) {
-      print("เกิดข้อผิดพลาดในการโหลดประวัติแชต: $e");
+      // print("เกิดข้อผิดพลาดในการโหลดประวัติแชต: $e");
     } finally {
       setState(() => isLoading = false);
     }
@@ -150,7 +149,7 @@ class _ChatPageState extends State<ChatPage>
 
       }
     } catch (e) {
-      print("เกิดข้อผิดพลาดในการดึงข้อมูลโควตา: $e");
+      // print("เกิดข้อผิดพลาดในการดึงข้อมูลโควตา: $e");
     } finally {
       setState(() => isLoading = false);
     }
@@ -200,8 +199,6 @@ class _ChatPageState extends State<ChatPage>
         }),
       ).timeout(const Duration(seconds: 120));
 
-      print("ส่งข้อความไปหลังบ้านพร้อม UserID: $_userId, ข้อความ: $text");
-
       if (response.statusCode == 401) {
         setState(() {
           messages.add({
@@ -242,7 +239,7 @@ class _ChatPageState extends State<ChatPage>
           isLoading = false;
         });
       } else {
-        print("Log Error ${response.statusCode} (ส่งข้อความ): ${response.body}");
+        
         final errorData = jsonDecode(response.body);
         throw Exception(errorData['reply'] ?? 'Server Error : ${response.statusCode}');
       }
