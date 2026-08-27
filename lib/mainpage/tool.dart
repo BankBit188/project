@@ -11,10 +11,10 @@ import 'package:project/mainpage/menu.dart';
 import 'package:project/mainpage/profile.dart';
 import 'package:project/mainpage/followreport.dart';
 import 'package:project/service/tool_service.dart';
-import 'package:project/modal/plant_recommendation_helper.dart';
 
 import 'package:project/modal/tool_save_location_dialog.dart';
 import 'package:project/modal/tool_report_dialog.dart';
+import 'package:project/modal/plant_select_recommention.dart';
 
 import 'package:project/style/style_tool.dart';
 
@@ -180,9 +180,9 @@ class _ToolPageState extends State<ToolPage> {
 
   Future<void> _recommendPlants() async {
     if (_isOffline) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("อุปกรณ์ออฟไลน์อยู่")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("อุปกรณ์ออฟไลน์อยู่")),
+      );
       return;
     }
 
@@ -195,31 +195,12 @@ class _ToolPageState extends State<ToolPage> {
       return;
     }
 
+    // 🟢 แสดง Modal เลือกค่าก่อนประมวลผล
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    await Future.delayed(const Duration(milliseconds: 100));
-    if (!mounted) return;
-    Navigator.pop(context);
-
-    PlantRecommendationHelper.showRecommendations(
-      context: context,
-      customTitle: "พืชปลูกที่เหมาะสมกับสภาพดินปัจจุบัน",
-      ph: double.tryParse(
-        _toolData?['PH']?.toString() ?? _toolData?['ph']?.toString() ?? '',
+      builder: (context) => PlantSelectRecommendationDialog(
+        toolData: _toolData,
       ),
-      humidity: double.tryParse(_toolData?['humid']?.toString() ?? ''),
-      temp: double.tryParse(_toolData?['temperature']?.toString() ?? ''),
-      salty: double.tryParse(_toolData?['salty']?.toString() ?? ''),
-      n: double.tryParse(_toolData?['N']?.toString() ?? ''),
-      p: double.tryParse(_toolData?['P']?.toString() ?? ''),
-      k: double.tryParse(_toolData?['K']?.toString() ?? ''),
-      ca: double.tryParse(_toolData?['Ca']?.toString() ?? ''),
-      mg: double.tryParse(_toolData?['Mg']?.toString() ?? ''),
-      s: double.tryParse(_toolData?['S']?.toString() ?? ''),
     );
   }
 
