@@ -131,7 +131,6 @@ class _ChatPageState extends State<ChatPage>
       _authToken = token;
       _userId = userId;
     });
-    print("ระบบตรวจสอบพบ Token ปัจจุบัน: $_authToken, UserID: $_userId");
   }
 
   // 🔒 3. ฟังก์ชันดึงโควตาประจำวัน
@@ -149,9 +148,6 @@ class _ChatPageState extends State<ChatPage>
           currentUsage = maxDailyLimit - remainingQuota;
         });
 
-        print(
-          "ดึงข้อมูลผู้ใช้สำเร็จ! โควตาคงเหลือจริง: $remainingQuota ครั้ง (UI พ่นว่าใช้ไปแล้ว: $currentUsage)",
-        );
       }
     } catch (e) {
       print("เกิดข้อผิดพลาดในการดึงข้อมูลโควตา: $e");
@@ -254,7 +250,7 @@ class _ChatPageState extends State<ChatPage>
       setState(() {
         messages.add({
           "role": "ai",
-          "text": "ขออภัยครับ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ในขณะนี้ ($e)",
+          "text": "ขออภัยครับ ไม่เข้าใจคำถามของคุณ กรุณาลองใหม่อีกครั้ง",
         });
         isLoading = false;
       });
