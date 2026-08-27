@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:project/navbar/navbars.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+
+import 'package:project/navbar/navbars.dart';
 import 'package:project/service/user_service.dart';
-import 'package:project/style/style_chat.dart'; // 🟢 Import ไฟล์ส่วนตกแต่ง UI
+import 'package:project/style/style_chat.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -15,6 +17,9 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage>
     with AutomaticKeepAliveClientMixin {
+  // 🟢 เรียกใช้ API_URL จากไฟล์ .env
+  static String baseUrl = dotenv.env['API_URL'] ?? '';
+
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -67,9 +72,8 @@ class _ChatPageState extends State<ChatPage>
 
     setState(() => isLoading = true);
     try {
-      final url = Uri.parse(
-        'https://api-project-production-0935.up.railway.app/api/chat/history',
-      );
+      // 🟢 เรียกใช้ URL ผ่าน baseUrl + /chat/history
+      final url = Uri.parse('$baseUrl/chat/history');
       final response = await http.post(
         url,
         headers: {
@@ -185,9 +189,8 @@ class _ChatPageState extends State<ChatPage>
     _scrollToBottom();
 
     try {
-      final url = Uri.parse(
-        'https://api-project-production-0935.up.railway.app/api/chat',
-      );
+      // 🟢 เรียกใช้ URL ผ่าน baseUrl + /chat
+      final url = Uri.parse('$baseUrl/chat');
       final response = await http.post(
         url,
         headers: {
