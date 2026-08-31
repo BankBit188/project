@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:project/service/user_service.dart';
+import 'package:project/service/reports_service.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'package:project/style/style_followreport.dart'; // 👈 นำเข้าไฟล์สไตล์ที่แยกไว้
+import 'package:project/style/style_followreport.dart';
 
 class FollowReportPage extends StatefulWidget {
   const FollowReportPage({super.key});
@@ -16,18 +18,37 @@ class FollowReportPage extends StatefulWidget {
 class _FollowReportPageState extends State<FollowReportPage> {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   
-  // ข้อมูลรายงาน
   List<dynamic> _reports = [];
   List<dynamic> _displayedReports = [];
   bool _isLoading = true;
 
-  // ตัวแปรสำหรับตัวกรองสถานะ ('all', '1', '2', '3')
   String _selectedStatus = 'all';
 
-  // ตัวแปร Pagination
   int _currentPage = 1;
   int _lastPage = 1;
   final int _itemsPerPage = 5;
+
+  static Map<String, String>? _customStylesBuilder(dynamic element) {
+    if (element.classes.contains('text-tiny')) return {'font-size': '10px'};
+    if (element.classes.contains('text-small')) return {'font-size': '12px'};
+    if (element.classes.contains('text-big')) return {'font-size': '20px'};
+    if (element.classes.contains('text-huge')) return {'font-size': '28px'};
+
+    if (element.classes.contains('text-align-center')) {
+      return {'text-align': 'center'};
+    }
+    if (element.classes.contains('text-align-right')) {
+      return {'text-align': 'right'};
+    }
+    if (element.classes.contains('text-align-justify')) {
+      return {'text-align': 'justify'};
+    }
+    if (element.classes.contains('text-align-left')) {
+      return {'text-align': 'left'};
+    }
+
+    return null;
+  }
 
   @override
   void initState() {
@@ -114,6 +135,33 @@ class _FollowReportPageState extends State<FollowReportPage> {
     });
   }
 
+  Future<void> _handleCardTap(Map<String, dynamic> report) async {
+    final isUnread = report['feedback_status']?.toString() == '1';
+
+    if (isUnread) {
+      try {
+        String? userId = await _secureStorage.read(key: "Userid");
+        String reportId =
+            (report['reportid'] ?? report['id'] ?? report['report_id'] ?? '').toString();
+
+        if (userId != null && reportId.isNotEmpty) {
+          await ReportsService.updateFeedbackStatus(
+            reportId: reportId,
+            userId: userId,
+          );
+
+          if (mounted) {
+            setState(() {
+              report['feedback_status'] = 0;
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint("เกิดข้อผิดพลาดในการอัปเดตสถานะการอ่าน: $e");
+      }
+    }
+  }
+
   String _getStatusText(dynamic status) {
     final statusInt = int.tryParse(status.toString()) ?? 1;
     switch (statusInt) {
@@ -168,23 +216,20 @@ class _FollowReportPageState extends State<FollowReportPage> {
     }
   }
 
-  void _showReportDetailDialog(Map<String, dynamic> report) {
+  // 🟢 Modal แสดงเฉพาะการตอบกลับจากผู้ดูแล (เพิ่ม Responsive & Overflow Protection)
+  void _showFeedbackDialog(BuildContext context, String feedbackHtml) {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        final String title = report['reporttitle'] ?? '-';
-        final String detail = report['reportdetail'] ?? '-';
-        final String status = _getStatusText(report['status']);
-        final Color statusColor = _getStatusColor(report['status']);
-        final String? imageUrl = report['img_cloudinary'];
-        final String createdAt = _formatThaiDateTime(report['created_at']);
-        final String username = report['username'] ?? 'ไม่ระบุผู้ใช้';
-
         return Dialog(
           backgroundColor: FollowReportTheme.modalBg,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // 🟢 ป้องกันล้นขอบจอ
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: FollowReportTheme.darkGreen.withOpacity(0.35), width: 1.5),
+            side: BorderSide(
+              color: FollowReportTheme.darkGreen.withOpacity(0.35),
+              width: 1.5,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
@@ -196,31 +241,150 @@ class _FollowReportPageState extends State<FollowReportPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "รายละเอียดรายงาน",
-                        style: TextStyle(
-                          fontSize: 20, 
-                          fontWeight: FontWeight.bold,
-                          color: FollowReportTheme.textColor,
+                      const Expanded( // 🟢 ป้องกัน Title ล้นแนวนอน
+                        child: Row(
+                          children: [
+                            Icon(Icons.mark_chat_read_rounded,
+                                color: FollowReportTheme.primaryGreen, size: 22),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                "การตอบกลับจากผู้ดูแล",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: FollowReportTheme.textColor,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: FollowReportTheme.textColor),
+                        icon: const Icon(Icons.close,
+                            color: FollowReportTheme.textColor),
                         onPressed: () => Navigator.pop(dialogContext),
                       ),
                     ],
                   ),
                   Divider(color: FollowReportTheme.darkGreen.withOpacity(0.3)),
                   const SizedBox(height: 10),
-                  Text("หัวข้อ: $title", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: FollowReportTheme.textColor)),
-                  const SizedBox(height: 8),
-                  Text("ผู้แจ้ง: $username", style: const TextStyle(fontSize: 14, color: FollowReportTheme.textColor)),
-                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F9F6),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: FollowReportTheme.primaryGreen.withOpacity(0.3),
+                      ),
+                    ),
+                    child: HtmlWidget(
+                      feedbackHtml,
+                      customStylesBuilder: _customStylesBuilder,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 🟢 Modal แสดงรายละเอียดรายงานหลัก (เพิ่ม Responsive & Overflow Protection)
+  void _showReportDetailDialog(Map<String, dynamic> report) {
+    final double screenHeight = MediaQuery.of(context).size.height;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final String title = report['reporttitle'] ?? '-';
+        final String detail = report['reportdetail'] ?? '-';
+        final String status = _getStatusText(report['status']);
+        final Color statusColor = _getStatusColor(report['status']);
+        final String? imageUrl = report['img_cloudinary'];
+        final String createdAt = _formatThaiDateTime(report['created_at']);
+        final String username = report['username'] ?? 'ไม่ระบุผู้ใช้';
+        final String feedbackHtml = (report['feedback'] ?? '').toString();
+
+        return Dialog(
+          backgroundColor: FollowReportTheme.modalBg,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // 🟢 ป้องกันล้นขอบจอ
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: FollowReportTheme.darkGreen.withOpacity(0.35),
+              width: 1.5,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("สถานะ: ", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: FollowReportTheme.textColor)),
+                      const Expanded( // 🟢 ป้องกันข้อความหัวข้อล้น
+                        child: Text(
+                          "รายละเอียดรายงาน",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: FollowReportTheme.textColor,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close,
+                            color: FollowReportTheme.textColor),
+                        onPressed: () => Navigator.pop(dialogContext),
+                      ),
+                    ],
+                  ),
+                  Divider(color: FollowReportTheme.darkGreen.withOpacity(0.3)),
+                  const SizedBox(height: 10),
+                  Text(
+                    "หัวข้อ: $title",
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: FollowReportTheme.textColor,
+                    ),
+                    softWrap: true,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "ผู้แจ้ง: $username",
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: FollowReportTheme.textColor,
+                    ),
+                    softWrap: true,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap( // 🟢 เปลี่ยนจาก Row เป็น Wrap ป้องกันป้ายสถานะล้น
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      const Text(
+                        "สถานะ: ",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: FollowReportTheme.textColor,
+                        ),
+                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: statusColor.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(12),
@@ -228,15 +392,33 @@ class _FollowReportPageState extends State<FollowReportPage> {
                         ),
                         child: Text(
                           status,
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: statusColor),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text("วันที่แจ้ง: $createdAt", style: const TextStyle(fontSize: 14, color: FollowReportTheme.textColor)),
+                  Text(
+                    "วันที่แจ้ง: $createdAt",
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: FollowReportTheme.textColor,
+                    ),
+                    softWrap: true,
+                  ),
                   const SizedBox(height: 12),
-                  const Text("รายละเอียดปัญหา:", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: FollowReportTheme.textColor)),
+                  const Text(
+                    "รายละเอียดปัญหา:",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: FollowReportTheme.textColor,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
@@ -244,22 +426,71 @@ class _FollowReportPageState extends State<FollowReportPage> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: FollowReportTheme.primaryGreen.withOpacity(0.2)),
+                      border: Border.all(
+                        color: FollowReportTheme.primaryGreen.withOpacity(0.2),
+                      ),
                     ),
-                    child: Text(detail, style: const TextStyle(fontSize: 14, color: FollowReportTheme.textColor)),
+                    child: Text(
+                      detail,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: FollowReportTheme.textColor,
+                      ),
+                      softWrap: true,
+                    ),
                   ),
+
+                  if (feedbackHtml.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: FollowReportTheme.primaryGreen,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () {
+                          _showFeedbackDialog(context, feedbackHtml);
+                        },
+                        icon: const Icon(Icons.mark_chat_read_rounded, size: 20),
+                        label: const Flexible( // 🟢 ป้องกันข้อความในปุ่มล้น
+                          child: Text(
+                            "ดูการตอบกลับจากผู้ดูแล",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+
                   if (imageUrl != null && imageUrl.isNotEmpty) ...[
                     const SizedBox(height: 15),
-                    const Text("รูปภาพประกอบ:", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: FollowReportTheme.textColor)),
+                    const Text(
+                      "รูปภาพประกอบ:",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: FollowReportTheme.textColor,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Image.network(
                         imageUrl,
                         width: double.infinity,
-                        height: 200,
+                        height: screenHeight * 0.25, // 🟢 ปรับความสูงรูปตามสัดส่วนหน้าจอ
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Text("ไม่สามารถโหลดรูปภาพได้"),
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Text("ไม่สามารถโหลดรูปภาพได้"),
                       ),
                     ),
                   ],
@@ -331,12 +562,16 @@ class _FollowReportPageState extends State<FollowReportPage> {
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? themeColor : Colors.white.withOpacity(0.9),
+                    color:
+                        isSelected ? themeColor : Colors.white.withOpacity(0.9),
                     borderRadius: BorderRadius.circular(25),
                     border: Border.all(
-                      color: isSelected ? themeColor : themeColor.withOpacity(0.4),
+                      color: isSelected
+                          ? themeColor
+                          : themeColor.withOpacity(0.4),
                       width: isSelected ? 1.8 : 1.2,
                     ),
                     boxShadow: isSelected
@@ -368,7 +603,8 @@ class _FollowReportPageState extends State<FollowReportPage> {
                         label,
                         style: TextStyle(
                           color: isSelected ? Colors.white : themeColor,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.w600,
                           fontSize: 13,
                         ),
                       ),
@@ -389,23 +625,21 @@ class _FollowReportPageState extends State<FollowReportPage> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: FollowReportTheme.pageDecoration, // 👈 ใช้ Gradient จาก Theme
+        decoration: FollowReportTheme.pageDecoration,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                child: FollowReportHeaderWidget( // 👈 1. Header พร้อมไอคอน
+                child: FollowReportHeaderWidget(
                   onBackPressed: () => Navigator.pop(context),
                 ),
               ),
-
               if (!_isLoading && _reports.isNotEmpty) ...[
                 _buildFilterChips(),
                 const SizedBox(height: 6),
               ],
-
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
@@ -413,27 +647,93 @@ class _FollowReportPageState extends State<FollowReportPage> {
                         ? const Center(
                             child: Text(
                               "ไม่พบรายการปัญหาตามที่กรอง",
-                              style: TextStyle(fontSize: 18, color: FollowReportTheme.textColor),
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  color: FollowReportTheme.textColor),
                             ),
                           )
                         : RefreshIndicator(
                             onRefresh: _fetchUserReports,
                             child: ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10),
                               itemCount: _displayedReports.length,
                               itemBuilder: (context, index) {
                                 final report = _displayedReports[index];
-                                final String title = report['reporttitle'] ?? 'ไม่มีหัวข้อ';
-                                final String statusText = _getStatusText(report['status']);
-                                final Color statusColor = _getStatusColor(report['status']);
-                                final String dateTimeStr = _formatThaiDateTimeShort(report['created_at']);
+                                final String title =
+                                    report['reporttitle'] ?? 'ไม่มีหัวข้อ';
+                                final String statusText =
+                                    _getStatusText(report['status']);
+                                final Color statusColor =
+                                    _getStatusColor(report['status']);
+                                final String dateTimeStr =
+                                    _formatThaiDateTimeShort(
+                                        report['created_at']);
 
-                                return FollowReportCardTile( // 👈 3. Card ไตล์เขียวซอฟต์พาสเทล + กรอบจางๆ
-                                  title: title,
-                                  dateTimeStr: dateTimeStr,
-                                  statusText: statusText,
-                                  statusColor: statusColor,
-                                  onTap: () => _showReportDetailDialog(report),
+                                final bool isUnread =
+                                    report['feedback_status']?.toString() ==
+                                        '1';
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12.0),
+                                  child: Stack(
+                                    children: [
+                                      FollowReportCardTile(
+                                        title: title,
+                                        dateTimeStr: dateTimeStr,
+                                        statusText: statusText,
+                                        statusColor: statusColor,
+                                        onTap: () async {
+                                          await _handleCardTap(report);
+                                          if (context.mounted) {
+                                            _showReportDetailDialog(report);
+                                          }
+                                        },
+                                      ),
+                                      if (isUnread)
+                                        Positioned(
+                                          top: 12,
+                                          right: 12,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.redAccent,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              boxShadow: const [
+                                                BoxShadow(
+                                                  color: Colors.black26,
+                                                  blurRadius: 3,
+                                                  offset: Offset(0, 1),
+                                                ),
+                                              ],
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.mark_email_unread,
+                                                  color: Colors.white,
+                                                  size: 13,
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  "ยังไม่ได้อ่าน",
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 );
                               },
                             ),
@@ -442,7 +742,7 @@ class _FollowReportPageState extends State<FollowReportPage> {
               if (!_isLoading && _filteredReports.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 15.0, top: 5.0),
-                  child: FollowReportPaginationBar( // 👈 2. Pagination ปุ่มสีเขียวตามธีม
+                  child: FollowReportPaginationBar(
                     currentPage: _currentPage,
                     lastPage: _lastPage,
                     onPageSelected: (page) {

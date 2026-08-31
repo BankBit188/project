@@ -1,9 +1,9 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-import 'package:image_picker/image_picker.dart'; // 🟢 1. Import XFile เข้ามาใช้งานแทน dart:io
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ReportsService {
   // 🔹 ใช้ URL ของ Ngrok ตามโครงสร้างเดิม
@@ -14,67 +14,76 @@ class ReportsService {
 
   // 🔒 3. ปรับฟังก์ชันดึง Token จาก Secure Storage ด้วย Key "auth_token"
   static Future<String?> _getToken() async {
-    return await _secureStorage.read(key: 'auth_token'); 
+    return await _secureStorage.read(key: 'auth_token');
   }
 
   // ฟังก์ชันส่วนกลางสำหรับดึงหรือส่งข้อมูล API
   static Future<dynamic> _fetchAPI(
     String endpoint, {
-    String method = 'GET', 
-    Map<String, String>? body, 
-    XFile? imageFile, // 🟢 2. เปลี่ยนชนิดตัวแปรจาก File? เป็น XFile?
+    String method = 'GET',
+    Map<String, String>? body,
+    Map<String, String>? extraHeaders, // 🟢 รองรับ Headerเพิ่มเติม
+    XFile? imageFile,
   }) async {
     final url = Uri.parse('$baseUrl$endpoint');
-    
+
     try {
       // 🔒 ตรวจสอบ Token ก่อนทำการยิง API
-      final token = await _getToken();  
+      final token = await _getToken();
       if (token == null || token.isEmpty) {
-        throw Exception('Unauthenticated: ไม่พบ Token ในระบบ กรุณาเข้าสู่ระบบใหม่');
+        throw Exception(
+            'Unauthenticated: ไม่พบ Token ในระบบ กรุณาเข้าสู่ระบบใหม่');
       }
 
       // 🟩 กรณีที่ 1: มีการส่งไฟล์รูปภาพ หรือส่งผ่าน POST แบบอัปโหลดรูป
       if (method == 'POST' && imageFile != null) {
         final request = http.MultipartRequest('POST', url);
-        
+
         // 🔒 ใส่ Headers รับ JSON และแนบ Bearer Token เข้าไปด้วย
         request.headers['Accept'] = 'application/json';
         request.headers['Authorization'] = 'Bearer $token';
+
+        if (extraHeaders != null) {
+          request.headers.addAll(extraHeaders);
+        }
 
         // แนบข้อมูล Text ปกติ (ถ้ามี)
         if (body != null) {
           request.fields.addAll(body);
         }
 
-        // 🟢 3. อ่านไฟล์รูปภาพเป็น Bytes เพื่อให้รองรับ Web และ Mobile 100%
+        // อ่านไฟล์รูปภาพเป็น Bytes
         final bytes = await imageFile.readAsBytes();
         final multipartFile = http.MultipartFile.fromBytes(
-          'img', // Key ชื่อเดิมของ Backend
+          'img',
           bytes,
-          filename: imageFile.name, // ใช้ .name แทน .path
+          filename: imageFile.name,
           contentType: MediaType('image', 'jpeg'),
         );
         request.files.add(multipartFile);
 
-        // ส่งข้อมูลแบบ Multipart ไปที่หลังบ้าน
         final streamedResponse = await request.send();
         final response = await http.Response.fromStream(streamedResponse);
 
         return _handleResponse(response);
-      } 
-      
-      // 🟩 กรณีที่ 2: เป็นการดึงข้อมูล GET หรือ POST แบบ JSON ธรรมดา
+      }
+
+      // 🟩 กรณีที่ 2: เป็นการดึงข้อมูล GET, POST หรือ PUT แบบ JSON ธรรมดา
       else {
-        // 🔒 แนบ Bearer Token ลงใน Header
         final headers = {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          ...?extraHeaders, // 🟢 รวม Header ที่ส่งเสริมเข้ามา (เช่น Userid)
         };
 
         http.Response response;
         if (method == 'POST') {
-          response = await http.post(url, headers: headers, body: jsonEncode(body));
+          response =
+              await http.post(url, headers: headers, body: jsonEncode(body));
+        } else if (method == 'PUT') {
+          response =
+              await http.put(url, headers: headers, body: jsonEncode(body));
         } else {
           response = await http.get(url, headers: headers);
         }
@@ -91,11 +100,11 @@ class ReportsService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return jsonDecode(response.body);
     } else if (response.statusCode == 401) {
-      // 🔒 ดักจับเมื่อ Token หมดอายุ หรือไม่ผ่านการตรวจสอบจาก Laravel Sanctum
       throw Exception('Unauthenticated: Token ไม่ถูกต้องหรือหมดอายุ (401)');
     } else {
       final errorData = jsonDecode(response.body);
-      throw Exception(errorData['message'] ?? 'HTTP error! status: ${response.statusCode}');
+      throw Exception(
+          errorData['message'] ?? 'HTTP error! status: ${response.statusCode}');
     }
   }
 
@@ -113,13 +122,46 @@ class ReportsService {
   // 🔹 3. ฟังก์ชันเพิ่มข้อมูลรายงานใหม่พร้อมไฟล์รูปภาพ (POST /report)
   static Future<dynamic> createReport({
     required Map<String, String> reportData,
-    XFile? imageFile, // 🟢 4. เปลี่ยนเป็น XFile? ให้ตรงกับหน้า UI
+    XFile? imageFile,
   }) async {
     return await _fetchAPI(
-      '/report', 
-      method: 'POST', 
-      body: reportData, 
+      '/report',
+      method: 'POST',
+      body: reportData,
       imageFile: imageFile,
     );
+  }
+
+  // 🟢 4. ฟังก์ชันอัปเดตสถานะ Feedback (PUT /report/{id})
+  static Future<dynamic> updateFeedbackStatus({
+    required String reportId,
+    required String userId,
+  }) async {
+    return await _fetchAPI(
+      '/reports/update-feedback-status',
+      method: 'PUT',
+      body: {
+        'reportid': reportId,
+        'Userid': userId,
+      },
+    );
+  }
+
+  // 🟢 5. ฟังก์ชันดึงจำนวนการตอบกลับที่ยังไม่ได้อ่าน (GET /reports/unread-feedback-count)
+  static Future<int> getUnreadFeedbackCount() async {
+    final userId = await _secureStorage.read(key: 'Userid');
+
+    final response = await _fetchAPI(
+      '/reports/unread-feedback-count',
+      method: 'GET',
+      extraHeaders: {
+        if (userId != null) 'Userid': userId,
+      },
+    );
+
+    if (response != null && response['unreadCount'] != null) {
+      return int.tryParse(response['unreadCount'].toString()) ?? 0;
+    }
+    return 0;
   }
 }
