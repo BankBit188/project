@@ -13,26 +13,21 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // 🔹 1. FormKey สำหรับตรวจสอบข้อมูลในฟอร์ม
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-
-  // 🔹 3. FocusNode สำหรับเปลี่ยนช่องกรอกข้อมูลผ่านคีย์บอร์ด
   final FocusNode _passwordFocusNode = FocusNode();
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   bool _isLoading = false;
-  bool _isCheckingAuth =
-      true; // 🔹 2. ตัวแปรสถานะสำหรับการเช็ก Auto-Login ตอนเปิดหน้า
+  bool _isCheckingAuth = true;
   bool _obscurePassword = true;
 
   @override
   void initState() {
     super.initState();
-    // 🔹 2. เรียกฟังก์ชันเช็กล็อกอินอัตโนมัติทันทีที่เปิดหน้านี้
     _checkAutoLogin();
   }
 
@@ -44,19 +39,18 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // 🔹 2. ฟังก์ชันตรวจสอบ Token ใน Storage เพื่อทำ Auto-Login
+  // 🟢 ปรับปรุงการเช็ค Auto-Login ให้รัดกุมขึ้น
   Future<void> _checkAutoLogin() async {
     try {
       final token = await _secureStorage.read(key: "auth_token");
-      final userId = await _secureStorage.read(
-        key: "Userid",
-      ); // 🟢 เช็ค Userid เพิ่มเติม
+      final userId = await _secureStorage.read(key: "Userid");
 
+      // ต้องมีทั้ง Token และ Userid และต้องไม่เป็นค่าว่าง
       if (token != null &&
-          token.isNotEmpty &&
+          token.trim().isNotEmpty &&
           userId != null &&
-          userId.isNotEmpty) {
-        debugPrint("พบ Auth Token และ Userid เดิมในระบบ ทำการ Auto-Login");
+          userId.trim().isNotEmpty) {
+        debugPrint("พบ Auth Token และ Userid สมบูรณ์ ทำการ Auto-Login");
         if (mounted) {
           Navigator.pushAndRemoveUntil(
             context,
@@ -65,6 +59,10 @@ class _LoginPageState extends State<LoginPage> {
           );
           return;
         }
+      } else {
+        // 🟢 หากมีข้อมูลอย่างใดอย่างหนึ่งค้างอยู่แต่ไม่ครบ ให้ล้างทิ้งทันที
+        await _secureStorage.delete(key: "auth_token");
+        await _secureStorage.delete(key: "Userid");
       }
     } catch (e) {
       debugPrint("Error reading token: $e");
@@ -77,9 +75,9 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // 🟢 ปรับปรุงตรรกะการ Handle Login ให้บันทึกและตรวจสอบก่อนเปลี่ยนหน้า
   void _handleLogin() async {
     if (_isLoading) return;
-
     if (!_formKey.currentState!.validate()) return;
 
     String email = _emailController.text.trim();
@@ -91,26 +89,21 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final result = await UserService.login(email, password);
-      if (result['token'] != null) {
-        await _secureStorage.write(key: "auth_token", value: result['token']);
+      
+      final String? token = result['token'];
+      final userData = result['user'];
+      
+      String? idToSave;
+      if (userData != null) {
+        idToSave = (userData['Userid'] ?? userData['id'])?.toString();
+      }
 
-        if (result['user'] != null) {
-          final userData = result['user'];
-          final idToSave = userData['Userid'] ?? userData['id'];
+      // 🟢 ต้องมีทั้ง Token และ Userid ที่ถูกต้องเท่านั้นจึงจะบันทึกและข้ามหน้าได้
+      if (token != null && token.isNotEmpty && idToSave != null && idToSave.isNotEmpty) {
+        await _secureStorage.write(key: "auth_token", value: token);
+        await _secureStorage.write(key: "Userid", value: idToSave);
 
-          debugPrint("ID ที่สกัดได้เตรียมบันทึก: $idToSave");
-
-          if (idToSave != null) {
-            await _secureStorage.write(
-              key: "Userid",
-              value: idToSave.toString(),
-            );
-            debugPrint(
-              "บันทึก Userid สำเร็จแล้ว! ${await _secureStorage.read(key: "Userid")}",
-            );
-          }
-        }
-
+        debugPrint("บันทึก Auth Token และ Userid ($idToSave) สำเร็จ");
         _showSnackBar("เข้าสู่ระบบสำเร็จ", Colors.green);
 
         if (mounted) {
@@ -121,7 +114,7 @@ class _LoginPageState extends State<LoginPage> {
           );
         }
       } else {
-        _showSnackBar("อีเมลหรือรหัสผ่านไม่ถูกต้อง", Colors.red);
+        _showSnackBar("ข้อมูลเข้าสู่ระบบไม่ถูกต้อง หรือไม่พบ User ID", Colors.red);
       }
     } catch (e) {
       _showSnackBar(e.toString().replaceAll('Exception: ', ''), Colors.red);
@@ -157,7 +150,6 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             child: SafeArea(
-              // 🔹 2. หากกำลังเช็ก Token อยู่ ให้แสดง Loading กลางจอ เพื่อไม่ให้ฟอร์มกะพริบ
               child: _isCheckingAuth
                   ? const Center(
                       child: CircularProgressIndicator(
