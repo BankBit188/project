@@ -49,7 +49,7 @@ class _WeatherPageState extends State<WeatherPage> {
   String currentDate = "";
   List<Map<String, dynamic>> hourlyForecast = [];
   List<Map<String, dynamic>> dailyForecast = [];
-  
+
   bool isLoading = true;
   bool isRecommending = false;
   bool isRecommendingMonth = false;
@@ -57,7 +57,7 @@ class _WeatherPageState extends State<WeatherPage> {
   double displayLat = 19.9880;
   double displayLon = 99.8580;
   String locationName = "ตำบลบ้านดู่ อำเภอเมืองเชียงราย จังหวัดเชียงราย";
-  bool isGpsLocation = false; 
+  bool isGpsLocation = false;
 
   static MonthYear _getPreviousMonthInitial() {
     final now = DateTime.now();
@@ -151,23 +151,44 @@ class _WeatherPageState extends State<WeatherPage> {
       final url = Uri.parse(
         'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json&accept-language=th',
       );
-      
+
       // Web Browser ไม่อนุญาตให้กำหนด User-Agent Custom Header
-      final headers = kIsWeb ? <String, String>{} : {'User-Agent': 'FlutterWeatherApp'};
+      final headers = kIsWeb
+          ? <String, String>{}
+          : {'User-Agent': 'FlutterWeatherApp'};
       final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final address = data['address'];
 
-        String subdistrict = address['subdistrict'] ?? address['village'] ?? address['neighbourhood'] ?? '';
-        String district = address['district'] ?? address['city_district'] ?? address['county'] ?? '';
+        String subdistrict =
+            address['subdistrict'] ??
+            address['village'] ??
+            address['neighbourhood'] ??
+            '';
+        String district =
+            address['district'] ??
+            address['city_district'] ??
+            address['county'] ??
+            '';
         String province = address['state'] ?? address['province'] ?? '';
 
         List<String> parts = [];
-        if (subdistrict.isNotEmpty) parts.add(subdistrict.startsWith("ตำบล") ? subdistrict : "ตำบล$subdistrict");
-        if (district.isNotEmpty) parts.add(district.startsWith("อำเภอ") || district.startsWith("เขต") ? district : "อำเภอ$district");
-        if (province.isNotEmpty) parts.add(province.startsWith("จังหวัด") ? province : "จังหวัด$province");
+        if (subdistrict.isNotEmpty)
+          parts.add(
+            subdistrict.startsWith("ตำบล") ? subdistrict : "ตำบล$subdistrict",
+          );
+        if (district.isNotEmpty)
+          parts.add(
+            district.startsWith("อำเภอ") || district.startsWith("เขต")
+                ? district
+                : "อำเภอ$district",
+          );
+        if (province.isNotEmpty)
+          parts.add(
+            province.startsWith("จังหวัด") ? province : "จังหวัด$province",
+          );
 
         setState(() {
           locationName = parts.isNotEmpty ? parts.join(" ") : "ตำแหน่งปัจจุบัน";
@@ -211,7 +232,9 @@ class _WeatherPageState extends State<WeatherPage> {
           "${currentTime.day.toString().padLeft(2, '0')}T"
           "${currentTime.hour.toString().padLeft(2, '0')}:00";
 
-      final currentHourIndex = times.indexWhere((e) => e.toString() == currentHourString);
+      final currentHourIndex = times.indexWhere(
+        (e) => e.toString() == currentHourString,
+      );
 
       List<Map<String, dynamic>> tempHourly = [];
       for (int i = -2; i <= 2; i++) {
@@ -256,7 +279,8 @@ class _WeatherPageState extends State<WeatherPage> {
         minTemperature = (daily["temperature_2m_min"][0] as num).toDouble();
 
         final apiTime = DateTime.parse(current["time"]);
-        currentDate = "${apiTime.day} ${thaiMonth(apiTime.month)} ${apiTime.year + 543}";
+        currentDate =
+            "${apiTime.day} ${thaiMonth(apiTime.month)} ${apiTime.year + 543}";
         hourlyForecast = tempHourly;
         dailyForecast = tempDaily;
         isLoading = false;
@@ -270,7 +294,59 @@ class _WeatherPageState extends State<WeatherPage> {
     }
   }
 
-  Future<void> fetchMultiMonthAverage(double lat, double lon, List<MonthYear> items) async {
+  // 🌟 ฟังก์ชันสร้างไอคอนสภาพอากาศที่มีลูกเล่นสีสันและมิติสดใส
+  Widget buildPlayfulWeatherIcon(int code, {double size = 24}) {
+    IconData iconData;
+    Color iconColor;
+    List<Shadow> shadows = [];
+
+    if (code == 0) {
+      // ท้องฟ้าโปร่ง - พระอาทิตย์สีเหลืองทองทอแสง
+      iconData = Icons.wb_sunny_rounded;
+      iconColor = const Color(0xFFFFD54F);
+      shadows = [
+        Shadow(color: const Color(0xFFFFB300).withOpacity(0.6), blurRadius: 10),
+      ];
+    } else if (code <= 3) {
+      // มีเมฆบางส่วน / เมฆครึ้ม - เมฆปนแสงแดด
+      iconData = Icons.wb_cloudy_rounded;
+      iconColor = const Color(0xFFFFF59D);
+      shadows = [Shadow(color: Colors.white.withOpacity(0.5), blurRadius: 8)];
+    } else if (code <= 48) {
+      // หมอก - สายนทีจางๆ สีฟ้าเทา
+      iconData = Icons.cloud_queue_rounded;
+      iconColor = const Color(0xFFB0BEC5);
+    } else if (code <= 67) {
+      // ฝนตกปรอยๆ / เม็ดฝน - ละอองน้ำสีฟ้าใส
+      iconData = Icons.water_drop_rounded;
+      iconColor = const Color(0xFF81D4FA);
+      shadows = [
+        Shadow(color: const Color(0xFF29B6F6).withOpacity(0.5), blurRadius: 6),
+      ];
+    } else if (code <= 82) {
+      // ฝนตกหนัก - ร่ม/สายฝนสีฟ้าเข้ม
+      iconData = Icons.umbrella_rounded;
+      iconColor = const Color(0xFF4FC3F7);
+      shadows = [
+        Shadow(color: const Color(0xFF0288D1).withOpacity(0.6), blurRadius: 8),
+      ];
+    } else {
+      // พายุฝนฟ้าคะนอง - ไอคอนพายุเรืองแสงเหลืองม่วง
+      iconData = Icons.thunderstorm_rounded;
+      iconColor = const Color(0xFFFFCA28);
+      shadows = [
+        Shadow(color: const Color(0xFFFF8F00).withOpacity(0.8), blurRadius: 12),
+      ];
+    }
+
+    return Icon(iconData, size: size, color: iconColor, shadows: shadows);
+  }
+
+  Future<void> fetchMultiMonthAverage(
+    double lat,
+    double lon,
+    List<MonthYear> items,
+  ) async {
     if (items.isEmpty) return;
 
     setState(() {
@@ -325,8 +401,12 @@ class _WeatherPageState extends State<WeatherPage> {
     }
 
     setState(() {
-      monthAvgTemp = totalTempCount > 0 ? (totalTempSum / totalTempCount) : 28.5;
-      monthAvgHumidity = totalHumCount > 0 ? (totalHumSum / totalHumCount) : 70.0;
+      monthAvgTemp = totalTempCount > 0
+          ? (totalTempSum / totalTempCount)
+          : 28.5;
+      monthAvgHumidity = totalHumCount > 0
+          ? (totalHumSum / totalHumCount)
+          : 70.0;
       isLoadingMonthAvg = false;
     });
   }
@@ -336,7 +416,9 @@ class _WeatherPageState extends State<WeatherPage> {
     int currentYear = now.year;
     int currentMonth = now.month;
 
-    int selectedYearInDialog = selectedMonths.isNotEmpty ? selectedMonths.first.year : currentYear;
+    int selectedYearInDialog = selectedMonths.isNotEmpty
+        ? selectedMonths.first.year
+        : currentYear;
     List<MonthYear> tempSelected = List.from(selectedMonths);
 
     showDialog(
@@ -349,26 +431,48 @@ class _WeatherPageState extends State<WeatherPage> {
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("เลือกเดือนและปี", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  const Text(
+                    "เลือกเดือนและปี",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Text("ปี: ", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                      const Text(
+                        "ปี: ",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                       DropdownButton<int>(
                         value: selectedYearInDialog,
-                        underline: Container(height: 1.5, color: const Color(0xFF2E5A36)),
-                        items: [currentYear, currentYear - 1, currentYear - 2, currentYear - 3].map((y) {
-                          return DropdownMenuItem<int>(
-                            value: y,
-                            child: Text(" พ.ศ. ${y + 543} ($y)"),
-                          );
-                        }).toList(),
+                        underline: Container(
+                          height: 1.5,
+                          color: const Color(0xFF2E5A36),
+                        ),
+                        items:
+                            [
+                              currentYear,
+                              currentYear - 1,
+                              currentYear - 2,
+                              currentYear - 3,
+                            ].map((y) {
+                              return DropdownMenuItem<int>(
+                                value: y,
+                                child: Text(" พ.ศ. ${y + 543} ($y)"),
+                              );
+                            }).toList(),
                         onChanged: (val) {
                           if (val != null) {
                             setDialogState(() {
                               selectedYearInDialog = val;
                               if (selectedYearInDialog == currentYear) {
-                                tempSelected.removeWhere((item) => item.year == currentYear && item.month >= currentMonth);
+                                tempSelected.removeWhere(
+                                  (item) =>
+                                      item.year == currentYear &&
+                                      item.month >= currentMonth,
+                                );
                               }
                             });
                           }
@@ -387,24 +491,33 @@ class _WeatherPageState extends State<WeatherPage> {
                       selectedYearInDialog == currentYear
                           ? "เลือกได้เฉพาะเดือนย้อนหลัง (ม.ค. - ${thaiMonthShort(currentMonth - 1 > 0 ? currentMonth - 1 : 1)}):"
                           : "เลือกเดือนที่ต้องการ (เลือกได้มากกว่า 1 เดือน):",
-                      style: const TextStyle(fontSize: 13, color: Colors.black54),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black54,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Flexible(
                       child: GridView.builder(
                         shrinkWrap: true,
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          childAspectRatio: 2.1,
-                          crossAxisSpacing: 6,
-                          mainAxisSpacing: 6,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              childAspectRatio: 2.1,
+                              crossAxisSpacing: 6,
+                              mainAxisSpacing: 6,
+                            ),
                         itemCount: 12,
                         itemBuilder: (context, index) {
                           int monthNum = index + 1;
-                          MonthYear currentItem = MonthYear(selectedYearInDialog, monthNum);
-                          
-                          bool isDisabled = (selectedYearInDialog == currentYear) && (monthNum >= currentMonth);
+                          MonthYear currentItem = MonthYear(
+                            selectedYearInDialog,
+                            monthNum,
+                          );
+
+                          bool isDisabled =
+                              (selectedYearInDialog == currentYear) &&
+                              (monthNum >= currentMonth);
                           bool isChecked = tempSelected.contains(currentItem);
 
                           return InkWell(
@@ -424,10 +537,14 @@ class _WeatherPageState extends State<WeatherPage> {
                               decoration: BoxDecoration(
                                 color: isDisabled
                                     ? Colors.grey[300]
-                                    : (isChecked ? const Color(0xFF2E5A36) : Colors.grey[200]),
+                                    : (isChecked
+                                          ? const Color(0xFF2E5A36)
+                                          : Colors.grey[200]),
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                  color: isChecked && !isDisabled ? const Color(0xFF2E5A36) : Colors.black12,
+                                  color: isChecked && !isDisabled
+                                      ? const Color(0xFF2E5A36)
+                                      : Colors.black12,
                                 ),
                               ),
                               child: Row(
@@ -436,9 +553,15 @@ class _WeatherPageState extends State<WeatherPage> {
                                   Icon(
                                     isDisabled
                                         ? Icons.block
-                                        : (isChecked ? Icons.check_box : Icons.check_box_outline_blank),
+                                        : (isChecked
+                                              ? Icons.check_box
+                                              : Icons.check_box_outline_blank),
                                     size: 15,
-                                    color: isDisabled ? Colors.grey[500] : (isChecked ? Colors.white : Colors.black54),
+                                    color: isDisabled
+                                        ? Colors.grey[500]
+                                        : (isChecked
+                                              ? Colors.white
+                                              : Colors.black54),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -446,7 +569,11 @@ class _WeatherPageState extends State<WeatherPage> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
-                                      color: isDisabled ? Colors.grey[500] : (isChecked ? Colors.white : Colors.black87),
+                                      color: isDisabled
+                                          ? Colors.grey[500]
+                                          : (isChecked
+                                                ? Colors.white
+                                                : Colors.black87),
                                     ),
                                   ),
                                 ],
@@ -462,12 +589,17 @@ class _WeatherPageState extends State<WeatherPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("ยกเลิก", style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  child: const Text(
+                    "ยกเลิก",
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2E5A36),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   onPressed: tempSelected.isEmpty
                       ? null
@@ -476,11 +608,19 @@ class _WeatherPageState extends State<WeatherPage> {
                           setState(() {
                             selectedMonths = tempSelected;
                           });
-                          fetchMultiMonthAverage(displayLat, displayLon, tempSelected);
+                          fetchMultiMonthAverage(
+                            displayLat,
+                            displayLon,
+                            tempSelected,
+                          );
                         },
                   child: Text(
                     "ยืนยัน (${tempSelected.length})",
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -499,7 +639,8 @@ class _WeatherPageState extends State<WeatherPage> {
       cachedPlants: _cachedPlants,
       temp: currentTemp,
       humidity: currentHumidity.toDouble(),
-      customTitle: "พืชแนะนำตามสภาพอากาศปัจจุบัน\n(อุณหภูมิ ${currentTemp.round()}°C, ความชื้น $currentHumidity%)",
+      customTitle:
+          "พืชแนะนำตามสภาพอากาศปัจจุบัน\n(อุณหภูมิ ${currentTemp.round()}°C, ความชื้น $currentHumidity%)",
     );
 
     if (mounted) setState(() => isRecommending = false);
@@ -515,7 +656,8 @@ class _WeatherPageState extends State<WeatherPage> {
       cachedPlants: _cachedPlants,
       temp: monthAvgTemp!,
       humidity: monthAvgHumidity!,
-      customTitle: "พืชแนะนำตามค่าเฉลี่ยสภาพอากาศ\n(${_getSelectedMonthsLabel()})\n(อุณหภูมิเฉลี่ย ${monthAvgTemp!.toStringAsFixed(1)}°C, ความชื้นเฉลี่ย ${monthAvgHumidity!.round()}%)",
+      customTitle:
+          "พืชแนะนำตามค่าเฉลี่ยสภาพอากาศ\n(${_getSelectedMonthsLabel()})\n(อุณหภูมิเฉลี่ย ${monthAvgTemp!.toStringAsFixed(1)}°C, ความชื้นเฉลี่ย ${monthAvgHumidity!.round()}%)",
     );
 
     if (mounted) setState(() => isRecommendingMonth = false);
@@ -541,12 +683,40 @@ class _WeatherPageState extends State<WeatherPage> {
   }
 
   String thaiMonth(int month) {
-    const months = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    const months = [
+      '',
+      'มกราคม',
+      'กุมภาพันธ์',
+      'มีนาคม',
+      'เมษายน',
+      'พฤษภาคม',
+      'มิถุนายน',
+      'กรกฎาคม',
+      'สิงหาคม',
+      'กันยายน',
+      'ตุลาคม',
+      'พฤศจิกายน',
+      'ธันวาคม',
+    ];
     return months[month];
   }
 
   String thaiMonthShort(int month) {
-    const months = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const months = [
+      '',
+      'ม.ค.',
+      'ก.พ.',
+      'มี.ค.',
+      'เม.ย.',
+      'พ.ค.',
+      'มิ.ย.',
+      'ก.ค.',
+      'ส.ค.',
+      'ก.ย.',
+      'ต.ค.',
+      'พ.ย.',
+      'ธ.ค.',
+    ];
     return months[month];
   }
 
@@ -573,14 +743,20 @@ class _WeatherPageState extends State<WeatherPage> {
                     children: [
                       CircularProgressIndicator(color: Colors.white),
                       SizedBox(height: 15),
-                      Text("กำลังโหลดข้อมูลสภาพอากาศ...", style: TextStyle(color: Colors.white, fontSize: 16)),
+                      Text(
+                        "กำลังโหลดข้อมูลสภาพอากาศ...",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
                     ],
                   ),
                 )
               : SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0,
+                      vertical: 15.0,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -588,7 +764,11 @@ class _WeatherPageState extends State<WeatherPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 26),
+                              icon: const Icon(
+                                Icons.arrow_back_ios,
+                                color: Colors.white,
+                                size: 26,
+                              ),
                               onPressed: () => Navigator.pop(context),
                             ),
                             Expanded(
@@ -597,21 +777,32 @@ class _WeatherPageState extends State<WeatherPage> {
                                 children: [
                                   const Text(
                                     "สภาพอากาศ",
-                                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
                                       Icon(
-                                        isGpsLocation ? Icons.location_on : Icons.location_off,
-                                        color: isGpsLocation ? Colors.lightGreenAccent : Colors.orangeAccent,
+                                        isGpsLocation
+                                            ? Icons.location_on
+                                            : Icons.location_off,
+                                        color: isGpsLocation
+                                            ? Colors.lightGreenAccent
+                                            : Colors.orangeAccent,
                                         size: 18,
                                       ),
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
                                           locationName,
-                                          style: const TextStyle(fontSize: 13, color: Colors.white),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.white,
+                                          ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -628,23 +819,72 @@ class _WeatherPageState extends State<WeatherPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text("วันนี้", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
-                            Text(currentDate, style: const TextStyle(fontSize: 16, color: Colors.white70, fontWeight: FontWeight.w500)),
+                            const Text(
+                              "วันนี้",
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              currentDate,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.white70,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 10),
 
-                        Text("${currentTemp.round()}°", style: const TextStyle(fontSize: 85, fontWeight: FontWeight.w300, color: Colors.white, height: 1.0)),
-                        Text(weatherCondition, style: const TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.w500)),
+                        Text(
+                          "${currentTemp.round()}°",
+                          style: const TextStyle(
+                            fontSize: 85,
+                            fontWeight: FontWeight.w300,
+                            color: Colors.white,
+                            height: 1.0,
+                          ),
+                        ),
+                        Text(
+                          weatherCondition,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                         const SizedBox(height: 8),
 
                         Row(
                           children: [
-                            const Icon(Icons.arrow_upward, color: Colors.white, size: 18),
-                            Text("${maxTemperature.round()}°", style: const TextStyle(color: Colors.white, fontSize: 16)),
+                            const Icon(
+                              Icons.arrow_upward,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            Text(
+                              "${maxTemperature.round()}°",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
                             const SizedBox(width: 8),
-                            const Icon(Icons.arrow_downward, color: Colors.white, size: 18),
-                            Text("${minTemperature.round()}°", style: const TextStyle(color: Colors.white, fontSize: 16)),
+                            const Icon(
+                              Icons.arrow_downward,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            Text(
+                              "${minTemperature.round()}°",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 25),
@@ -659,7 +899,9 @@ class _WeatherPageState extends State<WeatherPage> {
                               bool isCurrent = item['isCurrent'];
                               return buildHourlyForecastCard(
                                 tempText: "${item['temp'].round()}°C",
-                                icon: getWeatherIcon(item['code']),
+                                iconWidget: buildPlayfulWeatherIcon(
+                                  item['code'],
+                                ),
                                 timeText: item['time'],
                                 isCurrent: isCurrent,
                               );
@@ -670,15 +912,29 @@ class _WeatherPageState extends State<WeatherPage> {
 
                         Row(
                           children: [
-                            Expanded(child: buildWeatherDetailCard(icon: Icons.water_drop, title: "ความชื้น", value: "$currentHumidity%")),
+                            Expanded(
+                              child: buildWeatherDetailCard(
+                                icon: Icons.water_drop,
+                                title: "ความชื้น",
+                                value: "$currentHumidity%",
+                              ),
+                            ),
                             const SizedBox(width: 15),
-                            Expanded(child: buildWeatherDetailCard(icon: Icons.air, title: "ลม", value: "${windSpeed.round()} กม/ชม")),
+                            Expanded(
+                              child: buildWeatherDetailCard(
+                                icon: Icons.air,
+                                title: "ลม",
+                                value: "${windSpeed.round()} กม/ชม",
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 20),
 
                         buildPrimaryActionButton(
-                          onPressed: isRecommending ? null : _recommendPlantsFromWeather,
+                          onPressed: isRecommending
+                              ? null
+                              : _recommendPlantsFromWeather,
                           isLoading: isRecommending,
                           defaultText: "แนะนำพืชจากสภาพอากาศตอนนี้",
                           loadingText: "กำลังคำนวณ...",
@@ -686,40 +942,93 @@ class _WeatherPageState extends State<WeatherPage> {
                         ),
                         const SizedBox(height: 30),
 
-                        const Text("พยากรณ์อากาศ 5 วันข้างหน้า", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const Text(
+                          "พยากรณ์อากาศ 5 วันข้างหน้า",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         buildGlassCard(
                           padding: const EdgeInsets.all(15),
                           child: Column(
                             children: dailyForecast.map((dayData) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8.0,
+                                ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     SizedBox(
                                       width: 80,
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text(dayData['day'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                                          Text(dayData['date'], style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                          Text(
+                                            dayData['day'],
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                          Text(
+                                            dayData['date'],
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
                                     Row(
                                       children: [
-                                        Icon(getWeatherIcon(dayData['code']), color: Colors.white, size: 20),
+                                        buildPlayfulWeatherIcon(
+                                          dayData['code'],
+                                          size: 20,
+                                        ),
                                         const SizedBox(width: 8),
-                                        Text(dayData['status'], style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                        Text(
+                                          dayData['status'],
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     Row(
                                       children: [
-                                        const Icon(Icons.arrow_upward, color: Colors.white70, size: 14),
-                                        Text("${dayData['max']}° ", style: const TextStyle(color: Colors.white, fontSize: 14)),
-                                        const Icon(Icons.arrow_downward, color: Colors.white70, size: 14),
-                                        Text("${dayData['min']}°", style: const TextStyle(color: Colors.white, fontSize: 14)),
+                                        const Icon(
+                                          Icons.arrow_upward,
+                                          color: Colors.white70,
+                                          size: 14,
+                                        ),
+                                        Text(
+                                          "${dayData['max']}° ",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.arrow_downward,
+                                          color: Colors.white70,
+                                          size: 14,
+                                        ),
+                                        Text(
+                                          "${dayData['min']}°",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -736,24 +1045,48 @@ class _WeatherPageState extends State<WeatherPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        const Text("สภาพอากาศเฉลี่ย", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                                        Text(_getSelectedMonthsLabel(), style: const TextStyle(fontSize: 13, color: Colors.white70)),
+                                        const Text(
+                                          "สภาพอากาศเฉลี่ย",
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        Text(
+                                          _getSelectedMonthsLabel(),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
                                   ElevatedButton.icon(
                                     onPressed: _showMonthSelectionDialog,
-                                    icon: const Icon(Icons.calendar_month, size: 18, color: Colors.white),
-                                    label: const Text("เลือกเดือน/ปี", style: TextStyle(color: Colors.white)),
+                                    icon: const Icon(
+                                      Icons.calendar_month,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Text(
+                                      "เลือกเดือน/ปี",
+                                      style: TextStyle(color: Colors.white),
+                                    ),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF2E5A36),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -764,30 +1097,57 @@ class _WeatherPageState extends State<WeatherPage> {
                                   ? const Center(
                                       child: Padding(
                                         padding: EdgeInsets.all(15.0),
-                                        child: CircularProgressIndicator(color: Colors.white),
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     )
                                   : Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceAround,
                                       children: [
                                         Column(
                                           children: [
-                                            const Text("อุณหภูมิเฉลี่ย", style: TextStyle(color: Colors.white70, fontSize: 14)),
+                                            const Text(
+                                              "อุณหภูมิเฉลี่ย",
+                                              style: TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 14,
+                                              ),
+                                            ),
                                             const SizedBox(height: 4),
                                             Text(
                                               "${monthAvgTemp?.toStringAsFixed(1) ?? '-'} °C",
-                                              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ],
                                         ),
-                                        Container(width: 1, height: 40, color: Colors.white30),
+                                        Container(
+                                          width: 1,
+                                          height: 40,
+                                          color: Colors.white30,
+                                        ),
                                         Column(
                                           children: [
-                                            const Text("ความชื้นเฉลี่ย", style: TextStyle(color: Colors.white70, fontSize: 14)),
+                                            const Text(
+                                              "ความชื้นเฉลี่ย",
+                                              style: TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 14,
+                                              ),
+                                            ),
                                             const SizedBox(height: 4),
                                             Text(
                                               "${monthAvgHumidity?.round() ?? '-'} %",
-                                              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -796,7 +1156,10 @@ class _WeatherPageState extends State<WeatherPage> {
                               const SizedBox(height: 15),
 
                               buildPrimaryActionButton(
-                                onPressed: (isRecommendingMonth || isLoadingMonthAvg) ? null : _recommendPlantsFromMonthlyAvg,
+                                onPressed:
+                                    (isRecommendingMonth || isLoadingMonthAvg)
+                                    ? null
+                                    : _recommendPlantsFromMonthlyAvg,
                                 isLoading: isRecommendingMonth,
                                 defaultText: "แนะนำพืชตามค่าเฉลี่ยที่เลือก",
                                 loadingText: "กำลังคำนวณ...",

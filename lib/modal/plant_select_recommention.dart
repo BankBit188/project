@@ -49,32 +49,39 @@ class _PlantSelectRecommendationDialogState
     's': 'กำมะถัน (S)',
   };
 
+  // 📌 รวมรูปแบบ Key ทั้งหมดที่อาจถูกส่งมาจาก API/Sensor
+  static const Map<String, List<String>> _keyMapping = {
+    'ph': ['PH', 'ph', 'pH'],
+    'humidity': ['humid', 'humidity', 'moisture'],
+    'temp': ['temperature', 'temp'],
+    'salty': ['salty', 'salt', 'ec', 'EC'],
+    'n': ['N', 'n'],
+    'p': ['P', 'p'],
+    'k': ['K', 'k'],
+    'ca': ['Ca', 'ca'],
+    'mg': ['Mg', 'mg'],
+    's': ['S', 's'],
+  };
+
   // เช็คว่าเลือกครบทุกอันหรือไม่
   bool get _isAllSelected => _selectedParams.values.every((val) => val);
 
-  // 🟢 ฟังก์ชันดึงค่าปัจจุบันจาก toolData มาแสดงผลบน UI
-  String _getDisplayValue(String key) {
-    final Map<String, List<String>> keyMap = {
-      'ph': ['PH', 'ph'],
-      'humidity': ['humid'],
-      'temp': ['temperature'],
-      'salty': ['salty'],
-      'n': ['N', 'n'],
-      'p': ['P', 'p'],
-      'k': ['K', 'k'],
-      'ca': ['Ca', 'ca'],
-      'mg': ['Mg', 'mg'],
-      's': ['S', 's'],
-    };
-
-    final possibleKeys = keyMap[key] ?? [];
+  // 🟢 ฟังก์ชันดึงค่า Raw จาก toolData โดยค้นตาม Key Mapping
+  dynamic _getRawValue(String key) {
+    final possibleKeys = _keyMapping[key] ?? [];
     for (var k in possibleKeys) {
       if (widget.toolData?.containsKey(k) == true &&
           widget.toolData![k] != null) {
-        return "${widget.toolData![k]}";
+        return widget.toolData![k];
       }
     }
-    return "-";
+    return null;
+  }
+
+  // 🟢 ฟังก์ชันดึงค่าสำหรับแสดงบน UI
+  String _getDisplayValue(String key) {
+    final val = _getRawValue(key);
+    return val != null ? "$val" : "-";
   }
 
   // ฟังก์ชันเลือก / ยกเลิก ทั้งหมด
@@ -94,66 +101,60 @@ class _PlantSelectRecommendationDialogState
       return;
     }
 
-    final navigator = Navigator.of(context);
-
-    double? getValue(String key, List<String> possibleKeys) {
+    // แปลงค่าจาก toolData เป็น double ตามที่เลือกไว้
+    double? getParsedValue(String key) {
       if (_selectedParams[key] != true) return null;
-      for (var k in possibleKeys) {
-        if (widget.toolData?.containsKey(k) == true &&
-            widget.toolData![k] != null) {
-          return double.tryParse(widget.toolData![k].toString());
-        }
-      }
-      return null;
+      final rawVal = _getRawValue(key);
+      if (rawVal == null) return null;
+      return double.tryParse(rawVal.toString());
     }
 
-    final ph = getValue('ph', ['PH', 'ph']);
-    final humidity = getValue('humidity', ['humid']);
-    final temp = getValue('temp', ['temperature']);
-    final salty = getValue('salty', ['salty']);
-    final n = getValue('n', ['N', 'n']);
-    final p = getValue('p', ['P', 'p']);
-    final k = getValue('k', ['K', 'k']);
-    final ca = getValue('ca', ['Ca', 'ca']);
-    final mg = getValue('mg', ['Mg', 'mg']);
-    final s = getValue('s', ['S', 's']);
+    final ph = getParsedValue('ph');
+    final humidity = getParsedValue('humidity');
+    final temp = getParsedValue('temp');
+    final salty = getParsedValue('salty');
+    final n = getParsedValue('n');
+    final p = getParsedValue('p');
+    final k = getParsedValue('k');
+    final ca = getParsedValue('ca');
+    final mg = getParsedValue('mg');
+    final s = getParsedValue('s');
 
     // 1. ปิด Modal เลือกค่า
-    navigator.pop();
+    Navigator.of(context).pop();
 
     // 2. แสดง Dialog Loading
     showDialog(
-      context: navigator.context,
+      context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (dialogContext) => const Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(primaryGreen),
         ),
       ),
     );
 
-    // 3. หน่วงเวลาเล็กน้อย (300ms) ให้ UI แสดงภาพกำลังโหลดที่นุ่มนวล
+    // 3. หน่วงเวลาเล็กน้อย (300ms) ให้ UI นุ่มนวล
     await Future.delayed(const Duration(milliseconds: 300));
 
-    // 4. ปิด Dialog Loading และเปิดหน้าคำแนะนำพืช
-    if (navigator.context.mounted) {
-      Navigator.of(navigator.context).pop();
+    // 4. เช็คสถานะ Context ป้องกัน Exception และเปิดหน้าคำแนะนำพืช
+    if (!mounted) return;
+    Navigator.of(context).pop(); // ปิด Dialog Loading
 
-      PlantRecommendationHelper.showRecommendations(
-        context: navigator.context,
-        customTitle: "พืชปลูกที่เหมาะสมกับสภาพดินที่เลือก",
-        ph: ph,
-        humidity: humidity,
-        temp: temp,
-        salty: salty,
-        n: n,
-        p: p,
-        k: k,
-        ca: ca,
-        mg: mg,
-        s: s,
-      );
-    }
+    PlantRecommendationHelper.showRecommendations(
+      context: context,
+      customTitle: "พืชปลูกที่เหมาะสมกับสภาพดินที่เลือก",
+      ph: ph,
+      humidity: humidity,
+      temp: temp,
+      salty: salty,
+      n: n,
+      p: p,
+      k: k,
+      ca: ca,
+      mg: mg,
+      s: s,
+    );
   }
 
   @override

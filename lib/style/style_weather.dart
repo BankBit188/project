@@ -26,10 +26,7 @@ Widget buildGlassCard({
     decoration: BoxDecoration(
       color: Colors.white.withOpacity(0.18),
       borderRadius: BorderRadius.circular(borderRadius),
-      border: Border.all(
-        color: Colors.white.withOpacity(0.3),
-        width: 1.2,
-      ),
+      border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.2),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withOpacity(0.08),
@@ -54,10 +51,7 @@ Widget buildWeatherDetailCard({
     decoration: BoxDecoration(
       color: Colors.white.withOpacity(0.18),
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(
-        color: Colors.white.withOpacity(0.3),
-        width: 1.2,
-      ),
+      border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.2),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withOpacity(0.08),
@@ -135,18 +129,18 @@ Widget buildPrimaryActionButton({
         backgroundColor: Colors.white,
         elevation: 4,
         shadowColor: Colors.black.withOpacity(0.15),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     ),
   );
 }
 
 // 🎨 การ์ดพยากรณ์อากาศรายชั่วโมงพร้อมสถานะ Highlight
+// 🎨 การ์ดพยากรณ์อากาศรายชั่วโมงพร้อมสถานะ Highlight
 Widget buildHourlyForecastCard({
   required String tempText,
-  required IconData icon,
+  required Widget
+  iconWidget, // 👈 เปลี่ยนจาก IconData icon เป็น Widget iconWidget
   required String timeText,
   required bool isCurrent,
 }) {
@@ -184,10 +178,10 @@ Widget buildHourlyForecastCard({
           style: TextStyle(
             color: Colors.white,
             fontSize: 15,
-            fontWeight: isCurrent ? FontWeight.w800 : FontWeight.bold, // 👈 ปรับเปลี่ยนตรงนี้เรียบร้อยแล้ว
+            fontWeight: isCurrent ? FontWeight.w800 : FontWeight.bold,
           ),
         ),
-        Icon(icon, color: Colors.white, size: 24),
+        iconWidget, // 👈 แสดงผลไอคอนมีลูกเล่นตรงนี้
         Text(
           timeText,
           style: TextStyle(

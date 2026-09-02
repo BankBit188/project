@@ -54,63 +54,21 @@ class PlantRecommendationHelper {
       List<Map<String, dynamic>> suitablePlants = [];
 
       for (var plant in plantsToUse) {
+        if (plant is! Map) continue;
+        Map<String, dynamic> plantMap = Map<String, dynamic>.from(plant);
         bool matchesAll = true;
 
         activeCriteria.forEach((key, value) {
-          dynamic minVal;
-          dynamic maxVal;
+          final bounds = _getBoundsForFactor(plantMap, key);
 
-          switch (key) {
-            case 'ความชื้น':
-              minVal = plant['minhumid'];
-              maxVal = plant['maxhumid'];
-              break;
-            case 'อุณหภูมิ':
-              minVal = plant['mintemperature'];
-              maxVal = plant['maxtemperature'];
-              break;
-            case 'N':
-              minVal = plant['minN'];
-              maxVal = plant['maxN'];
-              break;
-            case 'P':
-              minVal = plant['minP'];
-              maxVal = plant['maxP'];
-              break;
-            case 'K':
-              minVal = plant['minK'];
-              maxVal = plant['maxK'];
-              break;
-            case 'Ca':
-              minVal = plant['minCa'];
-              maxVal = plant['maxCa'];
-              break;
-            case 'Mg':
-              minVal = plant['minMg'];
-              maxVal = plant['maxMg'];
-              break;
-            case 'S':
-              minVal = plant['minS'];
-              maxVal = plant['maxS'];
-              break;
-            case 'pH':
-              minVal = plant['minPH'];
-              maxVal = plant['maxPH'];
-              break;
-            case 'ความเค็ม':
-              minVal = plant['minsalty'];
-              maxVal = plant['maxsalty'];
-              break;
-          }
-
-          if (!_isInBounds(value, minVal, maxVal)) {
+          if (!_isInBounds(value, bounds['min'], bounds['max'])) {
             matchesAll = false;
           }
         });
 
         if (matchesAll) {
           suitablePlants.add({
-            'plantData': plant,
+            'plantData': plantMap,
           });
         }
       }
@@ -132,53 +90,11 @@ class PlantRecommendationHelper {
             bool hasMatchingPlantForThisKey = false;
 
             for (var plant in plantsToUse) {
-              dynamic minVal;
-              dynamic maxVal;
+              if (plant is! Map) continue;
+              Map<String, dynamic> plantMap = Map<String, dynamic>.from(plant);
+              final bounds = _getBoundsForFactor(plantMap, key);
 
-              switch (key) {
-                case 'ความชื้น':
-                  minVal = plant['minhumid'];
-                  maxVal = plant['maxhumid'];
-                  break;
-                case 'อุณหภูมิ':
-                  minVal = plant['mintemperature'];
-                  maxVal = plant['maxtemperature'];
-                  break;
-                case 'N':
-                  minVal = plant['minN'];
-                  maxVal = plant['maxN'];
-                  break;
-                case 'P':
-                  minVal = plant['minP'];
-                  maxVal = plant['maxP'];
-                  break;
-                case 'K':
-                  minVal = plant['minK'];
-                  maxVal = plant['maxK'];
-                  break;
-                case 'Ca':
-                  minVal = plant['minCa'];
-                  maxVal = plant['maxCa'];
-                  break;
-                case 'Mg':
-                  minVal = plant['minMg'];
-                  maxVal = plant['maxMg'];
-                  break;
-                case 'S':
-                  minVal = plant['minS'];
-                  maxVal = plant['maxS'];
-                  break;
-                case 'pH':
-                  minVal = plant['minPH'];
-                  maxVal = plant['maxPH'];
-                  break;
-                case 'ความเค็ม':
-                  minVal = plant['minsalty'];
-                  maxVal = plant['maxsalty'];
-                  break;
-              }
-
-              if (_isInBounds(val, minVal, maxVal)) {
+              if (_isInBounds(val, bounds['min'], bounds['max'])) {
                 hasMatchingPlantForThisKey = true;
                 break;
               }
@@ -203,11 +119,87 @@ class PlantRecommendationHelper {
     }
   }
 
-  /// 🟩 เช็คว่าค่าอยู่ในช่วง min-max หรือไม่
+  /// 🟢 ดึงค่า Min/Max แบบยืดหยุ่น รองรับรูปแบบ Key ใน DB ที่หลากหลาย
+  static Map<String, dynamic> _getBoundsForFactor(
+    Map<String, dynamic> plant,
+    String factorKey,
+  ) {
+    List<String> minKeys = [];
+    List<String> maxKeys = [];
+
+    switch (factorKey) {
+      case 'ความชื้น':
+        minKeys = ['minhumid', 'min_humid'];
+        maxKeys = ['maxhumid', 'max_humid'];
+        break;
+      case 'อุณหภูมิ':
+        minKeys = ['mintemperature', 'min_temp', 'mintemp'];
+        maxKeys = ['maxtemperature', 'max_temp', 'maxtemp'];
+        break;
+      case 'N':
+        minKeys = ['minN', 'minn', 'min_n'];
+        maxKeys = ['maxN', 'maxn', 'max_n'];
+        break;
+      case 'P':
+        minKeys = ['minP', 'minp', 'min_p'];
+        maxKeys = ['maxP', 'maxp', 'max_p'];
+        break;
+      case 'K':
+        minKeys = ['minK', 'mink', 'min_k'];
+        maxKeys = ['maxK', 'maxk', 'max_k'];
+        break;
+      case 'Ca':
+        minKeys = ['minCa', 'minca', 'min_ca'];
+        maxKeys = ['maxCa', 'maxca', 'max_ca'];
+        break;
+      case 'Mg':
+        minKeys = ['minMg', 'minmg', 'min_mg'];
+        maxKeys = ['maxMg', 'maxmg', 'max_mg'];
+        break;
+      case 'S':
+        minKeys = ['minS', 'mins', 'min_s'];
+        maxKeys = ['maxS', 'maxs', 'max_s'];
+        break;
+      case 'pH':
+        minKeys = ['minPH', 'minph', 'minPh', 'min_ph'];
+        maxKeys = ['maxPH', 'maxph', 'maxPh', 'max_ph'];
+        break;
+      case 'ความเค็ม':
+        minKeys = ['minsalty', 'min_salty'];
+        maxKeys = ['maxsalty', 'max_salty'];
+        break;
+    }
+
+    dynamic minVal;
+    dynamic maxVal;
+
+    for (var k in minKeys) {
+      if (plant.containsKey(k) && plant[k] != null) {
+        minVal = plant[k];
+        break;
+      }
+    }
+
+    for (var k in maxKeys) {
+      if (plant.containsKey(k) && plant[k] != null) {
+        maxVal = plant[k];
+        break;
+      }
+    }
+
+    return {'min': minVal, 'max': maxVal};
+  }
+
+  /// 🟩 เช็คว่าค่าอยู่ในช่วง min-max หรือไม่ (ปรับแก้ให้รองรับค่า null อย่างถูกต้อง)
   static bool _isInBounds(double input, dynamic minVal, dynamic maxVal) {
-    if (minVal == null || maxVal == null) return false;
-    double min = double.tryParse(minVal.toString()) ?? 0.0;
-    double max = double.tryParse(maxVal.toString()) ?? double.infinity;
+    double min = minVal != null
+        ? (double.tryParse(minVal.toString()) ?? -double.infinity)
+        : -double.infinity;
+
+    double max = maxVal != null
+        ? (double.tryParse(maxVal.toString()) ?? double.infinity)
+        : double.infinity;
+
     return input >= min && input <= max;
   }
 
@@ -221,7 +213,7 @@ class PlantRecommendationHelper {
       context: context,
       builder: (BuildContext dialogContext) {
         return Dialog(
-          backgroundColor: const Color(0xFFE8EFE6), // 👈 สีธีมพาสเทล
+          backgroundColor: const Color(0xFFE8EFE6),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
             side: const BorderSide(color: Colors.black38, width: 1),
@@ -268,7 +260,7 @@ class PlantRecommendationHelper {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD6E3D4), // 👈 สีกล่องรายการอ่อนละมุน
+                    color: const Color(0xFFD6E3D4),
                     borderRadius: BorderRadius.circular(15),
                     border: Border.all(color: Colors.black12),
                   ),
@@ -307,7 +299,7 @@ class PlantRecommendationHelper {
                     height: 40,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2E6F40), // 👈 ปุ่มเขียวธีมหลัก
+                      color: const Color(0xFF2E6F40),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
@@ -342,8 +334,8 @@ class PlantRecommendationHelper {
     Map<String, double> activeCriteria,
     String title,
   ) {
-    int currentPage = 1; // เริ่มต้นที่หน้า 1
-    const int itemsPerPage = 4; // แสดงหน้าละ 4 รายการ
+    int currentPage = 1;
+    const int itemsPerPage = 4;
 
     showModalBottomSheet(
       context: context,
@@ -364,7 +356,7 @@ class PlantRecommendationHelper {
             return Container(
               height: MediaQuery.of(context).size.height * 0.88,
               decoration: const BoxDecoration(
-                color: Color(0xFFE8EFE6), // 👈 สีธีมพาสเทล
+                color: Color(0xFFE8EFE6),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(28),
                   topRight: Radius.circular(28),
@@ -372,12 +364,11 @@ class PlantRecommendationHelper {
               ),
               child: Column(
                 children: [
-                  // Header
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 15),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF2E6F40), // 👈 สีเขียวธีมหลัก
+                      color: Color(0xFF2E6F40),
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(28),
                         topRight: Radius.circular(28),
@@ -403,8 +394,6 @@ class PlantRecommendationHelper {
                       ],
                     ),
                   ),
-
-                  // List รายการพืช
                   Expanded(
                     child: ListView.builder(
                       padding: const EdgeInsets.all(20),
@@ -426,7 +415,7 @@ class PlantRecommendationHelper {
                             margin: const EdgeInsets.only(bottom: 15),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF386641), // 👈 สีการ์ดพืชเขียวเข้ม
+                              color: const Color(0xFF386641),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                   color: const Color(0xFF1E4B2B), width: 1.2),
@@ -441,7 +430,6 @@ class PlantRecommendationHelper {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // 🖼️ รูปภาพอยู่ฝั่งซ้าย
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(15),
                                   child: formattedImgUrl.isNotEmpty
@@ -469,8 +457,6 @@ class PlantRecommendationHelper {
                                         ),
                                 ),
                                 const SizedBox(width: 12),
-
-                                // 📝 ข้อความและปุ่มอยู่ฝั่งขวา
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -488,8 +474,6 @@ class PlantRecommendationHelper {
                                         maxLines: 1,
                                       ),
                                       const SizedBox(height: 10),
-
-                                      // 🔘 ปุ่มเช็คค่าธาตุอาหาร
                                       InkWell(
                                         onTap: () {
                                           _showNutrientCheckDialog(
@@ -502,7 +486,7 @@ class PlantRecommendationHelper {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 10, vertical: 6),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFE8EFE6), // 👈 สีปุ่มพาสเทลสบายตา
+                                            color: const Color(0xFFE8EFE6),
                                             borderRadius:
                                                 BorderRadius.circular(12),
                                             border: Border.all(
@@ -539,8 +523,6 @@ class PlantRecommendationHelper {
                       },
                     ),
                   ),
-
-                  // 📄 dynamic Pagination ด้านล่าง
                   _buildDynamicPagination(
                     currentPage: currentPage,
                     lastPage: totalPages,
@@ -570,7 +552,6 @@ class PlantRecommendationHelper {
 
     List<Widget> pageButtons = [];
 
-    // ปุ่มย้อนกลับ <
     pageButtons.add(
       _buildPageBtn(
         "<",
@@ -608,7 +589,6 @@ class PlantRecommendationHelper {
       }
     }
 
-    // ปุ่มถัดไป >
     pageButtons.add(
       _buildPageBtn(
         ">",
@@ -627,7 +607,6 @@ class PlantRecommendationHelper {
     );
   }
 
-  /// 🔘 ฟังก์ชันสร้างปุ่มจุดไข่ปลา (...)
   static Widget _buildDotsBtn() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -646,7 +625,6 @@ class PlantRecommendationHelper {
     );
   }
 
-  /// 🔘 ฟังก์ชันสร้างปุ่มตัวเลขหน้า
   static Widget _buildPageBtn(
     String text, {
     bool isActive = false,
@@ -661,7 +639,7 @@ class PlantRecommendationHelper {
         height: 32,
         decoration: BoxDecoration(
           color: isActive
-              ? const Color(0xFF2E6F40) // 👈 เปลี่ยนสีปุ่มที่เลือกเป็นสีธีมหลัก
+              ? const Color(0xFF2E6F40)
               : (disabled ? Colors.grey.shade300 : Colors.white),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: Colors.grey.shade300, width: 0.5),
@@ -692,24 +670,16 @@ class PlantRecommendationHelper {
     String rawImageUrl = plant['img_cloudinary'] ?? plant['img'] ?? '';
     String formattedImgUrl = PlantDetailDialog.formatImgUrl(rawImageUrl);
 
-    final List<Map<String, String>> factors = [
-      {'label': 'N', 'min': 'minN', 'max': 'maxN'},
-      {'label': 'P', 'min': 'minP', 'max': 'maxP'},
-      {'label': 'K', 'min': 'minK', 'max': 'maxK'},
-      {'label': 'Ca', 'min': 'minCa', 'max': 'maxCa'},
-      {'label': 'Mg', 'min': 'minMg', 'max': 'maxMg'},
-      {'label': 'S', 'min': 'minS', 'max': 'maxS'},
-      {'label': 'ความชื้น', 'min': 'minhumid', 'max': 'maxhumid'},
-      {'label': 'ความเค็ม', 'min': 'minsalty', 'max': 'maxsalty'},
-      {'label': 'อุณหภูมิ', 'min': 'mintemperature', 'max': 'maxtemperature'},
-      {'label': 'pH', 'min': 'minPH', 'max': 'maxPH'},
+    final List<String> factors = [
+      'N', 'P', 'K', 'Ca', 'Mg', 'S',
+      'ความชื้น', 'ความเค็ม', 'อุณหภูมิ', 'pH'
     ];
 
     showDialog(
       context: context,
       builder: (dialogContext) {
         return Dialog(
-          backgroundColor: const Color(0xFFE8EFE6), // 👈 สีธีมพาสเทล
+          backgroundColor: const Color(0xFFE8EFE6),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
             side: const BorderSide(color: Colors.black38, width: 1),
@@ -720,7 +690,6 @@ class PlantRecommendationHelper {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Title & Close Button
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -741,8 +710,6 @@ class PlantRecommendationHelper {
                     ],
                   ),
                   const SizedBox(height: 12),
-
-                  // รูปภาพและชื่อพืช
                   Row(
                     children: [
                       ClipRRect(
@@ -785,13 +752,11 @@ class PlantRecommendationHelper {
                   const SizedBox(height: 12),
                   const Divider(color: Colors.black12),
                   const SizedBox(height: 8),
-
-                  // แสดงรายการ Min - Max และ ค่าของผู้ใช้
                   Column(
-                    children: factors.map((factor) {
-                      String label = factor['label']!;
-                      dynamic minVal = plant[factor['min']!];
-                      dynamic maxVal = plant[factor['max']!];
+                    children: factors.map((label) {
+                      final bounds = _getBoundsForFactor(plant, label);
+                      dynamic minVal = bounds['min'];
+                      dynamic maxVal = bounds['max'];
 
                       String minStr = minVal?.toString() ?? '-';
                       String maxStr = maxVal?.toString() ?? '-';
@@ -805,7 +770,7 @@ class PlantRecommendationHelper {
                             horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: hasUserInput
-                              ? const Color(0xFFCBE3C8) // 👈 สีไฮไลต์เมื่อมีข้อมูล
+                              ? const Color(0xFFCBE3C8)
                               : const Color(0xFFDDE7DA),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
@@ -853,8 +818,6 @@ class PlantRecommendationHelper {
                     }).toList(),
                   ),
                   const SizedBox(height: 20),
-
-                  // ปุ่มปิด
                   InkWell(
                     onTap: () => Navigator.pop(dialogContext),
                     child: Container(
@@ -862,7 +825,7 @@ class PlantRecommendationHelper {
                       height: 38,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2E6F40), // 👈 ปุ่มเขียวธีมหลัก
+                        color: const Color(0xFF2E6F40),
                         borderRadius: BorderRadius.circular(15),
                         boxShadow: [
                           BoxShadow(

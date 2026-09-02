@@ -46,6 +46,7 @@ class _ToolPageState extends State<ToolPage> {
   String _currentDateTimeString = "";
   List<dynamic> _thailandData = [];
 
+  // 🟢 ปรับปรุงตรรกะเช็คสถานะออฟไลน์ให้ครอบคลุมและแม่นยำขึ้น
   bool get _isOffline {
     if (_toolData == null) return true;
 
@@ -53,22 +54,28 @@ class _ToolPageState extends State<ToolPage> {
         _toolData!['created_at']?.toString() ??
         _toolData!['createdAt']?.toString();
 
-    if (createdAtStr == null || createdAtStr.isEmpty) return true;
+    if (createdAtStr == null || createdAtStr.trim().isEmpty) return true;
 
     try {
-      String formattedStr = createdAtStr.trim().replaceAll(' ', 'T');
+      DateTime? createdAt = DateTime.tryParse(createdAtStr);
 
-      if (!formattedStr.contains('Z') && !formattedStr.contains('+')) {
-        formattedStr += 'Z';
+      if (createdAt == null) {
+        String formattedStr = createdAtStr.trim().replaceAll(' ', 'T');
+        if (!formattedStr.contains('Z') &&
+            !RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(formattedStr)) {
+          formattedStr += 'Z';
+        }
+        createdAt = DateTime.tryParse(formattedStr);
       }
 
-      final createdAt = DateTime.parse(formattedStr).toUtc();
-      final nowUtc = DateTime.now().toUtc();
+      if (createdAt == null) return true;
 
-      final diffInSeconds = nowUtc.difference(createdAt).inSeconds.abs();
+      final nowUtc = DateTime.now().toUtc();
+      final diffInSeconds =
+          nowUtc.difference(createdAt.toUtc()).inSeconds.abs();
 
       debugPrint(
-        "🕒 เวลา DB (UTC): $createdAt | เวลาเครื่อง (UTC): $nowUtc | ต่างกัน: $diffInSeconds วินาที",
+        "🕒 เวลา DB (UTC): ${createdAt.toUtc()} | เวลาเครื่อง (UTC): $nowUtc | ต่างกัน: $diffInSeconds วินาที",
       );
 
       return diffInSeconds >= 60;
@@ -114,7 +121,6 @@ class _ToolPageState extends State<ToolPage> {
     });
   }
 
-  // 🟢 ปรับปรุงฟังก์ชันเช็ค Token และ UserId
   Future<void> _loadToken() async {
     String? token = await _secureStorage.read(key: "auth_token");
     String? userId = await _secureStorage.read(key: "Userid");
@@ -136,10 +142,9 @@ class _ToolPageState extends State<ToolPage> {
     });
 
     _fetchToolData();
-    _fetchUnreadFeedbackCount(); // 🟢 ดึงจำนวน unread count
+    _fetchUnreadFeedbackCount();
   }
 
-  // 🟢 ฟังก์ชันสำหรับดึงจำนวน unread feedback count
   Future<void> _fetchUnreadFeedbackCount() async {
     try {
       final count = await ReportsService.getUnreadFeedbackCount();
@@ -327,7 +332,6 @@ class _ToolPageState extends State<ToolPage> {
                               endIndent: 14,
                               color: Colors.black12,
                             ),
-                            // 🟢 ส่งค่า badgeCount เพื่อนำไปแสดงเป็นวงกลมสีแดงทางขวาสุด
                             _buildMenuItem(
                               dialogContext,
                               'follow_report',
@@ -361,19 +365,18 @@ class _ToolPageState extends State<ToolPage> {
       },
     );
 
-    if (value != null) {
+    if (value != null && mounted) {
       _handleMenuSelection(value);
     }
   }
 
-  // 🟢 ปรับปรุง _buildMenuItem ให้รองรับพารามิเตอร์ badgeCount
   Widget _buildMenuItem(
     BuildContext dialogContext,
     String value,
     String text,
     IconData icon, {
     bool isDestructive = false,
-    int badgeCount = 0, // 🟢 รองรับการรับจำนวน Badge
+    int badgeCount = 0,
   }) {
     final color = isDestructive ? Colors.red.shade700 : const Color(0xFF212522);
     return InkWell(
@@ -395,7 +398,6 @@ class _ToolPageState extends State<ToolPage> {
                 ),
               ),
             ),
-            // 🔴 แสดง Badge วงกลมสีแดงเมื่อมีจำนวน unread count มากกว่า 0
             if (badgeCount > 0)
               Container(
                 padding: const EdgeInsets.all(4),
@@ -433,12 +435,11 @@ class _ToolPageState extends State<ToolPage> {
     } else if (value == 'report') {
       _showReportDialog(context);
     } else if (value == 'follow_report') {
-      // 🟢 เมื่อกลับมาจากหน้า FollowReportPage ให้รีเฟรชค่า unread count ใหม่
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const FollowReportPage()),
       );
-      _fetchUnreadFeedbackCount();
+      if (mounted) _fetchUnreadFeedbackCount();
     } else if (value == 'history') {
       Navigator.push(
         context,
@@ -521,14 +522,13 @@ class _ToolPageState extends State<ToolPage> {
                                     padding: EdgeInsets.zero,
                                     onPressed: () {
                                       _fetchToolData();
-                                      _fetchUnreadFeedbackCount(); // 🟢 รีเฟรช count เพิ่มเติม
+                                      _fetchUnreadFeedbackCount();
                                       _initThaiDateTime();
                                     },
                                   ),
                           ],
                         ),
                       ),
-
                       Builder(
                         builder: (menuContext) {
                           return IconButton(
@@ -730,22 +730,6 @@ class _ToolPageState extends State<ToolPage> {
         ),
       ),
       bottomNavigationBar: const AuthNavBar(currentIndex: 4),
-    );
-  }
-
-  PopupMenuItem<String> _buildPopupMenuItem(String value, String text) {
-    return PopupMenuItem<String>(
-      value: value,
-      child: Center(
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-      ),
     );
   }
 }
