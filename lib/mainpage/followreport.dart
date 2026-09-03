@@ -168,7 +168,7 @@ class _FollowReportPageState extends State<FollowReportPage> {
       case 1:
         return 'ยังไม่ได้อ่าน';
       case 2:
-        return 'รอดำเนินการ';
+        return 'อยู่ระหว่างดำเนินการ';
       case 3:
         return 'ดำเนินการเสร็จสิ้น';
       default:
